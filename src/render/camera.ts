@@ -25,6 +25,16 @@ export interface CameraOptions {
   duration: number;
   easing: ZoomEvent['easing'];
   followCursor: boolean;
+  /**
+   * Size of the region a fit zoom fills, relative to the rest frame, at an output time:
+   * larger than 1 in camera mode, where the page may use the whole output.
+   */
+  fit?: (t: number) => FitRegion;
+}
+
+export interface FitRegion {
+  x: number;
+  y: number;
 }
 
 /**
@@ -34,7 +44,7 @@ export const DEFAULT_FOCUS_PADDING = 40;
 /**
  * Follow keeps the cursor this fraction of the visible size away from the edges.
  */
-export const FOLLOW_MARGIN = 0.13;
+export const FOLLOW_MARGIN = 0.06;
 /**
  * Angular frequency of the follow spring, in 1/s (settles in about 0.7 s).
  */
@@ -54,12 +64,15 @@ export function clampCamera(state: CameraState, viewport: Size): CameraState {
 }
 
 /**
- * The camera state that a zoom event asks for.
+ * The camera state that a zoom event asks for. `scale` is the magnification relative to
+ * the rest view. Without it, the focus plus `padding` fits the region the camera can
+ * use, which is `fit` times the rest frame.
  */
 export function zoomTarget(
   event: Pick<ZoomEvent, 'focus' | 'scale' | 'padding'>,
   viewport: Size,
   maxScale: number,
+  fit: FitRegion = { x: 1, y: 1 },
 ): CameraState {
   const focus = event.focus;
   if (!focus) return { scale: 1, cx: viewport.width / 2, cy: viewport.height / 2 };
@@ -67,8 +80,8 @@ export function zoomTarget(
   if (scale === undefined) {
     const pad = event.padding ?? DEFAULT_FOCUS_PADDING;
     scale = Math.min(
-      viewport.width / Math.max(1, focus.width + 2 * pad),
-      viewport.height / Math.max(1, focus.height + 2 * pad),
+      (viewport.width * fit.x) / Math.max(1, focus.width + 2 * pad),
+      (viewport.height * fit.y) / Math.max(1, focus.height + 2 * pad),
     );
   }
   scale = clamp(scale, 1, maxScale);
@@ -126,10 +139,6 @@ export interface CursorInput {
   x: ArrayLike<number>;
   y: ArrayLike<number>;
   /**
-   * 1 where the recorded cursor moved since the previous frame.
-   */
-  moving: ArrayLike<number>;
-  /**
    * Size of the drawn cursor in CSS pixels, kept in view below and right of the hotspot.
    */
   extent: number;
@@ -143,9 +152,13 @@ interface Transition {
 }
 
 /**
- * Deadzone follow targets: the camera center moves only as far as needed to keep the
- * moving cursor `FOLLOW_MARGIN` inside the visible rectangle (plus room for the cursor
- * body below and right of the hotspot). NaN outside follow segments.
+ * Follow targets. The zoom directive is the home view; the target is that view moved by
+ * the smallest offset that keeps the cursor `FOLLOW_MARGIN` inside it (plus room for the
+ * cursor body below and right of the hotspot), so the offset is 0 whenever the cursor is
+ * well inside. After each directive the follow waits until the cursor has been inside the
+ * home view: a cursor left outside when the zoom started does not pull the camera.
+ * A directive's `follow` overrides `enabled` until the next directive. NaN during
+ * transitions.
  */
 function followTargets(
   times: ArrayLike<number>,
@@ -158,36 +171,40 @@ function followTargets(
   const n = times.length;
   const fx = new Float64Array(n).fill(NaN);
   const fy = new Float64Array(n).fill(NaN);
-  let x0 = viewport.width / 2;
-  let y0 = viewport.height / 2;
+  const rest: CameraState = { scale: 1, cx: viewport.width / 2, cy: viewport.height / 2 };
   let segment = -2;
+  let engaged = false;
   for (let i = 0; i < n; i++) {
-    if (active[i] >= 0 && times[i] < transitions[active[i]].end) continue;
-    const base = active[i] >= 0 ? transitions[active[i]].to : null;
+    const tr = active[i] >= 0 ? transitions[active[i]] : null;
     if (active[i] !== segment) {
       segment = active[i];
-      x0 = base ? base.cx : viewport.width / 2;
-      y0 = base ? base.cy : viewport.height / 2;
+      engaged = false;
     }
-    const s = base ? base.scale : 1;
-    if (enabled && cursor && s > 1.001 && cursor.moving[i]) {
-      const x = cursor.x[i];
-      const y = cursor.y[i];
-      const hw = viewport.width / (2 * s);
-      const hh = viewport.height / (2 * s);
+    const home = tr ? tr.to : rest;
+    const follow = tr?.event.follow ?? enabled;
+    const s = home.scale;
+    const hw = viewport.width / (2 * s);
+    const hh = viewport.height / (2 * s);
+    const x = cursor ? cursor.x[i] : home.cx;
+    const y = cursor ? cursor.y[i] : home.cy;
+    if (Math.abs(x - home.cx) <= hw && Math.abs(y - home.cy) <= hh) engaged = true;
+    if (tr && times[i] < tr.end) continue;
+    let cx = home.cx;
+    let cy = home.cy;
+    if (follow && cursor && engaged && s > 1.001) {
       const mx = (FOLLOW_MARGIN * viewport.width) / s;
       const my = (FOLLOW_MARGIN * viewport.height) / s;
       const ext = Math.min(cursor.extent, hw - mx);
-      if (x < x0 - hw + mx) x0 = x + hw - mx;
-      else if (x > x0 + hw - mx - ext) x0 = x - hw + mx + ext;
-      if (y < y0 - hh + my) y0 = y + hh - my;
-      else if (y > y0 + hh - my - ext) y0 = y - hh + my + ext;
-      const c = clampCamera({ scale: s, cx: x0, cy: y0 }, viewport);
-      x0 = c.cx;
-      y0 = c.cy;
+      if (x < home.cx - hw + mx) cx = x + hw - mx;
+      else if (x > home.cx + hw - mx - ext) cx = x - hw + mx + ext;
+      if (y < home.cy - hh + my) cy = y + hh - my;
+      else if (y > home.cy + hh - my - ext) cy = y - hh + my + ext;
+      const c = clampCamera({ scale: s, cx, cy }, viewport);
+      cx = c.cx;
+      cy = c.cy;
     }
-    fx[i] = x0;
-    fy[i] = y0;
+    fx[i] = cx;
+    fy[i] = cy;
   }
   return [fx, fy];
 }
@@ -220,7 +237,7 @@ export function computeCamera(
         t0: event.out,
         end: event.out + duration,
         event,
-        to: zoomTarget(event, viewport, options.maxScale),
+        to: zoomTarget(event, viewport, options.maxScale, options.fit?.(event.out)),
       };
     });
   const active = new Int32Array(n).fill(-1);

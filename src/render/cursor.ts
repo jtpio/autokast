@@ -22,7 +22,7 @@ const STYLES: ReadonlySet<string> = new Set<CursorStyle>([
 /**
  * Durations of the cursor animations, in output milliseconds.
  */
-const STYLE_FADE = 110;
+const STYLE_FADE = 140;
 const PRESS_IN = 90;
 const PRESS_OUT = 160;
 const PIN_RAMP = 160;
@@ -43,7 +43,7 @@ export interface CursorTrack {
   style: CursorStyle[];
   previousStyle: CursorStyle[];
   /**
-   * Crossfade from `previousStyle` (0) to `style` (1).
+   * Progress of the change from `previousStyle` (0) to `style` (1).
    */
   styleMix: Float64Array;
   /**
@@ -142,7 +142,7 @@ export interface CursorTrackOptions {
 /**
  * Computes the drawn cursor for every output frame: interpolated position, zero-lag
  * spring smoothing (pinned to the recorded position while a button is down), style
- * crossfades, press amount and idle fade.
+ * changes, press amount and idle fade.
  */
 export function computeCursor(
   times: ArrayLike<number>,

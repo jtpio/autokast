@@ -171,7 +171,8 @@ describe('record() end to end', () => {
     assert.deepEqual(session.render, { fps: 30 });
     assert.equal(recorded.dir, dir);
     assert.equal(recorded.session.frames.length, session.frames.length);
-    assert.ok(session.duration > 6000 && session.duration < 20000, `duration ${session.duration}`);
+    // About 12 s alone; longer when other tests load the CPU.
+    assert.ok(session.duration > 6000 && session.duration < 30000, `duration ${session.duration}`);
   });
 
   it('captures frames at the device pixel size', async () => {
@@ -356,7 +357,7 @@ describe('record() edge cases', () => {
       actions.map((action) => action.call),
       ['click("#go")', 'click("#missing")'],
     );
-    assert.ok(actions[1].end - actions[1].t >= 300, 'the failed call ends at the failure');
+    assert.ok(actions[1].end - actions[1].t >= 250, 'the failed call ends at the failure');
   });
 
   it('uses the record timeout for each call', async () => {

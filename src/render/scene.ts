@@ -7,8 +7,14 @@ import type {
   ZoomEvent,
 } from '../types.ts';
 import { BACKGROUND_PRESETS } from './background.ts';
-import { autoZoomEvents, computeCamera, type CameraState, type CameraTrack } from './camera.ts';
-import { bandTrack, planCaptions, type CaptionCue } from './captions.ts';
+import {
+  autoZoomEvents,
+  computeCamera,
+  type CameraState,
+  type CameraTrack,
+  type FitRegion,
+} from './camera.ts';
+import { bandAt, bandTrack, planCaptions, type CaptionCue } from './captions.ts';
 import { computeLayout, type CursorFrame, type FrameInput, type Layout } from './compositor.ts';
 import { clickMarks, computeCursor, type ClickMark, type CursorTrack } from './cursor.ts';
 import { resolveOptions, type ResolvedOptions } from './defaults.ts';
@@ -87,21 +93,22 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
       resolved.zoom.duration,
     );
   }
+  const layout = computeLayout(resolved, session.viewport);
+  const { cues, groups } = planCaptions(
+    events.filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption'),
+  );
+  const band = cues.length ? bandLayout(layout, resolved.captions.position) : null;
   const camera = computeCamera(
     times,
     zooms,
     { ...cursor, extent: CURSOR_EXTENT * resolved.cursor.size },
     session.viewport,
-    resolved.zoom,
+    { ...resolved.zoom, fit: (t) => fitRegion(resolved, layout, band, bandAt(groups, t)) },
   );
   const frameIndex = new Int32Array(times.length);
   for (let i = 0; i < times.length; i++) {
     frameIndex[i] = frameIndexAt(session.frames, map.toRecord(times[i]));
   }
-  const layout = computeLayout(resolved, session.viewport);
-  const { cues, groups } = planCaptions(
-    events.filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption'),
-  );
   const keys =
     resolved.keystrokes.show === 'none'
       ? []
@@ -118,9 +125,33 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     spotlights: events.filter((e): e is TimedEvent<SpotlightEvent> => e.type === 'spotlight'),
     captions: cues,
     keys,
-    band: cues.length ? bandLayout(layout, resolved.captions.position) : null,
+    band,
     bandOpen: bandTrack(times, groups),
     frameIndex,
+  };
+}
+
+/**
+ * Region a fit zoom fills, relative to the rest frame: the frame box in crop mode; the
+ * whole output minus the open part of the caption band in camera mode.
+ */
+function fitRegion(
+  options: ResolvedOptions,
+  layout: Layout,
+  band: BandLayout | null,
+  open: number,
+): FitRegion {
+  if (options.zoom.mode === 'crop') return { x: 1, y: 1 };
+  const { width: W, height: H } = options.size;
+  const scale = stageAt(band, open).scale;
+  let height = H;
+  if (band && open > 0) {
+    const edge = band.side === 'bottom' ? H - (band.window.y + band.window.height) : band.window.y;
+    height -= edge * open;
+  }
+  return {
+    x: W / (scale * layout.content.width),
+    y: height / (scale * layout.content.height),
   };
 }
 

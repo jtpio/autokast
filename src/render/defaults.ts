@@ -54,6 +54,7 @@ export interface ResolvedOptions {
   zoom: {
     auto: ResolvedAutoZoom | false;
     mode: 'camera' | 'crop';
+    edges: 'fill' | 'keep';
     maxScale: number;
     duration: number;
     easing: EasingName;
@@ -96,11 +97,12 @@ const DEFAULTS = {
     pressScale: 0.82,
     hideAfter: 0,
     motionBlur: 0,
-    click: { type: 'ripple', color: 'auto', size: 30, duration: 560 },
+    click: { type: 'ripple', color: 'auto', size: 26, duration: 520 },
   },
   zoom: {
     auto: false as boolean | ResolvedAutoZoom,
     mode: 'camera',
+    edges: 'fill',
     maxScale: 3,
     duration: 900,
     easing: 'smooth',

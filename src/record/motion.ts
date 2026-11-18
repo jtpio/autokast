@@ -40,6 +40,15 @@ export function moveEase(progress: number): number {
 }
 
 /**
+ * Position profile of a drag: minimum jerk, time-warped so the start is gentle (peak speed
+ * at about 56% of the move). A dragged element can then follow the cursor.
+ */
+export function dragEase(progress: number): number {
+  const w = clamp(progress, 0, 1) ** 1.2;
+  return w * w * w * (10 - 15 * w + 6 * w * w);
+}
+
+/**
  * Smooth acceleration and deceleration, for scrolling.
  */
 export function easeInOutCubic(progress: number): number {

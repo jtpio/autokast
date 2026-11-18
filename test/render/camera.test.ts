@@ -4,6 +4,7 @@ import {
   autoZoomEvents,
   clampCamera,
   computeCamera,
+  FOLLOW_MARGIN,
   interpolateCamera,
   zoomTarget,
   type CameraTrack,
@@ -105,30 +106,136 @@ test('an interrupted transition keeps position and velocity continuous', () => {
   visibleInside(track);
 });
 
-test('follow pans to keep a moving cursor inside the visible rect', () => {
-  const times = frameTimes(4000, 60);
+/**
+ * Cursor track from keyframes [time, x, y], eased between them.
+ */
+function cursorPathOf(times: Float64Array, keys: [number, number, number][]) {
   const n = times.length;
   const x = new Float64Array(n);
-  const y = new Float64Array(n).fill(360);
-  const moving = new Uint8Array(n);
+  const y = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    const u = Math.min(1, Math.max(0, (times[i] - 1500) / 1200));
-    x[i] = 500 + 600 * u * u * (3 - 2 * u);
-    moving[i] = i > 0 && x[i] !== x[i - 1] ? 1 : 0;
+    const t = times[i];
+    let k = 0;
+    while (k < keys.length - 1 && keys[k + 1][0] <= t) k++;
+    const [t0, x0, y0] = keys[k];
+    const [t1, x1, y1] = keys[Math.min(k + 1, keys.length - 1)];
+    const u = t1 > t0 ? Math.min(1, Math.max(0, (t - t0) / (t1 - t0))) : 1;
+    const e = u * u * (3 - 2 * u);
+    x[i] = x0 + (x1 - x0) * e;
+    y[i] = y0 + (y1 - y0) * e;
   }
+  return { x, y, extent: 30 };
+}
+
+const DIALOG = { x: 360, y: 102, width: 560, height: 515 };
+const at = (times: Float64Array, ms: number) => times.findIndex((t) => t >= ms);
+
+test('a cursor outside the view when the zoom starts does not pull the camera', () => {
+  const times = frameTimes(5000, 60);
+  const cursor = cursorPathOf(times, [
+    [0, 1100, 28],
+    [2500, 1100, 28],
+    [3000, 1180, 60],
+  ]);
+  const track = computeCamera(
+    times,
+    [zoom(500, { focus: DIALOG, scale: 1.3 })],
+    cursor,
+    VP,
+    OPTIONS,
+  );
+  const home = zoomTarget({ focus: DIALOG, scale: 1.3 }, VP, 3);
+  for (let i = at(times, 1500); i < times.length; i++) {
+    assert.equal(track.scale[i], home.scale);
+    assert.ok(Math.abs(track.cx[i] - home.cx) < 1e-9 && Math.abs(track.cy[i] - home.cy) < 1e-9);
+  }
+});
+
+test('follow offsets the camera a little near an edge and returns home in the middle', () => {
+  const times = frameTimes(8000, 60);
+  const home = zoomTarget({ focus: DIALOG, scale: 1.3 }, VP, 3);
+  const hw = VP.width / (2 * home.scale);
+  const cursor = cursorPathOf(times, [
+    [0, 1100, 28],
+    [2000, 1100, 28],
+    [2600, 640, 360],
+    [3000, 640, 360],
+    [3500, home.cx + hw - 20, 360],
+    [5000, home.cx + hw - 20, 360],
+    [5500, 640, 360],
+  ]);
+  const track = computeCamera(
+    times,
+    [zoom(500, { focus: DIALOG, scale: 1.3 })],
+    cursor,
+    VP,
+    OPTIONS,
+  );
+  const near = at(times, 4600);
+  const offset = track.cx[near] - home.cx;
+  const smallest = cursor.x[near] - (home.cx + hw - (FOLLOW_MARGIN * VP.width) / home.scale - 30);
+  assert.ok(smallest > 0 && Math.abs(offset - smallest) < 1, `offset ${offset} vs ${smallest}`);
+  assert.ok(Math.abs(track.cy[near] - home.cy) < 0.01);
+  assert.ok(cursor.x[near] < track.cx[near] + hw, 'cursor stays in view');
+  const back = at(times, 7500);
+  assert.ok(Math.abs(track.cx[back] - home.cx) < 0.5, `left offset ${track.cx[back] - home.cx}`);
+  assert.ok(Math.abs(track.cy[back] - home.cy) < 0.5);
+});
+
+test('follow keeps a cursor that leaves far in view', () => {
+  const times = frameTimes(4000, 60);
+  const n = times.length;
+  const cursor = cursorPathOf(times, [
+    [0, 500, 360],
+    [1500, 500, 360],
+    [2700, 1100, 360],
+  ]);
   const track = computeCamera(
     times,
     [zoom(200, { focus: { x: 480, y: 340, width: 40, height: 40 }, scale: 2.5 })],
-    { x, y, moving, extent: 30 },
+    cursor,
     VP,
     OPTIONS,
   );
   for (let i = 0; i < n; i++) {
     const hw = VP.width / (2 * track.scale[i]);
-    assert.ok(x[i] >= track.cx[i] - hw && x[i] <= track.cx[i] + hw, `cursor out at ${times[i]}`);
+    const x = cursor.x[i];
+    assert.ok(x >= track.cx[i] - hw && x <= track.cx[i] + hw, `cursor out at ${times[i]}`);
   }
   assert.ok(track.cx[n - 1] > 800);
   visibleInside(track);
+});
+
+test('a directive with follow overrides followCursor until the next directive', () => {
+  const times = frameTimes(9000, 60);
+  const cursor = cursorPathOf(times, [
+    [0, 640, 360],
+    [1500, 640, 360],
+    [2500, 1150, 360],
+    [3500, 640, 360],
+    [5500, 640, 360],
+    [6500, 1150, 360],
+  ]);
+  const focus = { x: 600, y: 340, width: 80, height: 40 };
+  const home = zoomTarget({ focus, scale: 2 }, VP, 3);
+  const off = computeCamera(
+    times,
+    [zoom(200, { focus, scale: 2, follow: false }), zoom(4000, { focus, scale: 2 })],
+    cursor,
+    VP,
+    OPTIONS,
+  );
+  assert.equal(off.cx[at(times, 2600)], home.cx);
+  assert.ok(off.cx[at(times, 6800)] > home.cx + 100, 'the next directive follows again');
+  const on = computeCamera(
+    times,
+    [zoom(200, { focus, scale: 2, follow: true }), zoom(4000, { focus, scale: 2 })],
+    cursor,
+    VP,
+    { ...OPTIONS, followCursor: false },
+  );
+  assert.ok(on.cx[at(times, 2600)] > home.cx + 100);
+  assert.equal(on.cx[at(times, 6800)], home.cx);
 });
 
 test('auto zoom zooms in before the first click, pans to far clicks, and zooms out after', () => {

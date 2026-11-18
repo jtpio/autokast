@@ -30,14 +30,21 @@ export class Clock {
 }
 
 /**
+ * A source of record time in milliseconds.
+ */
+export interface RecordClock {
+  now(): number;
+}
+
+/**
  * The cursor samples and timeline events of a recording.
  */
 export class Timeline {
-  readonly clock: Clock;
+  readonly clock: RecordClock;
   readonly cursor: CursorSample[] = [];
   readonly events: TimelineEvent[] = [];
 
-  constructor(clock: Clock) {
+  constructor(clock: RecordClock) {
     this.clock = clock;
   }
 

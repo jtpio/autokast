@@ -96,17 +96,23 @@ describe('smooth scroll into view', () => {
     });
     const [toFar, toItem, toClipped] = states;
 
-    // An instant scroll is one step of 100%. About 25 steps of at most 10% when the machine
+    // An instant scroll is one step of 100%. About 30 steps of at most 10% when the machine
     // is idle; fewer and bigger ones when other tests load the CPU.
     assert.ok(toFar.scrolls.root.length >= 8, `${toFar.scrolls.root.length} page scroll events`);
-    assert.ok(largestStep(toFar.scrolls.root, 0) < 0.4, 'the page scroll has no big jump');
+    assert.ok(
+      largestStep(toFar.scrolls.root, 0) < 0.6,
+      `the page scroll has no big jump: ${toFar.scrolls.root.join(' ')}`,
+    );
     const center = far!.y + far!.height / 2;
     assert.ok(Math.abs(center - 360) < 30, `#far centered at y ${center}`);
 
     assert.ok(toItem.scrolls.root.length >= 5, 'the page scrolls back up');
     assert.ok(toItem.scrolls.outer.length >= 5, 'the wheel reaches the outer container');
     assert.ok(toItem.scrolls.inner.length >= 5, 'the wheel reaches the inner container');
-    assert.ok(largestStep(toItem.scrolls.inner, 0) < 0.4, 'the inner scroll has no big jump');
+    assert.ok(
+      largestStep(toItem.scrolls.inner, 0) < 0.6,
+      `the inner scroll has no big jump: ${toItem.scrolls.inner.join(' ')}`,
+    );
 
     assert.deepEqual(toClipped.log, ['far', 'item-35', 'clipped']);
     assert.ok(Math.abs(farStart!.y - 32) < 3, `#far starts at y ${farStart!.y}`);

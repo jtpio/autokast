@@ -1,8 +1,10 @@
 import type { Locator, Page } from 'playwright';
 import type {
+  CaptionEvent,
   CaptionOptions,
   Cast,
   ClickOptions,
+  DragOptions,
   MouseButton,
   MoveOptions,
   Point,
@@ -21,15 +23,17 @@ import { CAST_DEFAULTS, type ResolvedOptions } from './defaults.ts';
 import { caretLinePrefix, leadingWhitespace } from './editor.ts';
 import {
   cursorPath,
+  dragEase,
   easeInOutCubic,
   moveDuration,
   moveEase,
   scrollDuration,
   typingDelay,
 } from './motion.ts';
+import type { Pace } from './pace.ts';
 import { createRandom, type Random } from './random.ts';
 import { planScroll, scrollIdle, type Block } from './scroll.ts';
-import { sleep, type Timeline } from './timeline.ts';
+import type { Timeline } from './timeline.ts';
 
 const MOVE_TICK = 8;
 const SCROLL_TICK = 16;
@@ -56,6 +60,7 @@ export interface DirectorContext {
   page: Page;
   options: ResolvedOptions;
   timeline: Timeline;
+  pace: Pace;
   cursorStyle: CursorStyleProbe;
 }
 
@@ -70,6 +75,13 @@ function isPoint(target: Target): target is Point | Rect {
 
 function isRect(target: Point | Rect): target is Rect {
   return typeof (target as Rect).width === 'number' && typeof (target as Rect).height === 'number';
+}
+
+/**
+ * True when a position (fractions of the target size) is outside the target.
+ */
+function isOutside(position?: { x: number; y: number }): boolean {
+  return !!position && (position.x < 0 || position.x > 1 || position.y < 0 || position.y > 1);
 }
 
 function sameBox(a: Rect, b: Rect): boolean {
@@ -91,43 +103,6 @@ function intersect(a: Rect, b: Rect): Rect | undefined {
 
 function withoutUndefined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
-}
-
-/**
- * Sends input to the page one dispatch at a time and skips new ones while one is in flight.
- * Chromium acknowledges mouse input only at its next frame, so waiting for each dispatch
- * would tie the motion to the frame rate of the page.
- */
-class LatestDispatch<T> {
-  /**
-   * The value of the last dispatch that started.
-   */
-  last?: T;
-  private busy = false;
-  private pending: Promise<void> = Promise.resolve();
-
-  offer(value: T, send: () => Promise<void>): void {
-    if (this.busy) {
-      return;
-    }
-    this.busy = true;
-    this.last = value;
-    this.pending = send();
-    // After a failure `busy` stays true: no more dispatches, and settle() throws.
-    this.pending.then(
-      () => {
-        this.busy = false;
-      },
-      () => {},
-    );
-  }
-
-  /**
-   * Waits for the dispatch in flight. Throws its error if it failed.
-   */
-  settle(): Promise<void> {
-    return this.pending;
-  }
 }
 
 function shorten(text: string, max: number): string {
@@ -166,6 +141,11 @@ export class Director implements Cast {
   lastCall?: string;
   private readonly options: ResolvedOptions;
   private readonly timeline: Timeline;
+  private readonly pace: Pace;
+  /**
+   * Default time limit for Playwright waits, which run in real time.
+   */
+  private readonly timeout: number;
   private readonly cursorStyle: CursorStyleProbe;
   private readonly motionRandom: Random;
   private readonly typingRandom: Random;
@@ -177,6 +157,8 @@ export class Director implements Cast {
     this.page = context.page;
     this.options = context.options;
     this.timeline = context.timeline;
+    this.pace = context.pace;
+    this.timeout = context.options.timeout * context.pace.timeoutScale;
     this.cursorStyle = context.cursorStyle;
     this.viewport = { ...context.options.viewport };
     this.position = { ...context.options.cursor.start };
@@ -218,31 +200,36 @@ export class Director implements Cast {
     return this.step(`hover(${describeTarget(target)})`, async () => {
       const { point } = await this.resolve(target, options);
       await this.moveCursor(point, options.duration);
-      await sleep(options.hold ?? CAST_DEFAULTS.hoverHold);
+      await this.pace.sleep(options.hold ?? CAST_DEFAULTS.hoverHold);
     });
   }
 
-  drag(from: Target, to: Target, options: MoveOptions = {}): Promise<void> {
+  drag(from: Target, to: Target, options: DragOptions = {}): Promise<void> {
     return this.step(`drag(${describeTarget(from)}, ${describeTarget(to)})`, async () => {
       const source = await this.resolve(from, options);
-      await this.moveCursor(source.point);
-      await sleep(this.options.pacing.beforeClick);
+      await this.moveCursor(source.point, options.duration);
+      await this.pace.sleep(this.options.pacing.beforeClick);
       await this.mouseDown('left', 1);
       try {
-        await sleep(CAST_DEFAULTS.dragHold);
-        const destination = await this.resolve(to, options);
+        await this.pace.sleep(CAST_DEFAULTS.dragHold);
+        const destination = await this.resolve(to, { ...options, position: options.toPosition });
         const distance = Math.hypot(
           destination.point.x - this.position.x,
           destination.point.y - this.position.y,
         );
         const duration =
-          options.duration ?? Math.max(500, 1.5 * moveDuration(distance, this.options.cursor));
-        await this.moveCursor(destination.point, duration, this.options.cursor.curvature / 2);
-        await sleep(CAST_DEFAULTS.dragHold);
+          options.dragDuration ??
+          Math.max(
+            CAST_DEFAULTS.dragMinDuration,
+            CAST_DEFAULTS.dragSlowdown * moveDuration(distance, this.options.cursor),
+          );
+        const curvature = this.options.cursor.curvature / 2;
+        await this.moveCursor(destination.point, duration, curvature, dragEase);
+        await this.pace.sleep(CAST_DEFAULTS.dragHold);
       } finally {
         await this.mouseUp('left', 1);
       }
-      await sleep(this.options.pacing.afterClick);
+      await this.pace.sleep(this.options.pacing.afterClick);
     });
   }
 
@@ -264,7 +251,7 @@ export class Director implements Cast {
 
   scrollTo(target: Target, options: ScrollToOptions = {}): Promise<void> {
     return this.step(`scrollTo(${describeTarget(target)})`, async () => {
-      const timeout = options.timeout ?? this.options.timeout;
+      const timeout = options.timeout ?? this.timeout;
       const block = options.block ?? 'center';
       if (isPoint(target)) {
         const rect = isRect(target) ? target : { ...target, width: 0, height: 0 };
@@ -296,7 +283,7 @@ export class Director implements Cast {
   type(text: string, options: TypeOptions = {}): Promise<void> {
     return this.step(`type(${describeText(text)})`, async () => {
       if (options.into !== undefined) {
-        await this.clickTarget(options.into, {});
+        await this.clickTarget(options.into, { position: options.position });
       }
       const delay = options.delay ?? this.options.typing.delay;
       const variance = options.variance ?? this.options.typing.variance;
@@ -308,14 +295,12 @@ export class Director implements Cast {
         const char = chars[i];
         if (previous) {
           due += typingDelay(previous, delay, variance, this.typingRandom);
-          await sleep(due - this.timeline.now());
+          await this.pace.sleep(due - this.timeline.now());
         }
-        this.timeline.push({ type: 'key', t: this.timeline.now(), kind: 'text', key: char });
-        if (char === '\n') {
-          await this.page.keyboard.press('Enter');
-        } else {
-          await this.page.keyboard.type(char);
-        }
+        const t = await this.pace.input(() =>
+          char === '\n' ? this.page.keyboard.press('Enter') : this.page.keyboard.type(char),
+        );
+        this.timeline.push({ type: 'key', t, kind: 'text', key: char });
         previous = char;
         if (auto && char === '\n') {
           const next = chars
@@ -329,25 +314,28 @@ export class Director implements Cast {
         // After a slow dispatch, keep the rhythm instead of rushing to catch up.
         due = Math.max(due, this.timeline.now());
       }
-      await sleep(this.options.pacing.afterType);
+      await this.pace.sleep(this.options.pacing.afterType);
     });
   }
 
   press(keys: string, options: { hold?: number } = {}): Promise<void> {
     return this.step(`press(${JSON.stringify(keys)})`, async () => {
-      this.timeline.push({ type: 'key', t: this.timeline.now(), kind: 'shortcut', key: keys });
-      await this.page.keyboard.press(keys, { delay: options.hold });
-      await sleep(this.options.pacing.afterType);
+      const t = await this.pace.input(() =>
+        this.page.keyboard.press(keys, { delay: options.hold }),
+      );
+      this.timeline.push({ type: 'key', t, kind: 'shortcut', key: keys });
+      await this.pace.sleep(this.options.pacing.afterType);
     });
   }
 
   zoomTo(target: Target, options: ZoomToOptions = {}): Promise<void> {
     return this.step(`zoomTo(${describeTarget(target)})`, async () => {
       const focus = await this.resolveRect(target);
-      const { scale, padding, duration, easing } = options;
-      this.push({ type: 'zoom', t: this.timeline.now(), focus, scale, padding, duration, easing });
+      const { scale, padding, duration, easing, follow } = options;
+      const t = this.timeline.now();
+      this.push({ type: 'zoom', t, focus, scale, padding, duration, easing, follow });
       if (options.wait !== false) {
-        await sleep(duration ?? CAST_DEFAULTS.zoomDuration);
+        await this.pace.sleep(duration ?? CAST_DEFAULTS.zoomDuration);
       }
     });
   }
@@ -357,7 +345,7 @@ export class Director implements Cast {
       const { duration, easing } = options;
       this.push({ type: 'zoom', t: this.timeline.now(), focus: null, duration, easing });
       if (options.wait !== false) {
-        await sleep(duration ?? CAST_DEFAULTS.zoomDuration);
+        await this.pace.sleep(duration ?? CAST_DEFAULTS.zoomDuration);
       }
     });
   }
@@ -367,7 +355,7 @@ export class Director implements Cast {
       if (!Number.isFinite(ms) || ms < 0) {
         throw new Error(`cast.wait(ms) needs a number of milliseconds of 0 or more, got ${ms}.`);
       }
-      await sleep(ms);
+      await this.pace.sleep(ms);
     });
   }
 
@@ -392,9 +380,13 @@ export class Director implements Cast {
     return this.step(`caption(${describeText(text)})`, async () => {
       const duration =
         options.duration ?? CAST_DEFAULTS.captionBase + CAST_DEFAULTS.captionPerChar * text.length;
-      this.push({ type: 'caption', t: this.timeline.now(), duration, text });
+      const event: CaptionEvent = { type: 'caption', t: this.timeline.now(), duration, text };
+      if (options.label) {
+        event.label = options.label;
+      }
+      this.push(event);
       if (options.wait) {
-        await sleep(duration);
+        await this.pace.sleep(duration);
       }
     });
   }
@@ -406,7 +398,7 @@ export class Director implements Cast {
       const { padding, radius } = options;
       this.push({ type: 'spotlight', t: this.timeline.now(), duration, rect, padding, radius });
       if (options.wait) {
-        await sleep(duration);
+        await this.pace.sleep(duration);
       }
     });
   }
@@ -453,9 +445,15 @@ export class Director implements Cast {
     }
     this.region = kind;
     const t = this.timeline.now();
+    if (kind === 'cut') {
+      await this.pace.capture(false);
+    }
     try {
       return await fn();
     } finally {
+      if (kind === 'cut') {
+        await this.pace.capture(true);
+      }
       this.region = undefined;
       done(t, this.timeline.now());
     }
@@ -508,19 +506,20 @@ export class Director implements Cast {
    * Waits until the element is visible, scrolls it into view, and returns its bounding box
    * once two reads in a row give the same box.
    */
-  private async stableBox(locator: Locator, timeout = this.options.timeout): Promise<Rect> {
-    const deadline = Date.now() + timeout;
-    const remaining = () => Math.max(1, deadline - Date.now());
+  private async stableBox(locator: Locator, timeout = this.timeout): Promise<Rect> {
     await locator.waitFor({ state: 'visible', timeout });
     await this.bringIntoView(locator, {
       block: 'center',
       ifNeeded: true,
-      timeout: remaining(),
+      timeout,
       smooth: this.options.scrollBehavior === 'smooth',
     });
+    // The time limit is for the page, so the scroll animation does not count.
+    const deadline = Date.now() + timeout;
+    const remaining = () => Math.max(1, deadline - Date.now());
     let previous = await locator.boundingBox({ timeout: remaining() });
     for (;;) {
-      await sleep(STABLE_INTERVAL);
+      await this.pace.sleep(STABLE_INTERVAL);
       const box = await locator.boundingBox({ timeout: remaining() });
       if (box && previous && sameBox(box, previous)) {
         return box;
@@ -538,15 +537,17 @@ export class Director implements Cast {
   private async clickTarget(target: Target, options: ClickOptions): Promise<void> {
     const resolved = await this.resolve(target, options);
     await this.moveCursor(resolved.point, options.duration);
-    await sleep(this.options.pacing.beforeClick);
+    await this.pace.sleep(this.options.pacing.beforeClick);
     if (resolved.locator && resolved.box) {
       const box = await this.followTarget(resolved.locator, resolved.box, options.timeout);
-      if (!options.force) {
+      // Outside the target, the click lands on whatever is at that point, like a real
+      // click: a check that the target receives it would always fail.
+      if (!options.force && !isOutside(options.position)) {
         await this.checkActionable(resolved.locator, box, options.timeout);
       }
     }
     await this.pressButton(options.button ?? 'left', options.clickCount ?? 1, options.modifiers);
-    await sleep(this.options.pacing.afterClick);
+    await this.pace.sleep(options.afterClick ?? this.options.pacing.afterClick);
   }
 
   /**
@@ -554,7 +555,7 @@ export class Director implements Cast {
    * Keeps the same relative position inside the element. Returns the current box.
    */
   private async followTarget(locator: Locator, box: Rect, timeout?: number): Promise<Rect> {
-    const now = await locator.boundingBox({ timeout: timeout ?? this.options.timeout });
+    const now = await locator.boundingBox({ timeout: timeout ?? this.timeout });
     if (now && sameBox(now, box)) {
       return now;
     }
@@ -582,7 +583,7 @@ export class Director implements Cast {
     await locator.click({
       trial: true,
       position: { x: x - box.x - border.x, y: y - box.y - border.y },
-      timeout: timeout ?? this.options.timeout,
+      timeout: timeout ?? this.timeout,
     });
     // The trial run moves the mouse to a rounded point: put it back on the exact point.
     await this.page.mouse.move(x, y);
@@ -598,62 +599,34 @@ export class Director implements Cast {
         ? Math.min(this.options.pacing.pressDuration, 60)
         : this.options.pacing.pressDuration;
     for (const key of modifiers) {
-      await this.page.keyboard.down(key);
+      await this.pace.input(() => this.page.keyboard.down(key));
     }
     try {
       for (let count = 1; count <= clickCount; count++) {
         if (count > 1) {
-          await sleep(CAST_DEFAULTS.doubleClickGap);
+          await this.pace.sleep(CAST_DEFAULTS.doubleClickGap);
         }
         await this.mouseDown(button, count);
-        await sleep(hold);
+        await this.pace.sleep(hold);
         await this.mouseUp(button, count);
       }
     } finally {
       for (const key of [...modifiers].reverse()) {
-        await this.page.keyboard.up(key);
+        await this.pace.input(() => this.page.keyboard.up(key));
       }
     }
   }
 
   private async mouseDown(button: MouseButton, clickCount: number): Promise<void> {
     const { x, y } = this.position;
-    this.timeline.push({ type: 'mouseDown', t: this.timeline.now(), x, y, button });
-    await this.page.mouse.down({ button, clickCount });
+    const t = await this.pace.input(() => this.page.mouse.down({ button, clickCount }));
+    this.timeline.push({ type: 'mouseDown', t, x, y, button });
   }
 
   private async mouseUp(button: MouseButton, clickCount: number): Promise<void> {
     const { x, y } = this.position;
-    this.timeline.push({ type: 'mouseUp', t: this.timeline.now(), x, y, button });
-    await this.page.mouse.up({ button, clickCount });
-  }
-
-  /**
-   * Calls `frame` with the progress in [0, 1] every `tick` ms until the progress reaches 1.
-   * Progress comes from the real elapsed time, so a slow page does not slow the motion.
-   */
-  private async animate(
-    duration: number,
-    tick: number,
-    frame: (progress: number, t: number) => void,
-  ): Promise<void> {
-    const start = this.timeline.now();
-    let next = start;
-    for (;;) {
-      const now = this.timeline.now();
-      const progress = duration > 0 ? Math.min(1, (now - start) / duration) : 1;
-      frame(progress, now);
-      if (progress >= 1) {
-        return;
-      }
-      next += tick;
-      const wait = next - this.timeline.now();
-      if (wait > 0) {
-        await sleep(wait);
-      } else {
-        next = this.timeline.now();
-      }
-    }
+    const t = await this.pace.input(() => this.page.mouse.up({ button, clickCount }));
+    this.timeline.push({ type: 'mouseUp', t, x, y, button });
   }
 
   /**
@@ -663,6 +636,7 @@ export class Director implements Cast {
     to: Point,
     duration?: number,
     curvature = this.options.cursor.curvature,
+    ease = moveEase,
   ): Promise<void> {
     const from = this.position;
     const distance = Math.hypot(to.x - from.x, to.y - from.y);
@@ -671,18 +645,13 @@ export class Director implements Cast {
     }
     const path = cursorPath(from, to, curvature, this.motionRandom, this.viewport);
     const total = distance < 1 ? 0 : (duration ?? moveDuration(distance, this.options.cursor));
-    const dispatch = new LatestDispatch<Point>();
-    await this.animate(total, MOVE_TICK, (progress, t) => {
-      const point = progress >= 1 ? to : path(moveEase(progress));
+    await this.pace.animate(total, MOVE_TICK, (progress, t) => {
+      const point = progress >= 1 ? to : path(ease(progress));
       this.position = point;
       this.cursorStyle.pointer = point;
       this.timeline.sample(point, t);
-      dispatch.offer(point, () => this.page.mouse.move(point.x, point.y));
+      return () => this.page.mouse.move(point.x, point.y);
     });
-    await dispatch.settle();
-    if (dispatch.last !== to) {
-      await this.page.mouse.move(to.x, to.y);
-    }
   }
 
   /**
@@ -690,21 +659,23 @@ export class Director implements Cast {
    */
   private async wheel(dx: number, dy: number, duration: number): Promise<void> {
     const target = { x: Math.round(dx), y: Math.round(dy) };
-    const origin = { x: 0, y: 0 };
-    const dispatch = new LatestDispatch<Point>();
-    await this.animate(duration, SCROLL_TICK, (progress) => {
+    let planned = { x: 0, y: 0 };
+    const sent = { x: 0, y: 0 };
+    await this.pace.animate(duration, SCROLL_TICK, (progress) => {
       const eased = easeInOutCubic(progress);
       const total = { x: Math.round(target.x * eased), y: Math.round(target.y * eased) };
-      const sent = dispatch.last ?? origin;
-      if (total.x !== sent.x || total.y !== sent.y) {
-        dispatch.offer(total, () => this.page.mouse.wheel(total.x - sent.x, total.y - sent.y));
+      if (total.x === planned.x && total.y === planned.y) {
+        return undefined;
       }
+      planned = total;
+      // A skipped step adds to the next one: the delta comes from what is already sent.
+      return () => {
+        const delta = { x: total.x - sent.x, y: total.y - sent.y };
+        sent.x = total.x;
+        sent.y = total.y;
+        return this.page.mouse.wheel(delta.x, delta.y);
+      };
     });
-    await dispatch.settle();
-    const sent = dispatch.last ?? origin;
-    if (sent.x !== target.x || sent.y !== target.y) {
-      await this.page.mouse.wheel(target.x - sent.x, target.y - sent.y);
-    }
   }
 
   /**
@@ -753,8 +724,8 @@ export class Director implements Cast {
       return 0;
     }
     for (let presses = present.length; presses > 0 && !wanted.startsWith(present); presses--) {
-      await sleep(typingDelay('', delay, variance, this.typingRandom));
-      await this.page.keyboard.press('Backspace');
+      await this.pace.sleep(typingDelay('', delay, variance, this.typingRandom));
+      await this.pace.input(() => this.page.keyboard.press('Backspace'));
       const after = await read();
       if (after === null || after.length >= present.length) {
         return 0;

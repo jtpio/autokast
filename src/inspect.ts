@@ -78,6 +78,8 @@ export function describeSession(session: Session, options?: RenderOptions): stri
     `Viewport ${viewport.width}x${viewport.height} @${session.deviceScaleFactor}x, ${frames.length} frames (${fps.toFixed(0)} fps average)`,
     'Timeline (output time):',
   ];
+  const at = (t: number) => seconds(toOutputTime(session, t)).padStart(7);
+  const hasActions = session.events.some((event) => event.type === 'action');
   let typed = '';
   let typedAt = 0;
   const flush = () => {
@@ -87,6 +89,15 @@ export function describeSession(session: Session, options?: RenderOptions): stri
     }
   };
   for (const event of session.events) {
+    if (hasActions) {
+      if (event.type === 'action' && !/^(cut|speed)\(/.test(event.call)) {
+        const length = toOutputTime(session, event.end) - toOutputTime(session, event.t);
+        lines.push(`  ${at(event.t)}  ${event.call}  (${seconds(length)})`);
+      } else if (event.type === 'cut' || event.type === 'speed') {
+        lines.push(`  ${at(event.t)}  ${describeEvent(event)}`);
+      }
+      continue;
+    }
     if (event.type !== 'cut' && isCut(session, event.t)) {
       continue;
     }
@@ -100,7 +111,7 @@ export function describeSession(session: Session, options?: RenderOptions): stri
     const text = describeEvent(event);
     if (text) {
       flush();
-      lines.push(`  ${seconds(toOutputTime(session, event.t)).padStart(7)}  ${text}`);
+      lines.push(`  ${at(event.t)}  ${text}`);
     }
   }
   flush();
@@ -193,26 +204,23 @@ export async function contactSheet(
   }
   const tileHeight = Math.round((tileWidth * images[0].height) / images[0].width);
   const gap = 8;
+  const label = 24;
   const rows = Math.ceil(images.length / columns);
   const canvas = createCanvas(
     columns * tileWidth + (columns + 1) * gap,
-    rows * tileHeight + (rows + 1) * gap,
+    rows * (tileHeight + label) + (rows + 1) * gap,
   );
   const context = canvas.getContext('2d');
   context.fillStyle = '#111';
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.font = '600 15px Inter, sans-serif';
   context.textBaseline = 'middle';
+  context.fillStyle = '#fff';
   images.forEach((image, index) => {
     const x = gap + (index % columns) * (tileWidth + gap);
-    const y = gap + Math.floor(index / columns) * (tileHeight + gap);
-    context.drawImage(image, x, y, tileWidth, tileHeight);
-    const label = seconds(times[index]);
-    const width = context.measureText(label).width + 12;
-    context.fillStyle = 'rgba(0, 0, 0, 0.75)';
-    context.fillRect(x, y, width, 22);
-    context.fillStyle = '#fff';
-    context.fillText(label, x + 6, y + 11);
+    const y = gap + Math.floor(index / columns) * (tileHeight + label + gap);
+    context.fillText(seconds(times[index]), x + 2, y + label / 2);
+    context.drawImage(image, x, y + label, tileWidth, tileHeight);
   });
 
   await mkdir(path.dirname(path.resolve(options.out)), { recursive: true });

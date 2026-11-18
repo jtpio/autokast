@@ -37,6 +37,7 @@ inspect options:
       --from <sec>        Start time
       --to <sec>          End time
       --cols <n>          Columns (default: 4)
+      --tile-width <px>   Width of one tile (default: 480)
 
 For record, --set applies to the screencast definition (render options are under "render.").
 For render, frame and inspect, --set applies to the render options.
@@ -108,6 +109,7 @@ function parseFlags(args: string[]) {
       from: { type: 'string' },
       to: { type: 'string' },
       cols: { type: 'string' },
+      'tile-width': { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -269,6 +271,7 @@ async function commandInspect(positionals: string[], flags: Flags): Promise<void
     from: flags.from ? Number(flags.from) * 1000 : undefined,
     to: flags.to ? Number(flags.to) * 1000 : undefined,
     columns: flags.cols ? Number(flags.cols) : undefined,
+    tileWidth: flags['tile-width'] ? Number(flags['tile-width']) : undefined,
     render: options,
   });
   console.log(
@@ -301,6 +304,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: Error) => {
+  const [summary, ...details] = error.message.split('\n');
   console.error(`autocast: ${error.message}`);
+  if (details.length > 3) {
+    console.error(`\nautocast: ${summary}`);
+  }
   process.exitCode = 1;
 });

@@ -18,7 +18,7 @@ export const DEFAULTS = {
   name: 'screencast',
   viewport: { width: 1280, height: 720 },
   deviceScaleFactor: 2,
-  capture: { format: 'jpeg', quality: 92 },
+  capture: { mode: 'realtime', fps: 60, format: 'jpeg', quality: 92 },
   cursor: { speed: 1, curvature: 0.2, minDuration: 250, maxDuration: 1200 },
   typing: { delay: 55, variance: 0.35 },
   pacing: {
@@ -43,6 +43,8 @@ export const CAST_DEFAULTS = {
   captionBase: 1500,
   captionPerChar: 55,
   dragHold: 150,
+  dragSlowdown: 1.6,
+  dragMinDuration: 700,
   doubleClickGap: 70,
 };
 
@@ -98,6 +100,11 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   check(viewport.width > 0 && viewport.height > 0, 'viewport width and height must be above 0');
   check(deviceScaleFactor > 0, `deviceScaleFactor must be above 0, got ${deviceScaleFactor}`);
   check(capture.quality >= 0 && capture.quality <= 100, 'capture.quality must be 0-100');
+  check(
+    capture.mode === 'realtime' || capture.mode === 'frame-perfect',
+    `capture.mode must be "realtime" or "frame-perfect", got ${JSON.stringify(capture.mode)}`,
+  );
+  check(capture.fps > 0 && capture.fps <= 240, `capture.fps must be 1-240, got ${capture.fps}`);
   check(cursor.speed > 0, `cursor.speed must be above 0, got ${cursor.speed}`);
   check(cursor.minDuration <= cursor.maxDuration, 'cursor.minDuration > cursor.maxDuration');
   check(typing.delay >= 0, 'typing.delay must not be negative');

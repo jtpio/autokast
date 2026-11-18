@@ -17,15 +17,19 @@ export interface ClickStyle {
   duration: number;
 }
 
-const INK: Rgba = { r: 18, g: 20, b: 26, a: 1 };
+const INK: Rgba = { r: 16, g: 18, b: 24, a: 1 };
 const LIGHT: Rgba = { r: 255, g: 255, b: 255, a: 1 };
 
+const contrast = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
 /**
- * Click color for the page brightness under the click: dark ink on light pages,
- * white on dark ones.
+ * Click color with the most contrast against the page under the click (WCAG ratio, mean
+ * of a small area). White wins near-ties, so saturated mid-tone buttons get a white ring.
  */
 export function adaptiveClickColor(pageLuminance: number): Rgba {
-  return pageLuminance > 0.35 ? INK : LIGHT;
+  const white = contrast(1, pageLuminance);
+  const ink = contrast(0.006, pageLuminance);
+  return white >= ink * 0.75 ? LIGHT : INK;
 }
 
 export function parseClickColor(color: string | undefined): Rgba | null {
@@ -34,9 +38,10 @@ export function parseClickColor(color: string | undefined): Rgba | null {
 }
 
 /**
- * Draws one click effect at output position (x, y). `age` is in output ms; `scale`
- * is the camera scale times the resolution unit. A ripple is a soft disc with a
- * slightly stronger rim that grows quickly, settles and fades; a ring is the rim only.
+ * Draws one click effect at output position (x, y). `age` is in output ms; `scale` is
+ * the camera scale times the resolution unit. A ripple is a thin ring that expands and
+ * fades, over a very light fill that is gone by mid-life; a soft halo in the opposite
+ * tone keeps the ring readable on mid-tones. A ring is a slightly heavier ring alone.
  */
 export function drawClick(
   ctx: SKRSContext2D,
@@ -49,25 +54,24 @@ export function drawClick(
 ): void {
   if (style.type === 'none' || age < 0 || age >= style.duration) return;
   const p = age / style.duration;
-  const grow = 1 - (1 - Math.min(1, p * 1.15)) ** 4;
-  const r = style.radius * scale * (0.18 + 0.82 * grow);
-  const fade = (1 - p) ** 1.7 * smoothstep(0, 0.06, p);
-  const strong = color === LIGHT ? 1.25 : 1;
+  const u = Math.max(0.5, scale);
+  const grow = 1 - (1 - p) ** 3;
+  const r = style.radius * scale * (0.3 + 0.7 * grow);
+  const fade = (1 - p) ** 1.25 * smoothstep(0, 0.05, p);
+  const halo = color === LIGHT ? INK : LIGHT;
+  const ring = style.type === 'ring';
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  if (style.type === 'ripple') {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, rgba(color, 0.1 * fade * strong));
-    g.addColorStop(0.7, rgba(color, 0.16 * fade * strong));
-    g.addColorStop(1, rgba(color, 0.24 * fade * strong));
-    ctx.fillStyle = g;
+  if (!ring) {
+    ctx.fillStyle = rgba(color, 0.14 * (1 - p) ** 4 * smoothstep(0, 0.05, p));
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
   }
-  const ring = style.type === 'ring';
-  ctx.strokeStyle = rgba(color, (ring ? 0.75 : 0.32) * fade * strong);
-  ctx.lineWidth = (ring ? 2.4 : 1.4) * Math.max(0.5, scale);
+  ctx.lineWidth = (ring ? 2.8 : 2.4 - 0.8 * p) * u;
+  ctx.strokeStyle = rgba(color, 0.95 * fade);
+  ctx.shadowColor = rgba(halo, 0.38 * fade);
+  ctx.shadowBlur = 3 * u;
   ctx.beginPath();
   ctx.arc(x, y, Math.max(0, r - ctx.lineWidth / 2), 0, Math.PI * 2);
   ctx.stroke();

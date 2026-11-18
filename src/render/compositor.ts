@@ -135,6 +135,11 @@ export interface FrameInput {
 const FEATHER = 56;
 
 /**
+ * Camera scale by which edges 'fill' has moved every page edge past the output edge.
+ */
+const FILL_SCALE = 1.35;
+
+/**
  * Shadow layers as fractions of the configured blur and offset, with their share of the
  * shadow color's alpha: a tight contact shadow, two mid layers and a broad key shadow.
  */
@@ -171,7 +176,9 @@ function floatCanvas(width: number, height: number): Canvas {
 }
 
 /**
- * Draws the cursor of one frame, crossfading between styles.
+ * Draws the cursor of one frame. A style change swaps the shape at the midpoint of a
+ * small scale dip, so the cursor never shows two half-transparent shapes; a change to or
+ * from `none` fades.
  */
 function drawCursorFrame(
   ctx: SKRSContext2D,
@@ -182,10 +189,16 @@ function drawCursorFrame(
   weight: number,
 ): void {
   const alpha = cur.opacity * weight;
-  if (cur.styleMix < 1 && cur.previousStyle !== cur.style) {
-    drawCursor(ctx, cur.previousStyle, x, y, scale, alpha * (1 - cur.styleMix));
+  const mix = cur.styleMix;
+  if (mix >= 1 || cur.previousStyle === cur.style) {
+    drawCursor(ctx, cur.style, x, y, scale, alpha);
+  } else if (cur.previousStyle === 'none' || cur.style === 'none') {
+    drawCursor(ctx, cur.previousStyle, x, y, scale, alpha * (1 - mix));
+    drawCursor(ctx, cur.style, x, y, scale, alpha * mix);
+  } else {
+    const style = mix < 0.5 ? cur.previousStyle : cur.style;
+    drawCursor(ctx, style, x, y, scale * (1 - 0.1 * Math.sin(Math.PI * mix)), alpha);
   }
-  drawCursor(ctx, cur.style, x, y, scale, alpha * Math.min(1, cur.styleMix));
 }
 
 /**
@@ -400,7 +413,7 @@ export class Compositor {
    * The content matrix (CSS pixels to output: scale `ks`, offset `ex`, `ey`) and the frame
    * matrix (rest layout to output: scale `fa`, offset `fe`, `ff`) for a frame.
    */
-  private matrices(input: Pick<FrameInput, 'camera' | 'stage'>) {
+  private matrices(input: Pick<FrameInput, 'camera' | 'stage' | 'band'>) {
     const L = this.layout;
     const cam = input.camera;
     const st = input.stage ?? IDENTITY;
@@ -409,14 +422,64 @@ export class Compositor {
     const ks = L.k * st.scale * cam.scale;
     const camera = this.options.zoom.mode === 'camera';
     const fa = camera ? st.scale * cam.scale : st.scale;
+    const fe = camera ? ccx - fa * (L.content.x + cam.cx * L.k) : st.x;
+    const ff = camera ? ccy - fa * (L.content.y + cam.cy * L.k) : st.y;
+    const [dx, dy] =
+      camera && this.options.zoom.edges === 'fill'
+        ? this.fillShift(cam.scale, st, input.band ?? 0, fa, fe, ff)
+        : [0, 0];
     return {
       ks,
-      ex: ccx - cam.cx * ks,
-      ey: ccy - cam.cy * ks,
+      ex: ccx - cam.cx * ks + dx,
+      ey: ccy - cam.cy * ks + dy,
       fa,
-      fe: camera ? ccx - fa * (L.content.x + cam.cx * L.k) : st.x,
-      ff: camera ? ccy - fa * (L.content.y + cam.cy * L.k) : st.y,
+      fe: fe + dx,
+      ff: ff + dy,
     };
+  }
+
+  /**
+   * Edges 'fill': the gap allowed between the page and each output edge blends from the
+   * rest gap at scale 1 to a small bleed past the edge by FILL_SCALE; the page moves by
+   * the smallest shift that respects it. On the caption band side the edge is the band.
+   * Zooming toward an edge, the shift grows monotonically with the scale.
+   */
+  private fillShift(
+    scale: number,
+    st: StageTransform,
+    open: number,
+    fa: number,
+    fe: number,
+    ff: number,
+  ): [number, number] {
+    const v = Math.min(1, Math.max(0, (scale - 1) / (FILL_SCALE - 1)));
+    const w = v * v * v * (v * (6 * v - 15) + 10);
+    if (w <= 0) return [0, 0];
+    const L = this.layout;
+    const { width: W, height: H } = L.size;
+    const c = L.content;
+    const bleed = 0.32 * L.radius * fa + 2 * L.unit;
+    const band = this.band;
+    const top = band && band.side === 'top' ? band.window.y * open : 0;
+    const bottom =
+      band && band.side === 'bottom' ? H + (band.window.y + band.window.height - H) * open : H;
+    const rest = {
+      left: st.scale * c.x + st.x,
+      right: st.scale * (c.x + c.width) + st.x,
+      top: st.scale * c.y + st.y,
+      bottom: st.scale * (c.y + c.height) + st.y,
+    };
+    const gap = (restGap: number) => restGap + (-bleed - restGap) * w;
+    const shift = (lo: number, hi: number) =>
+      lo <= hi ? Math.min(Math.max(0, lo), hi) : (lo + hi) / 2;
+    const left = fa * c.x + fe;
+    const right = fa * (c.x + c.width) + fe;
+    const upper = fa * c.y + ff;
+    const lower = fa * (c.y + c.height) + ff;
+    return [
+      shift(W - gap(W - rest.right) - right, gap(rest.left) - left),
+      shift(bottom - gap(bottom - rest.bottom) - lower, top + gap(rest.top - top) - upper),
+    ];
   }
 
   /**

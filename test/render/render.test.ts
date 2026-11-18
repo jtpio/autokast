@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
@@ -11,6 +11,9 @@ import {
   renderFrame,
   toOutputTime,
 } from '../../src/render/index.ts';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { luminance, parseColor } from '../../src/render/color.ts';
+import { adaptiveClickColor } from '../../src/render/effects.ts';
 import { buildScene } from '../../src/render/scene.ts';
 import type { Session } from '../../src/types.ts';
 import { createFixture } from './fixture.ts';
@@ -143,4 +146,72 @@ test('session render options sit between the defaults and the call options', () 
     type: 'solid',
     color: '#123456',
   });
+});
+
+async function cornerLuminance(png: Buffer): Promise<number[]> {
+  const image = await loadImage(png);
+  const canvas = createCanvas(image.width, image.height);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0);
+  return [
+    [1, 1],
+    [image.width - 2, 1],
+    [1, image.height - 2],
+  ].map(([x, y]) => {
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    return luminance({ r: d[0], g: d[1], b: d[2], a: 1 });
+  });
+}
+
+test("zoom edges 'fill' covers the output with the page, 'keep' shows the backdrop", async () => {
+  const corner = path.join(dir, 'corner');
+  await mkdir(corner, { recursive: true });
+  const base = JSON.parse(await readFile(path.join(dir, 'session', 'session.json'), 'utf8'));
+  const events = base.events.filter((e: { type: string }) =>
+    ['cursorStyle', 'mouseDown', 'mouseUp'].includes(e.type),
+  );
+  events.push({ type: 'zoom', t: 100, focus: { x: 0, y: 0, width: 40, height: 30 }, scale: 2 });
+  await writeFile(path.join(corner, 'session.json'), JSON.stringify({ ...base, events }));
+  await symlink(path.join(dir, 'session', 'frames'), path.join(corner, 'frames'));
+  const options = { size: { width: 480, height: 270 }, cursor: { visible: false } };
+  const fill = await cornerLuminance(await renderFrame(corner, 1200, options));
+  assert.ok(fill[0] > 0.8, `top-left ${fill[0]}`);
+  const keep = await cornerLuminance(
+    await renderFrame(corner, 1200, { ...options, zoom: { edges: 'keep' } }),
+  );
+  assert.ok(keep[0] < 0.3, `top-left ${keep[0]}`);
+  const rest = await cornerLuminance(await renderFrame(corner, 0, options));
+  assert.ok(
+    rest.every((l) => l < 0.3),
+    'backdrop at rest',
+  );
+});
+
+test('the click color has the most contrast against the page under the click', () => {
+  const lum = (hex: string) => luminance(parseColor(hex)!);
+  assert.equal(adaptiveClickColor(lum('#ffffff')).r, 16);
+  assert.equal(adaptiveClickColor(lum('#f3f4f6')).r, 16);
+  assert.equal(adaptiveClickColor(lum('#1d1d1f')).r, 255);
+  assert.equal(adaptiveClickColor(lum('#2563eb')).r, 255);
+});
+
+test('a fit zoom fills the whole output in camera mode and the frame box in crop mode', () => {
+  const zoom = {
+    type: 'zoom' as const,
+    t: 100,
+    focus: { x: 400, y: 225, width: 480, height: 270 },
+    padding: 0,
+  };
+  const fit = { ...session, events: [zoom] };
+  const settled = (scene: ReturnType<typeof buildScene>) => scene.camera.scale.length - 1;
+  const camera = buildScene(fit, { zoom: { maxScale: 4 } });
+  const s = camera.camera.scale[settled(camera)];
+  const visible = 1920 / (camera.layout.k * s);
+  assert.ok(Math.abs(visible - 480) < 2, `visible page width ${visible}`);
+  assert.ok(Math.abs(1080 / (camera.layout.k * s) - 270) < 2);
+  assert.equal(buildScene(fit).camera.scale[settled(camera)], 3);
+  const crop = buildScene(fit, { zoom: { mode: 'crop', maxScale: 4 } });
+  assert.ok(Math.abs(crop.camera.scale[settled(crop)] - 1280 / 480) < 1e-9);
+  const explicit = buildScene({ ...session, events: [{ ...zoom, scale: 2 }] });
+  assert.equal(explicit.camera.scale[settled(explicit)], 2);
 });

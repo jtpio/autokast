@@ -109,6 +109,10 @@ export interface ZoomEvent {
   padding?: number;
   duration?: number;
   easing?: EasingName;
+  /**
+   * Overrides `zoom.followCursor` until the next zoom directive.
+   */
+  follow?: boolean;
 }
 
 /**
@@ -216,6 +220,16 @@ export interface Session {
  */
 
 export interface CaptureOptions {
+  /**
+   * `realtime` captures the page as it paints. `frame-perfect` controls the page clock and
+   * captures one frame for each step of page time: the recording takes longer than real
+   * time, but page motion is exact on any machine. Needs the headless shell of Chromium.
+   */
+  mode?: 'realtime' | 'frame-perfect';
+  /**
+   * Frames per second of page time in `frame-perfect` mode. Default: 60.
+   */
+  fps?: number;
   format?: 'jpeg' | 'png';
   /**
    * JPEG quality, 0-100.
@@ -254,7 +268,8 @@ export interface CursorMotionOptions {
 
 export interface TypingOptions {
   /**
-   * Mean delay between characters, in milliseconds.
+   * Mean delay between characters, in milliseconds. Default: 55, which gives about
+   * 13 characters per second with the pauses after spaces and punctuation.
    */
   delay?: number;
   /**
@@ -332,10 +347,22 @@ export interface MoveOptions {
    */
   duration?: number;
   /**
-   * Position inside the target, as fractions of its size. Default: near the center.
+   * Position relative to the target, as fractions of its size: 0.5 is the middle, and
+   * values below 0 or above 1 are outside the target. Default: near the center.
    */
   position?: { x: number; y: number };
   timeout?: number;
+}
+
+export interface DragOptions extends MoveOptions {
+  /**
+   * Position relative to the destination. `position` is for the source.
+   */
+  toPosition?: { x: number; y: number };
+  /**
+   * Duration of the move while the button is down. Default: computed, slower than a free move.
+   */
+  dragDuration?: number;
 }
 
 export interface ClickOptions extends MoveOptions {
@@ -346,13 +373,19 @@ export interface ClickOptions extends MoveOptions {
    * Skips the Playwright actionability check.
    */
   force?: boolean;
+  /**
+   * Pause after the press, in milliseconds. Default: `pacing.afterClick`. Use 0 before a
+   * `cut` so that a loading state does not show.
+   */
+  afterClick?: number;
 }
 
 export interface TypeOptions extends TypingOptions {
   /**
-   * Clicks this target first to focus it.
+   * Clicks this target first to focus it, at `position` (fractions of its size) when given.
    */
   into?: Target;
+  position?: { x: number; y: number };
   /**
    * `auto` makes each line start at the indentation given in the text, also in
    * editors that indent by themselves. `raw` sends the characters as they are.
@@ -378,8 +411,17 @@ export interface ScrollToOptions {
 }
 
 export interface ZoomToOptions {
+  /**
+   * Magnification of the page relative to the full view: 2 shows the page twice as large.
+   * Without it, the camera fits the target plus `padding` in the output.
+   */
   scale?: number;
   padding?: number;
+  /**
+   * Whether the camera pans to keep the cursor in view during this shot.
+   * Default: the `zoom.followCursor` render option.
+   */
+  follow?: boolean;
   duration?: number;
   easing?: EasingName;
   /**
@@ -423,7 +465,7 @@ export interface Cast {
   dblclick(target: Target, options?: ClickOptions): Promise<void>;
   rightClick(target: Target, options?: ClickOptions): Promise<void>;
   hover(target: Target, options?: MoveOptions & { hold?: number }): Promise<void>;
-  drag(from: Target, to: Target, options?: MoveOptions): Promise<void>;
+  drag(from: Target, to: Target, options?: DragOptions): Promise<void>;
   scroll(delta: { x?: number; y?: number }, options?: ScrollOptions): Promise<void>;
   /**
    * Scrolls smoothly until the target is in view.
@@ -535,6 +577,11 @@ export interface ZoomRenderOptions {
    * `camera` scales the full frame past the output edges; `crop` zooms inside a fixed frame.
    */
   mode?: 'camera' | 'crop';
+  /**
+   * In `camera` mode, what a zoomed shot shows at an edge of the page: `fill` covers the
+   * output with the page, `keep` keeps the window edge and the backdrop in view.
+   */
+  edges?: 'fill' | 'keep';
   maxScale?: number;
   duration?: number;
   easing?: EasingName;

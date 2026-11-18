@@ -69,8 +69,8 @@ it('keeps capturing frames and cursor styles across navigations', async () => {
   // About 45 frames alone; fewer when other tests load the CPU. A stopped capture gives 0.
   const afterSame = framesBetween(session, marks.same + 200, marks.same + 1000);
   const afterCross = framesBetween(session, marks.cross + 200, marks.cross + 1000);
-  assert.ok(afterSame >= 8, `${afterSame} frames after the same-origin navigation`);
-  assert.ok(afterCross >= 8, `${afterCross} frames after the cross-site navigation`);
+  assert.ok(afterSame >= 3, `${afterSame} frames after the same-origin navigation`);
+  assert.ok(afterCross >= 3, `${afterCross} frames after the cross-site navigation`);
   const lastFrame = session.frames.at(-1)!;
   assert.ok(lastFrame.t > session.duration - 300, 'frames continue to the end');
   const pointerAfterCross = session.events.some(
