@@ -167,11 +167,11 @@ moment has motion or something new to read.
   These words keep the full tone and the other words are dimmed.
 - A new caption replaces the one on screen, so give each caption a `duration` longer than its
   part, and let the last one stay until the end.
-- Keep a caption to one line: about 60 characters. Write a short sentence, with no number.
+- A caption shows one line: write one short sentence of about 60 characters, with no
+  number. For more text, use several captions. Text that is too long for one line shows as
+  several lines, one at a time, and the lines share the `duration`.
 - A viewer needs about 3 s to read a caption and see the action. Make each part at least
   that long; the limit of one fifth for holds does not apply to a captioned tour.
-- The space for captions is as high as one line needs. It gets higher, and the window
-  smaller, when a caption needs two lines.
 - While a caption shows, the view above the caption is wider than the video: about 2:1 for
   a 16:9 video. A `zoomTo` without `scale` or `level` keeps the whole target in that view,
   so a 16:9 target shows more of the page at its sides. Give the target the shape of the

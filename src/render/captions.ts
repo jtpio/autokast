@@ -11,17 +11,26 @@ export const BAND_DURATION = 700;
 export const MERGE_GAP = 600;
 const REVEAL_DELAY = 400;
 const REVEAL = 640;
-const LINE_DELAY = 110;
 const EXIT = 240;
 const SWAP_GAP = 120;
 const CLOSE_DELAY = 120;
 const MIN_SHOW = 300;
 
 /**
+ * Time to read one line, in milliseconds: the rule of the default caption duration.
+ */
+const READ_BASE = 1500;
+const READ_PER_CHAR = 55;
+
+/**
  * One caption with the times its text enters and leaves.
  */
 export interface CaptionCue {
   text: string;
+  /**
+   * True when `**` marks some of the words of the caption, but not all.
+   */
+  emphasis: boolean;
   start: number;
   end: number;
   textIn: number;
@@ -38,9 +47,13 @@ export interface BandGroup {
 
 /**
  * Plans caption cues and band groups. Captions within MERGE_GAP of each other share
- * one open band and only swap their text.
+ * one open band and only swap their text. `split` breaks the text of a caption into
+ * lines: a caption shows one line at a time, and its lines share its duration.
  */
-export function planCaptions(events: TimedEvent<CaptionEvent>[]): {
+export function planCaptions(
+  events: TimedEvent<CaptionEvent>[],
+  split: (text: string) => string[] = (text) => [text],
+): {
   cues: CaptionCue[];
   groups: BandGroup[];
 } {
@@ -49,27 +62,41 @@ export function planCaptions(events: TimedEvent<CaptionEvent>[]): {
   const sorted = events.filter((e) => e.text.trim()).sort((a, b) => a.out - b.out);
   let last: CaptionCue | null = null;
   for (const e of sorted) {
-    const start = e.out;
-    const end = e.out + Math.max(0, e.duration);
-    let textIn: number;
-    if (last && start - last.end <= MERGE_GAP) {
-      last.textOut = Math.max(last.textIn + MIN_SHOW, Math.min(last.textOut, start));
-      textIn = Math.max(start, last.textOut + SWAP_GAP);
-    } else {
-      groups.push({ open: start, close: 0 });
-      textIn = start + REVEAL_DELAY;
-    }
-    last = {
-      text: e.text.trim(),
-      start,
-      end,
-      textIn,
-      textOut: Math.max(textIn + MIN_SHOW, end),
-    };
-    cues.push(last);
-    groups[groups.length - 1].close = last.textOut + CLOSE_DELAY;
+    const lines = split(e.text.trim());
+    const tones = parseCaption(e.text).flatMap((word) => word.runs.map((run) => run.strong));
+    const emphasis = tones.includes(true) && tones.includes(false);
+    const spans = lineDurations(lines, Math.max(0, e.duration));
+    let start = e.out;
+    lines.forEach((text, i) => {
+      const end = start + spans[i];
+      let textIn: number;
+      if (last && start - last.end <= MERGE_GAP) {
+        last.textOut = Math.max(last.textIn + MIN_SHOW, Math.min(last.textOut, start));
+        textIn = Math.max(start, last.textOut + SWAP_GAP);
+      } else {
+        groups.push({ open: start, close: 0 });
+        textIn = start + REVEAL_DELAY;
+      }
+      last = { text, emphasis, start, end, textIn, textOut: Math.max(textIn + MIN_SHOW, end) };
+      cues.push(last);
+      groups[groups.length - 1].close = last.textOut + CLOSE_DELAY;
+      start = end;
+    });
   }
   return { cues, groups };
+}
+
+/**
+ * Shares the duration of a caption between its lines. Each line but the last stays for
+ * the time to read it, and the last line gets the rest. When the duration is too short
+ * for that, all lines get less time in the same proportion.
+ */
+function lineDurations(lines: string[], duration: number): number[] {
+  const read = lines.map((line) => READ_BASE + READ_PER_CHAR * line.replaceAll('**', '').length);
+  const total = read.reduce((sum, time) => sum + time, 0);
+  if (total > duration) return read.map((time) => (time * duration) / total);
+  const last = read.length - 1;
+  return read.map((time, i) => (i < last ? time : duration - (total - time)));
 }
 
 const bandEase = easing('smooth');
@@ -97,6 +124,11 @@ export function bandTrack(times: ArrayLike<number>, groups: BandGroup[]): Float6
 export const LINE_HEIGHT = 1.18;
 
 /**
+ * Share of the window width that a caption can take.
+ */
+export const CAPTION_WIDTH = 0.72;
+
+/**
  * Shape of the reveal, in font sizes: width of the soft edge, blur of the text in it,
  * and the distance the text settles. DIM is the tone of the words outside the emphasis.
  */
@@ -114,26 +146,14 @@ export interface CaptionRun {
   strong: boolean;
 }
 
-export interface WordBox {
-  text: string;
-  line: number;
-  x: number;
-  runs: CaptionRun[];
-}
-
 /**
- * Caption text broken into at most two balanced lines.
+ * One line of caption text, laid out.
  */
-export interface CaptionLines {
+export interface CaptionLine {
   fontSize: number;
-  lines: string[];
-  widths: number[];
-  words: WordBox[];
+  text: string;
   width: number;
-  /**
-   * True when `**` marks some of the words, but not all.
-   */
-  emphasis: boolean;
+  runs: CaptionRun[];
 }
 
 interface ParsedWord {
@@ -158,76 +178,66 @@ export function parseCaption(text: string): ParsedWord[] {
   return words;
 }
 
+const join = (words: ParsedWord[]) => words.map((word) => word.text).join(' ');
+
 /**
- * Breaks text into one line or two balanced lines no wider than `maxWidth`. When two
- * lines do not fit, the font shrinks down to `minScale`; past that, the second line ends
- * with an ellipsis. `measure(text, fontSize)` returns a width in pixels.
+ * Breaks caption text into lines no wider than `maxWidth`, each with its `**` marks: the
+ * fewest lines, of about the same width. `measure(text, fontSize)` returns a width in
+ * pixels. A word wider than `maxWidth` has a line of its own.
+ */
+export function splitCaption(
+  text: string,
+  measure: (text: string, fontSize: number) => number,
+  maxWidth: number,
+  fontSize: number,
+): string[] {
+  const words = parseCaption(text);
+  const fill = (limit: number) => {
+    const lines: ParsedWord[][] = [];
+    for (const word of words) {
+      const line = lines.at(-1);
+      if (line && measure(join([...line, word]), fontSize) <= limit) line.push(word);
+      else lines.push([word]);
+    }
+    return lines;
+  };
+  const count = fill(maxWidth).length;
+  let narrow = 0;
+  let wide = maxWidth;
+  for (let i = 0; i < 12 && count > 1; i++) {
+    const limit = (narrow + wide) / 2;
+    if (fill(limit).length > count) narrow = limit;
+    else wide = limit;
+  }
+  const marked = (word: ParsedWord) =>
+    word.runs.map((run) => (run.strong ? `**${run.text}**` : run.text)).join('');
+  return fill(wide).map((line) => line.map(marked).join(' '));
+}
+
+/**
+ * Lays out one line of caption text. The font shrinks only when the line is wider than
+ * `maxWidth`, which `splitCaption` prevents for all text but one very long word.
  */
 export function layoutCaption(
   text: string,
   measure: (text: string, fontSize: number) => number,
   maxWidth: number,
   fontSize: number,
-  minScale = 0.78,
-): CaptionLines {
+): CaptionLine {
   const words = parseCaption(text);
-  const tones = words.flatMap((word) => word.runs.map((run) => run.strong));
-  const emphasis = tones.includes(true) && tones.includes(false);
-  const join = (line: ParsedWord[]) => line.map((word) => word.text).join(' ');
-  const build = (size: number, lines: ParsedWord[][]): CaptionLines => {
-    const boxes: WordBox[] = [];
-    lines.forEach((line, i) => {
-      line.forEach((word, j) => {
-        let before = j === 0 ? '' : `${join(line.slice(0, j))} `;
-        const x = before ? measure(before, size) : 0;
-        const runs = word.runs.map((run) => {
-          const at = before ? measure(before, size) : 0;
-          before += run.text;
-          return { ...run, x: at };
-        });
-        boxes.push({ text: word.text, line: i, x, runs });
-      });
-    });
-    const widths = lines.map((line) => measure(join(line), size));
-    return {
-      fontSize: size,
-      lines: lines.map(join),
-      widths,
-      words: boxes,
-      width: Math.max(...widths),
-      emphasis,
-    };
-  };
-  for (let size = fontSize; size >= fontSize * minScale - 1e-9; size *= 0.96) {
-    if (measure(join(words), size) <= maxWidth) return build(size, [words]);
-    let best: { k: number; worst: number; first: number } | null = null;
-    for (let k = 1; k < words.length; k++) {
-      const first = measure(join(words.slice(0, k)), size);
-      const second = measure(join(words.slice(k)), size);
-      const worst = Math.max(first, second);
-      if (worst > maxWidth) continue;
-      if (
-        !best ||
-        worst < best.worst - 0.5 ||
-        (Math.abs(worst - best.worst) <= 0.5 && first > best.first)
-      ) {
-        best = { k, worst, first };
-      }
+  const line = join(words);
+  const natural = measure(line, fontSize);
+  const size = natural > maxWidth ? (fontSize * maxWidth) / natural : fontSize;
+  const runs: CaptionRun[] = [];
+  let before = '';
+  for (const word of words) {
+    for (const run of word.runs) {
+      runs.push({ ...run, x: before ? measure(before, size) : 0 });
+      before += run.text;
     }
-    if (best) return build(size, [words.slice(0, best.k), words.slice(best.k)]);
+    before += ' ';
   }
-  const size = fontSize * minScale;
-  const ellipsis: ParsedWord = { text: '…', runs: [{ text: '…', strong: false }] };
-  const first: ParsedWord[] = [];
-  let k = 0;
-  while (k < words.length && measure(join([...first, words[k]]), size) <= maxWidth)
-    first.push(words[k++]);
-  if (first.length === 0) first.push(words[k++]);
-  const second: ParsedWord[] = [];
-  while (k < words.length && measure(join([...second, words[k], ellipsis]), size) <= maxWidth)
-    second.push(words[k++]);
-  if (k < words.length) second.push(ellipsis);
-  return build(size, second.length ? [first, second] : [first]);
+  return { fontSize: size, text: line, width: measure(line, size), runs };
 }
 
 export interface CaptionStyle {
@@ -246,12 +256,14 @@ export function captionFont(style: Pick<CaptionStyle, 'family'>, size: number): 
 }
 
 /**
- * Share of the window width that a caption can take.
+ * Tracking for a font size: -1.5% of the size for the text.
  */
-export const CAPTION_WIDTH = 0.72;
+export function tracking(size: number): string {
+  return `${(-0.015 * size).toFixed(3)}px`;
+}
 
 /**
- * Width of text in the caption font, for `layoutCaption`.
+ * Width of text in the caption font, for `splitCaption` and `layoutCaption`.
  */
 export function captionMeasure(family: string): (text: string, size: number) => number {
   const context = createCanvas(4, 4).getContext('2d');
@@ -263,71 +275,52 @@ export function captionMeasure(family: string): (text: string, size: number) => 
 }
 
 /**
- * Tracking for a font size: -1.5% of the size for the text.
- */
-export function tracking(size: number): string {
-  return `${(-0.015 * size).toFixed(3)}px`;
-}
-
-/**
- * Height of a laid-out caption block.
- */
-export function captionHeight(lines: CaptionLines): number {
-  return lines.lines.length * lines.fontSize * LINE_HEIGHT;
-}
-
-/**
- * Draws a caption with its top-left corner at (x, top) in output pixels. The text comes
- * into focus from left to right: behind a soft edge that crosses each line it is sharp,
- * inside the edge it is blurred and faint. Words outside the emphasis have a lower tone.
- * On exit the block goes out of focus and fades with a small upward drift.
+ * Draws a caption line with its top-left corner at (x, top) in output pixels. The text
+ * comes into focus from left to right: behind a soft edge that crosses the line it is
+ * sharp, inside the edge it is blurred and faint. Words outside the emphasis have a lower
+ * tone. On exit the line goes out of focus and fades with a small upward drift.
  */
 export function drawCaption(
   ctx: SKRSContext2D,
   cue: CaptionCue,
-  lines: CaptionLines,
+  line: CaptionLine,
   style: CaptionStyle,
   x: number,
   top: number,
   t: number,
 ): void {
   if (t < cue.textIn || t > cue.textOut + EXIT) return;
-  const size = lines.fontSize;
+  const size = line.fontSize;
   const soft = SOFT * size;
+  const p = clamp((t - cue.textIn) / REVEAL, 0, 1);
   const exit = clamp((t - cue.textOut) / EXIT, 0, 1);
   const alpha = style.color.a * (1 - smoothstep(0, 1, exit));
-  const tone = (run: CaptionRun) => alpha * (lines.emphasis && !run.strong ? DIM : 1);
+  const edge = x + sweep(p) * (line.width + soft);
+  const shift = (1 - easeOutQuart(p) - easeOutCubic(exit)) * SETTLE * size;
+  const baseline = top + size * 0.93 + shift;
   ctx.save();
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.font = captionFont(style, size);
   ctx.letterSpacing = tracking(size);
-  lines.lines.forEach((_, i) => {
-    const p = clamp((t - cue.textIn - i * LINE_DELAY) / REVEAL, 0, 1);
-    if (p <= 0) return;
-    const edge = x + sweep(p) * (lines.widths[i] + soft);
-    const shift = (1 - easeOutQuart(p) - easeOutCubic(exit)) * SETTLE * size;
-    const baseline = top + i * size * LINE_HEIGHT + size * 0.93 + shift;
-    const runs = lines.words.filter((word) => word.line === i).flatMap((word) => word.runs);
-    // Each stop is a position across the soft edge (0 to 1) and a share of the tone.
-    const draw = (blur: number, stops?: [number, number][]) => {
-      ctx.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : 'none';
-      for (const run of runs) {
-        const a = tone(run);
-        if (stops) {
-          const gradient = ctx.createLinearGradient(edge - soft, 0, edge, 0);
-          for (const [at, share] of stops) gradient.addColorStop(at, rgba(style.color, a * share));
-          ctx.fillStyle = gradient;
-        } else {
-          ctx.fillStyle = rgba(style.color, a);
-        }
-        ctx.fillText(run.text, x + run.x, baseline);
+  // Each stop is a position across the soft edge (0 to 1) and a share of the tone.
+  const draw = (blur: number, stops?: [number, number][]) => {
+    ctx.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : 'none';
+    for (const run of line.runs) {
+      const tone = alpha * (cue.emphasis && !run.strong ? DIM : 1);
+      if (stops) {
+        const gradient = ctx.createLinearGradient(edge - soft, 0, edge, 0);
+        for (const [at, share] of stops) gradient.addColorStop(at, rgba(style.color, tone * share));
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.fillStyle = rgba(style.color, tone);
       }
-    };
-    if (p >= 1) {
-      draw(exit * exit * 2 * BLUR * size);
-      return;
+      ctx.fillText(run.text, x + run.x, baseline);
     }
+  };
+  if (p >= 1) {
+    draw(exit * exit * 2 * BLUR * size);
+  } else {
     draw(0, [
       [0, 1],
       [0.35, 0],
@@ -342,6 +335,6 @@ export function drawCaption(
       [0.65, 0.7],
       [1, 0],
     ]);
-  });
+  }
   ctx.restore();
 }

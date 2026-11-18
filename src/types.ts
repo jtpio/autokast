@@ -522,8 +522,9 @@ export interface Cast {
   speed<T>(rate: number, fn: () => Promise<T>): Promise<T>;
 
   /**
-   * Shows a caption on the backdrop. Words between `**` get the emphasis: they keep the
-   * full tone and the other words are dimmed.
+   * Shows a caption on the backdrop, one line at a time: text that is too long for one
+   * line shows as several lines in sequence. Words between `**` get the emphasis: they
+   * keep the full tone and the other words are dimmed.
    */
   caption(text: string, options?: CaptionOptions): Promise<void>;
   spotlight(target: Target, options?: SpotlightOptions): Promise<void>;

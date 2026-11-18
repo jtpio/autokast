@@ -195,16 +195,19 @@ test('the click color has the most contrast against the page under the click', (
   assert.equal(adaptiveClickColor(lum('#2563eb')).r, 255);
 });
 
-test('the caption band is lower when every caption fits on one line', () => {
-  const caption = (text: string) => ({ type: 'caption' as const, t: 100, duration: 1000, text });
+test('the caption band has room for one line, and long text shows one line at a time', () => {
+  const caption = (text: string) => ({ type: 'caption' as const, t: 100, duration: 9000, text });
   const scene = (text: string) => buildScene({ ...session, events: [caption(text)] });
-  const one = scene('Create a **new project**').band!;
-  const two = scene(
-    'Give it a name. The camera stays on the cursor while you type, so nothing is missed.',
-  ).band!;
-  assert.ok(Math.abs(one.height - 0.125 * 1080) < 1e-9, `one line: ${one.height}`);
-  assert.ok(Math.abs(two.height - 0.17 * 1080) < 1e-9, `two lines: ${two.height}`);
-  assert.ok(one.window.width > two.window.width);
+  const long =
+    'Give it a name. The camera stays on the cursor while you type, so nothing is missed.';
+  const one = scene('Create a **new project**');
+  const two = scene(long);
+  assert.ok(Math.abs(one.band!.height - 0.125 * 1080) < 1e-9, `band ${one.band!.height}`);
+  assert.equal(two.band!.height, one.band!.height);
+  assert.equal(one.captions.length, 1);
+  assert.equal(two.captions.length, 2);
+  assert.equal(two.captions.map((cue) => cue.text).join(' '), long);
+  assert.ok(two.captions[1].textIn > two.captions[0].textOut);
   assert.equal(buildScene({ ...session, events: [] }).band, null);
 });
 

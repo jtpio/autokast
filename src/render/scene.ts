@@ -20,8 +20,8 @@ import {
   bandTrack,
   CAPTION_WIDTH,
   captionMeasure,
-  layoutCaption,
   planCaptions,
+  splitCaption,
   type CaptionCue,
 } from './captions.ts';
 import { computeLayout, type CursorFrame, type FrameInput, type Layout } from './compositor.ts';
@@ -103,10 +103,19 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     );
   }
   const layout = computeLayout(resolved, session.viewport);
-  const { cues, groups } = planCaptions(
-    events.filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption'),
+  const captions = events.filter(
+    (e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '',
   );
-  const band = captionBand(cues, layout, resolved);
+  const band = captions.length ? bandLayout(layout, resolved.captions.position) : null;
+  const measure = captionMeasure(resolved.captions.fontFamily);
+  const { cues, groups } = planCaptions(captions, (text) =>
+    splitCaption(
+      text,
+      measure,
+      (band ?? layout).window.width * CAPTION_WIDTH,
+      resolved.captions.fontSize * layout.unit,
+    ),
+  );
   const camera = computeCamera(
     times,
     zooms,
@@ -146,26 +155,6 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     bandOpen: bandTrack(times, groups),
     frameIndex,
   };
-}
-
-/**
- * Band geometry for the captions, or null without captions. The band has the height for
- * one line unless a caption needs two lines.
- */
-function captionBand(
-  cues: CaptionCue[],
-  layout: Layout,
-  options: ResolvedOptions,
-): BandLayout | null {
-  if (cues.length === 0) return null;
-  const { position, fontFamily, fontSize } = options.captions;
-  const measure = captionMeasure(fontFamily);
-  const band = bandLayout(layout, position, 1);
-  const width = band.window.width * CAPTION_WIDTH;
-  const lines = cues.map(
-    (cue) => layoutCaption(cue.text, measure, width, fontSize * layout.unit).lines.length,
-  );
-  return Math.max(...lines) > 1 ? bandLayout(layout, position, 2) : band;
 }
 
 /**
