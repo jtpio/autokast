@@ -216,17 +216,19 @@ export function drawBrowserBar(
   ctx.globalAlpha = 0.4;
   chevron(x0 + 30 * u, -1);
   ctx.globalAlpha = 1;
-  // Reload: an open circle with an arrow head at its end.
+  // Reload: an arc that is open at the top right, and ends in the corner of an arrow head.
   const rx = x0 + 62 * u;
-  const r = 6 * u;
+  const r = 6.2 * u;
+  const corner = { x: rx + 1.22 * r, y: cy - 0.22 * r };
+  const head = 0.66 * r;
   ctx.beginPath();
-  ctx.arc(rx, cy, r, -0.25 * Math.PI, 1.5 * Math.PI);
+  ctx.arc(rx, cy, r, 0.11 * Math.PI, 1.75 * Math.PI);
+  ctx.lineTo(corner.x, corner.y);
   ctx.stroke();
-  const tip = { x: rx + r * Math.cos(-0.25 * Math.PI), y: cy + r * Math.sin(-0.25 * Math.PI) };
   ctx.beginPath();
-  ctx.moveTo(tip.x - 4.4 * u, tip.y - 0.6 * u);
-  ctx.lineTo(tip.x, tip.y);
-  ctx.lineTo(tip.x + 0.6 * u, tip.y - 4.4 * u);
+  ctx.moveTo(corner.x, corner.y - head);
+  ctx.lineTo(corner.x, corner.y);
+  ctx.lineTo(corner.x - head, corner.y);
   ctx.stroke();
   drawField(ctx, fieldBox(window, bar, u, left), u, theme, address, 0);
   ctx.restore();
