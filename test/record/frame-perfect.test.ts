@@ -205,9 +205,10 @@ describe('frame-perfect capture', () => {
       .filter((frame, i) => Math.abs(frame.t - before[i].t - FRAME) > 0.01)
       .map((frame) => frame.t.toFixed(2));
     assert.deepEqual(gaps, [], 'every frame is stored: frames after a gap');
-    // The page clock has a resolution of 0.1 ms, and a `left` animation snaps to device
-    // pixels. When the red box is near a pixel boundary, some frames land one pixel off.
-    const slack: Record<string, number> = { red: 1.1, blue: 0.5, green: 0.5 };
+    // The page clock has a resolution of 0.1 ms, and `left` snaps to device pixels. When
+    // the red or green box is near a pixel boundary, some frames land one pixel off. The
+    // blue box moves with a transform, which does not snap.
+    const slack: Record<string, number> = { red: 1.1, blue: 0.5, green: 1.1 };
     for (const color of ['red', 'blue', 'green']) {
       const steps = before
         .slice(1)
