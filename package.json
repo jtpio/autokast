@@ -6,11 +6,11 @@
   "author": "Jeremy Tuloup",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jtpio/autocast.git"
+    "url": "git+https://github.com/jtpio/autokast.git"
   },
-  "homepage": "https://github.com/jtpio/autocast#readme",
+  "homepage": "https://github.com/jtpio/autokast#readme",
   "bugs": {
-    "url": "https://github.com/jtpio/autocast/issues"
+    "url": "https://github.com/jtpio/autokast/issues"
   },
   "keywords": [
     "screencast",

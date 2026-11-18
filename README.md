@@ -26,7 +26,7 @@ You also need Node.js 22.18 or later and `ffmpeg` on the `PATH`.
 Give the skill to your agent:
 
 ```sh
-npx skills add jtpio/autocast
+npx skills add jtpio/autokast
 ```
 
 Then ask for the video:
