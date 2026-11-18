@@ -1,0 +1,66 @@
+{
+  "name": "autokast",
+  "version": "0.1.0",
+  "description": "Automated, polished screencasts of web apps. Built for agents.",
+  "license": "BSD-3-Clause",
+  "author": "Jeremy Tuloup",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jtpio/autokast.git"
+  },
+  "homepage": "https://github.com/jtpio/autokast#readme",
+  "bugs": {
+    "url": "https://github.com/jtpio/autokast/issues"
+  },
+  "keywords": [
+    "screencast",
+    "screen-recording",
+    "playwright",
+    "video",
+    "demo",
+    "agent",
+    "jupyterlab"
+  ],
+  "type": "module",
+  "bin": {
+    "autokast": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.50.0"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright": "1.63.0",
+    "prettier": "^3.10.0",
+    "typescript": "^5.9.0"
+  }
+}

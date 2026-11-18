@@ -1,0 +1,164 @@
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { loadSession } from '../session.ts';
+import type { RenderOptions, RenderResult, Session } from '../types.ts';
+import { BACKGROUND_PRESETS, createBackground } from './background.ts';
+import { Compositor } from './compositor.ts';
+import {
+  checkFfmpeg,
+  encoderArgs,
+  FfmpegProcess,
+  ffmpegPath,
+  gifArgs,
+  gifSettings,
+  runFfmpeg,
+} from './encoder.ts';
+import { buildScene, frameInput, frameInputs, type Scene } from './scene.ts';
+import { FrameSource, upcomingFrames } from './source.ts';
+import { frameIndexAt, sessionTimeMap } from './timeline.ts';
+
+export { BACKGROUND_PRESETS };
+
+/**
+ * Output duration of a session in milliseconds, after cuts and speed changes.
+ */
+export function outputDuration(session: Session): number {
+  return sessionTimeMap(session).duration;
+}
+
+/**
+ * Output time (ms) of a record time. A time inside a cut maps to the cut point.
+ */
+export function toOutputTime(session: Session, recordTime: number): number {
+  return sessionTimeMap(session).toOutput(recordTime);
+}
+
+async function setup(sessionDir: string, scene: Scene) {
+  const { options, layout } = scene;
+  const background = await createBackground(options.background, options.size, options.unit);
+  return {
+    compositor: new Compositor(options, layout, background, scene.band),
+    source: new FrameSource(sessionDir, scene.session.frames),
+  };
+}
+
+function nearestFrame(times: Float64Array, t: number): number {
+  let lo = 0;
+  let hi = times.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (times[mid] < t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+async function drawFrame(
+  scene: Scene,
+  compositor: Compositor,
+  source: FrameSource,
+  i: number,
+): Promise<void> {
+  const index = scene.frameIndex[i];
+  const image = await source.get(index);
+  source.retain(index, upcomingFrames(scene.frameIndex, i, 4));
+  const inputs = frameInputs(scene, i).map((input) => ({ ...input, image }));
+  for (const { mark } of inputs[0].clicks) {
+    if (!compositor.needsClickColor(mark)) continue;
+    const frame = frameIndexAt(scene.session.frames, mark.t);
+    compositor.prepareClick(mark, frame === index ? image : await source.get(frame));
+  }
+  for (const cue of inputs[0].keys) {
+    if (!compositor.needsKeyTheme(cue)) continue;
+    const j = nearestFrame(scene.times, cue.appear);
+    const frame = scene.frameIndex[j];
+    const behind = frame === index ? image : await source.get(frame);
+    compositor.prepareKeys(cue, { ...frameInput(scene, j), image: behind });
+  }
+  if (inputs.length > 1) compositor.drawBlurred(inputs);
+  else compositor.draw(inputs[0]);
+}
+
+/**
+ * Renders a recorded session to a video file.
+ */
+export async function render(sessionDir: string, options?: RenderOptions): Promise<RenderResult> {
+  const session = await loadSession(sessionDir);
+  let scene = buildScene(session, options);
+  const format = scene.options.format;
+  if (format === 'gif') {
+    const gif = gifSettings(scene.options.size, scene.options.fps);
+    if (gif.fps !== scene.options.fps) scene = buildScene(session, { ...options, fps: gif.fps });
+  }
+  const { options: opts, times } = scene;
+  const binary = ffmpegPath(opts);
+  await checkFfmpeg(binary);
+  await mkdir(path.dirname(opts.output), { recursive: true });
+
+  let first = 0;
+  while (first < times.length && times[first] < opts.range.start) first++;
+  let last = first;
+  while (last < times.length && times[last] < opts.range.end) last++;
+  const total = last - first;
+
+  const { compositor, source } = await setup(sessionDir, scene);
+  const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autokast-')) : null;
+  const target = temp ? path.join(temp, 'frames.mkv') : opts.output;
+  const encoder = new FfmpegProcess(
+    binary,
+    encoderArgs(
+      temp ? 'mkv' : format === 'webm' ? 'webm' : 'mp4',
+      opts.size,
+      opts.fps,
+      opts.encode,
+      target,
+    ),
+  );
+  try {
+    for (let i = first; i < last; i++) {
+      await drawFrame(scene, compositor, source, i);
+      await encoder.write(compositor.canvas.data());
+      opts.onProgress?.(i - first + 1, total);
+    }
+    await encoder.finish();
+    if (temp) {
+      const gif = gifSettings(opts.size, opts.fps);
+      await runFfmpeg(binary, gifArgs(target, opts.output, gif.fps, gif.width));
+    }
+  } catch (error) {
+    encoder.kill();
+    throw error;
+  } finally {
+    if (temp) await rm(temp, { recursive: true, force: true });
+  }
+
+  let size = opts.size;
+  if (format === 'gif') {
+    const width = gifSettings(opts.size, opts.fps).width;
+    size = { width, height: Math.round((opts.size.height * width) / opts.size.width) };
+  }
+  return {
+    output: opts.output,
+    duration: (total * 1000) / opts.fps,
+    frames: total,
+    size,
+    fps: opts.fps,
+  };
+}
+
+/**
+ * Renders one still frame at an output time (milliseconds) and returns a PNG.
+ */
+export async function renderFrame(
+  sessionDir: string,
+  time: number,
+  options?: RenderOptions,
+): Promise<Buffer> {
+  const session = await loadSession(sessionDir);
+  const scene = buildScene(session, options, Math.max(0, time));
+  const i = scene.times.indexOf(Math.max(0, time));
+  const { compositor, source } = await setup(sessionDir, scene);
+  await drawFrame(scene, compositor, source, i);
+  return compositor.canvas.encode('png');
+}
