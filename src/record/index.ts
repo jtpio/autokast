@@ -116,24 +116,28 @@ async function failure(
   error: unknown,
   context: string[] = [],
 ): Promise<Error> {
-  const lines = [headline];
+  const cause = (error instanceof Error ? error.message : String(error)).split('\n');
+  // The first line is a complete summary: the CLI repeats it at the end of its output.
+  let summary = `${headline}: ${cause[0].trim().replace(/[.:]?$/, '.')}`;
   if (page) {
     const file = path.join(dir, ERROR_SCREENSHOT);
     try {
       await page.screenshot({ path: file, timeout: 5000 });
-      lines.push(`Screenshot of the page: ${file}`);
+      summary += ` Screenshot: ${file}`;
     } catch (screenshotError) {
-      lines.push(`No screenshot: ${String(screenshotError).split('\n')[0]}`);
+      summary += ` No screenshot: ${String(screenshotError).split('\n')[0]}`;
     }
-    lines.push(`Page URL: ${page.url()}`);
   }
-  lines.push(...context);
-  const cause = (error instanceof Error ? error.message : String(error)).split('\n');
   if (cause.length > MAX_CAUSE_LINES) {
     const more = cause.length - MAX_CAUSE_LINES;
     cause.splice(MAX_CAUSE_LINES, more, `... ${more} more lines in error.cause`);
   }
-  lines.push(`Cause: ${cause.join('\n')}`);
+  const lines = [
+    summary,
+    ...(page ? [`Page URL: ${page.url()}`] : []),
+    ...context,
+    `Cause: ${cause.join('\n')}`,
+  ];
   return new Error(lines.join('\n'), { cause: error });
 }
 
@@ -167,8 +171,8 @@ export async function record(
     await cursorStyle.install(context);
     const page = await context.newPage();
     if (framePerfect) {
-      const { fps, format, quality } = opts.capture;
-      pump = await FramePump.create(context, page, dir, { fps, format, quality });
+      const { fps, clockLead, format, quality } = opts.capture;
+      pump = await FramePump.create(context, page, dir, { fps, clockLead, format, quality });
       // With BeginFrame control the page paints only when it gets frames: page loads, rAF
       // and Playwright actions all wait for them.
       pump.startFreeRun();
@@ -178,14 +182,14 @@ export async function record(
       try {
         await page.goto(opts.url);
       } catch (error) {
-        throw await failure(page, dir, `Could not open ${opts.url} before the recording.`, error);
+        throw await failure(page, dir, `Could not open ${opts.url} before the recording`, error);
       }
     }
     if (setup) {
       try {
         await setup({ page });
       } catch (error) {
-        throw await failure(page, dir, 'The setup function failed (before the recording).', error);
+        throw await failure(page, dir, 'The setup function failed (before the recording)', error);
       }
     }
     await page.mouse.move(opts.cursor.start.x, opts.cursor.start.y);
@@ -214,7 +218,7 @@ export async function record(
         maxHeight: frameSize.height,
       });
       capture = screencast;
-      pace = new RealtimePace(clock);
+      pace = new RealtimePace(clock, () => screencast.refresh());
     }
     const timeline = new Timeline(pace);
     timeline.sample(opts.cursor.start, 0);
@@ -230,8 +234,8 @@ export async function record(
     } catch (error) {
       const call = director.failureOf(error);
       const headline = call
-        ? `${call.call} failed at ${seconds(call.t)} (record time).`
-        : `The run function failed at ${seconds(pace.now())} (record time).`;
+        ? `${call.call} failed at ${seconds(call.t)} (record time)`
+        : `The run function failed at ${seconds(pace.now())} (record time)`;
       const context = [`Partial session up to the failure: ${dir}`];
       if (director.lastCall) {
         context.push(`Last successful call: ${director.lastCall}`);

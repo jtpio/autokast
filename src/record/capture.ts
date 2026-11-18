@@ -2,8 +2,14 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { BrowserContext, CDPSession, Page } from 'playwright';
 import type { FrameRef, Size } from '../types.ts';
+import { epochNow } from './timeline.ts';
 
 export const FRAMES_DIR = 'frames';
+
+/**
+ * Quiet time, in ms, after the last screencast frame before a forced capture.
+ */
+const QUIET_MS = 200;
 
 /**
  * Screencast settings. `maxWidth` and `maxHeight` are in device pixels.
@@ -114,10 +120,17 @@ export class FrameCapture implements Capture {
   private readonly cdp: CDPSession;
   private readonly dir: string;
   private writer: FrameWriter;
+  private settings?: CaptureSettings;
   private origin = 0;
   private end = Infinity;
   private reachedEnd?: () => void;
   private stopped = false;
+  private quietTimer?: NodeJS.Timeout;
+  /**
+   * A forced capture makes the screencast send one frame too: that frame, when it comes
+   * before this real time, starts no quiet period.
+   */
+  private ownFrameUntil = 0;
 
   private constructor(cdp: CDPSession, dir: string) {
     this.cdp = cdp;
@@ -143,6 +156,7 @@ export class FrameCapture implements Capture {
    */
   async start(origin: number, settings: CaptureSettings): Promise<void> {
     this.origin = origin;
+    this.settings = settings;
     this.writer = new FrameWriter(this.dir, settings.format);
     this.cdp.on('Page.screencastFrame', this.onFrame);
     await this.cdp.send('Page.startScreencast', {
@@ -160,6 +174,7 @@ export class FrameCapture implements Capture {
    * to `grace` ms for a frame made after `end`, which proves that no earlier frame is late.
    */
   async stop(end = Infinity, grace = 300): Promise<FrameRef[]> {
+    await this.refresh(end);
     this.end = end;
     if (Number.isFinite(end)) {
       await new Promise<void>((resolve) => {
@@ -168,6 +183,7 @@ export class FrameCapture implements Capture {
       });
     }
     this.stopped = true;
+    clearTimeout(this.quietTimer);
     this.cdp.off('Page.screencastFrame', this.onFrame);
     await this.cdp.send('Page.stopScreencast').catch(() => {});
     await this.cdp.detach().catch(() => {});
@@ -181,6 +197,35 @@ export class FrameCapture implements Capture {
   async addFrame(data: Buffer, t: number): Promise<void> {
     this.writer.add(data, t);
     await this.writer.flush();
+  }
+
+  /**
+   * Captures the page now and stores it as a frame, at most at record time `end`. The
+   * screencast sends frames only on damage and can drop the last one of a change.
+   */
+  async refresh(end = Infinity): Promise<number | undefined> {
+    clearTimeout(this.quietTimer);
+    if (this.stopped || !this.settings) {
+      return undefined;
+    }
+    const t = Math.min(epochNow() - this.origin, end);
+    const { format, quality } = this.settings;
+    this.ownFrameUntil = Infinity;
+    try {
+      const { data } = await this.cdp.send(
+        'Page.captureScreenshot',
+        format === 'png' ? { format } : { format, quality },
+      );
+      if (!this.stopped) {
+        this.writer.add(Buffer.from(data, 'base64'), this.frames.length === 0 ? 0 : t);
+      }
+    } catch {
+      // The page can be between documents: the next frame shows it.
+    }
+    if (this.ownFrameUntil === Infinity) {
+      this.ownFrameUntil = performance.now() + QUIET_MS;
+    }
+    return t;
   }
 
   private onFrame = (frame: ScreencastFrame): void => {
@@ -197,5 +242,11 @@ export class FrameCapture implements Capture {
     }
     // The first frame is the page at the start: it gets t = 0.
     this.writer.add(Buffer.from(frame.data, 'base64'), this.frames.length === 0 ? 0 : t);
+    if (performance.now() < this.ownFrameUntil) {
+      this.ownFrameUntil = 0;
+      return;
+    }
+    clearTimeout(this.quietTimer);
+    this.quietTimer = setTimeout(() => void this.refresh(), QUIET_MS);
   };
 }

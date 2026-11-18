@@ -53,6 +53,10 @@ const FREE_RUN_INTERVAL = 1000 / 60;
 
 export interface PumpSettings {
   fps: number;
+  /**
+   * How far the page's wall clock starts ahead of the real clock, in ms.
+   */
+  clockLead: number;
   format: 'jpeg' | 'png';
   quality: number;
 }
@@ -76,7 +80,6 @@ interface Waiter {
  */
 export class FramePump implements Capture {
   readonly frameMs: number;
-  readonly stats = { kicks: 0, rebases: 0, realMs: 0 };
   private readonly cdp: CDPSession;
   private readonly settings: PumpSettings;
   private readonly writer: FrameWriter;
@@ -91,7 +94,6 @@ export class FramePump implements Capture {
   private capturing = true;
   private lastImage?: string;
   private end = Infinity;
-  private realStart = 0;
   private inputs: QueuedInput[] = [];
   private readonly unsettled = new Set<Promise<unknown>>();
   private waiters: Waiter[] = [];
@@ -151,12 +153,14 @@ export class FramePump implements Capture {
   async start(): Promise<void> {
     this.freeRunning = false;
     await this.freeLoop;
+    // Page time runs slower than real time: with a lead, server time stamps made during
+    // the recording stay in the page's past.
     const { virtualTimeTicksBase } = await this.cdp.send('Emulation.setVirtualTimePolicy', {
       policy: 'pause',
+      initialVirtualTime: (Date.now() + this.settings.clockLead) / 1000,
     });
     this.base = virtualTimeTicksBase;
     this.running = true;
-    this.realStart = performance.now();
     this.loop = this.run().catch((error: unknown) => this.fail(error));
     await this.waitFrame(0);
   }
@@ -170,9 +174,6 @@ export class FramePump implements Capture {
     this.running = false;
     this.freeRunning = false;
     await Promise.all([this.loop, this.freeLoop]);
-    if (this.realStart) {
-      this.stats.realMs = performance.now() - this.realStart;
-    }
     await this.writer.flush();
     return this.frames;
   }
@@ -249,7 +250,8 @@ export class FramePump implements Capture {
         ...(screenshot ? { screenshot } : {}),
       });
       // A screenshot always reports damage: equal bytes mean an unchanged frame, which the
-      // renderer gets from the previous stored frame.
+      // renderer gets from the previous stored frame. No image (a new renderer starting after
+      // a cross-site navigation) also keeps the previous frame.
       const image = result.screenshotData;
       if (image && image !== this.lastImage && t <= this.end) {
         this.lastImage = image;
@@ -310,7 +312,6 @@ export class FramePump implements Capture {
         // A new renderer process (cross-site navigation) has its own clock.
         this.base = virtualTimeTicksBase;
         this.baseVirtual = this.virtual;
-        this.stats.rebases++;
       }
       await expired;
     } finally {
@@ -334,7 +335,6 @@ export class FramePump implements Capture {
       await Promise.race([pending, sleep(WAIT.watchdog)]);
       if (!done) {
         await this.advance(KICK);
-        this.stats.kicks++;
       }
     }
     return pending;

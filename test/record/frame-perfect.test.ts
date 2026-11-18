@@ -63,8 +63,10 @@ const COLORS: Record<string, [number, number, number]> = {
 };
 
 /**
- * Reads, for each frame, the x (device px) of the first pixel of each color on its row,
- * and the color at one point.
+ * Reads, for each frame, the x (device px) of the center of each colored box on its row,
+ * and the color at one point. The center weights each pixel by its coverage, read from
+ * the channel where the box color differs most from the white page: antialiased edges
+ * then give sub-pixel positions. -1 when the box is not on its row.
  */
 async function analyze(
   dir: string,
@@ -82,18 +84,18 @@ async function analyze(
     const x: Record<string, number> = {};
     for (const [color, y] of Object.entries(rows)) {
       const data = context.getImageData(0, y * scale, image.width, 1).data;
-      const [r, g, b] = COLORS[color];
-      x[color] = -1;
+      const target = COLORS[color];
+      const channel = target.indexOf(Math.min(...target));
+      let sum = 0;
+      let weight = 0;
       for (let i = 0; i < image.width; i++) {
-        const near =
-          Math.abs(data[i * 4] - r) < 60 &&
-          Math.abs(data[i * 4 + 1] - g) < 60 &&
-          Math.abs(data[i * 4 + 2] - b) < 60;
-        if (near) {
-          x[color] = i;
-          break;
+        const coverage = (255 - data[i * 4 + channel]) / (255 - target[channel]);
+        if (coverage > 0.1) {
+          sum += i * Math.min(1, coverage);
+          weight += Math.min(1, coverage);
         }
       }
+      x[color] = weight > 10 ? sum / weight : -1;
     }
     const at = [...context.getImageData(point.x * scale, point.y * scale, 1, 1).data.slice(0, 3)];
     result.push({ t: frame.t, x, at });
@@ -143,6 +145,7 @@ describe('frame-perfect capture', () => {
   let frames: Awaited<ReturnType<typeof analyze>>;
   let hoverBox: Rect;
   const marks: Record<string, number> = {};
+  const clockLead: number[] = [];
 
   before(async () => {
     second = await serve({ '/': SECOND }, 'localhost');
@@ -156,6 +159,8 @@ describe('frame-perfect capture', () => {
         pacing: { startDelay: 100, endDelay: 100 },
       },
       async (cast) => {
+        const lead = async () => (await cast.page.evaluate(() => Date.now())) - Date.now();
+        clockLead.push(await lead());
         hoverBox = (await cast.page.locator('#hover').boundingBox())!;
         await cast.moveTo('#hover');
         await cast.click('#go');
@@ -166,6 +171,7 @@ describe('frame-perfect capture', () => {
         await cast.page.waitForURL(`${second.url}/`);
         cast.marker('second');
         await cast.wait(600);
+        clockLead.push(await lead());
       },
     ));
     for (const marker of ofType(session, 'marker')) {
@@ -194,18 +200,30 @@ describe('frame-perfect capture', () => {
   it('captures every frame of continuous animation, with constant motion', () => {
     const [cut] = ofType(session, 'cut');
     const before = frames.filter((frame) => frame.t <= cut.t);
-    assert.deepEqual(frameSteps(before), { [+FRAME.toFixed(1)]: before.length - 1 });
+    const gaps = before
+      .slice(1)
+      .filter((frame, i) => Math.abs(frame.t - before[i].t - FRAME) > 0.01)
+      .map((frame) => frame.t.toFixed(2));
+    assert.deepEqual(gaps, [], 'every frame is stored: frames after a gap');
     for (const color of ['red', 'blue', 'green']) {
-      const moves = steps(before.map((frame) => frame.x[color])).filter((step) => step > -1000);
-      assert.deepEqual(counts(moves), { 20: moves.length }, `${color} moves 10 CSS px per frame`);
+      const off = before
+        .slice(1)
+        .map((frame, i) => ({ t: frame.t, step: frame.x[color] - before[i].x[color] }))
+        .filter(({ step }) => step > -1000 && Math.abs(step - 20) > 0.5)
+        .map(({ t, step }) => `${t.toFixed(2)}: ${step.toFixed(2)}`);
+      assert.deepEqual(off, [], `${color} moves 10 CSS px (20 device px) in every frame`);
     }
   });
 
   it('shows a 1 s transition in exactly 60 frames', () => {
     const up = buttons(session, 'mouseUp')[0];
     const after = frames.filter((frame) => frame.t >= up.t && frame.x.magenta >= 0);
-    const moving = steps(after.map((frame) => frame.x.magenta)).filter((step) => step !== 0);
-    assert.deepEqual(counts(moving), { 20: 60 });
+    const moving = steps(after.map((frame) => frame.x.magenta)).filter((step) => step > 0.5);
+    assert.equal(moving.length, 60);
+    assert.deepEqual(
+      moving.filter((step) => Math.abs(step - 20) > 0.5),
+      [],
+    );
   });
 
   it('shows the hover state in the frame of the first cursor sample inside', () => {
@@ -236,12 +254,21 @@ describe('frame-perfect capture', () => {
     assert.equal(inside.length, Math.round((speed.end - speed.t) / FRAME) + 1);
   });
 
+  it('starts the page wall clock ahead of the real clock, also after a navigation', () => {
+    const [start, end] = clockLead;
+    assert.ok(Math.abs(start - 600_000) < 5000, `${start} ms ahead at the start`);
+    assert.ok(end > 600_000 - 120_000 && end < start, `${end} ms ahead at the end`);
+  });
+
   it('keeps the page clock running after a cross-site navigation', () => {
     const later = frames.filter((frame) => frame.t > marks.second + 100);
     assert.ok(later.length >= 25, `${later.length} frames on the second site`);
     assert.deepEqual(frameSteps(later), { [+FRAME.toFixed(1)]: later.length - 1 });
     const moves = steps(later.map((frame) => frame.x.red)).filter((step) => step > -1000);
-    assert.deepEqual(counts(moves), { 20: moves.length });
+    assert.deepEqual(
+      moves.filter((step) => Math.abs(step - 20) > 0.5),
+      [],
+    );
   });
 });
 

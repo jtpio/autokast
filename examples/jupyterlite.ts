@@ -14,9 +14,10 @@ df.head()`;
 
 const PLOT = `import matplotlib.pyplot as plt
 
-monthly = df.resample("ME", on="date").mean()
-monthly[["temp_min", "temp_max"]].plot(figsize=(9, 3.2), marker="o")
-plt.title("Monthly temperature");`;
+plt.figure(figsize=(9, 3.2))
+plt.scatter(df["sun_hours"], df["temp_max"], c=df["date"].dt.month, cmap="twilight", s=14)
+plt.xlabel("Sun hours")
+plt.ylabel("Max temperature");`;
 
 /**
  * Python in a browser tab: a JupyterLite notebook on the Pyodide kernel, no server.
@@ -103,8 +104,8 @@ export default defineScreencast({
     await cast.cut(() => plot.waitFor(KERNEL));
     await cast.wait(600);
     await cast.scrollTo(cells.nth(2), { block: 'end' });
-    // Point at the July maximum.
-    await cast.hover(plot, { position: { x: 0.56, y: 0.12 }, hold: 4000 });
+    // Point at the sunny, warm days of summer.
+    await cast.hover(plot, { position: { x: 0.8, y: 0.25 }, hold: 4000 });
     await cast.zoomOut();
     await cast.wait(2000);
   },

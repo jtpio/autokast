@@ -1,4 +1,5 @@
 import { defineScreencast } from 'autocast';
+import { resetJupyterLab } from './jupyterlab/reset.ts';
 
 const server = process.env.JUPYTER_URL ?? 'http://localhost:8888';
 
@@ -13,27 +14,10 @@ export default defineScreencast({
   url: `${server}/lab?reset`,
 
   async setup({ page }) {
-    const ready = async () => {
-      await page.locator('.jp-Launcher').waitFor();
-      await page.locator('#jupyterlab-splash').waitFor({ state: 'detached' });
-    };
-    await ready();
-
-    // `?reset` restores the layout, but not the theme setting or a running kernel.
-    const xsrf = (await page.context().cookies()).find((c) => c.name === '_xsrf')?.value ?? '';
-    const headers = { 'X-XSRFToken': xsrf };
-    await page.request.put(`${server}/lab/api/settings/@jupyterlab/apputils-extension:themes`, {
-      headers,
-      data: { raw: '{}' },
-    });
-    const sessions: { id: string }[] = await (
-      await page.request.get(`${server}/api/sessions`)
-    ).json();
-    for (const { id } of sessions) {
-      await page.request.delete(`${server}/api/sessions/${id}`, { headers });
-    }
+    await resetJupyterLab(page, server);
     await page.goto(`${server}/lab?reset`);
-    await ready();
+    await page.locator('.jp-Launcher').waitFor();
+    await page.locator('#jupyterlab-splash').waitFor({ state: 'detached' });
   },
 
   async run(cast) {
@@ -44,7 +28,7 @@ export default defineScreencast({
       page.locator('#table-of-contents').getByText(name, { exact: true });
 
     await cast.wait(1500);
-    await cast.dblclick(file('weather-report.ipynb'));
+    await cast.dblclick(file('weather-report.ipynb'), { afterClick: 0 });
     await cast.cut(() =>
       page.locator('.jp-Notebook-ExecutionIndicator[data-status="idle"]').waitFor(),
     );
@@ -63,13 +47,12 @@ export default defineScreencast({
 
     await cast.click(sidebarTab('filebrowser'));
     await cast.dblclick(file('data'));
-    await cast.dblclick(file('weather.csv'));
+    await cast.dblclick(file('weather.csv'), { afterClick: 0 });
     await cast.cut(() => page.locator('.jp-CSVViewer').waitFor());
     const csvTab = page.locator('.lm-DockPanel-tabBar .lm-TabBar-tab', { hasText: 'weather.csv' });
     await cast.moveTo(csvTab);
     await cast.wait(2000);
-    const dock = (await page.locator('#jp-main-dock-panel').boundingBox())!;
-    await cast.drag(csvTab, { x: dock.x + dock.width * 0.85, y: dock.y + dock.height * 0.5 });
+    await cast.drag(csvTab, '#jp-main-dock-panel', { toPosition: { x: 0.85, y: 0.5 } });
     await cast.wait(3500);
 
     await cast.click(sidebarTab('filebrowser'));

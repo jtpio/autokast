@@ -49,7 +49,7 @@ export default defineScreencast({
     await cast.press('Shift+Enter');
     await cast.cut(() => table.waitFor());
     await cast.wait(500);
-    await cast.zoomTo(table, { scale: 1.7 });
+    await cast.zoomTo(cells.first(), { padding: 24 });
     await cast.wait(2400);
 
     await cast.zoomTo(cells.nth(1), { scale: 1.5 });
@@ -62,6 +62,8 @@ export default defineScreencast({
     await cast.zoomTo(plots.first(), { padding: 36 });
     await cast.hover(plots.first(), { position: { x: 0.56, y: 0.2 }, hold: 2000 });
 
+    await cast.zoomOut();
+    await cast.scrollTo(cells.nth(2));
     await cast.zoomTo(cells.nth(2), { scale: 1.5 });
     await cast.type(RAIN, { into: cells.nth(2).locator('.cm-content') });
     await cast.wait(300);
@@ -84,8 +86,10 @@ export default defineScreencast({
     await cast.click(dialog.getByRole('button', { name: 'Rename' }));
     await cast.cut(() => tab.filter({ hasText: 'weather-analysis' }).waitFor());
     await cast.wait(300);
-    await cast.zoomTo({ x: 0, y: 0, width: 660, height: 300 });
-    await cast.wait(1800);
+    await cast.zoomTo({ x: 0, y: 0, width: 660, height: 300 }, { follow: false });
+    await cast.hover(page.locator('.jp-DirListing-item', { hasText: 'weather-analysis' }), {
+      hold: 1800,
+    });
     await cast.zoomOut();
     await cast.wait(1000);
   },

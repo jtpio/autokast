@@ -12,7 +12,10 @@
     "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "autocast": ["./src/index.ts"]
+    }
   },
   "include": ["src", "test", "examples"]
 }

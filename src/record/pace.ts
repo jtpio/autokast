@@ -38,10 +38,10 @@ export interface Pace {
     step: (progress: number, t: number) => Send | undefined,
   ): Promise<void>;
   /**
-   * Turns frame capture on or off: off inside cut regions. Resolves when the next frame
-   * is captured, so that the end of a cut has its frame.
+   * Turns frame capture on or off: off inside cut regions. Turning it on captures a frame
+   * and resolves with its record time, so that the end of a cut has its frame.
    */
-  capture(on: boolean): Promise<void>;
+  capture(on: boolean): Promise<number>;
 }
 
 /**
@@ -87,9 +87,14 @@ class LatestDispatch {
 export class RealtimePace implements Pace {
   readonly timeoutScale = 1;
   private readonly clock: Clock;
+  private readonly refresh: () => Promise<number | undefined>;
 
-  constructor(clock: Clock) {
+  /**
+   * `refresh` captures the page now and gives the record time of that frame.
+   */
+  constructor(clock: Clock, refresh: () => Promise<number | undefined> = async () => undefined) {
     this.clock = clock;
+    this.refresh = refresh;
   }
 
   now(): number {
@@ -141,7 +146,9 @@ export class RealtimePace implements Pace {
     }
   }
 
-  async capture(): Promise<void> {}
+  async capture(on: boolean): Promise<number> {
+    return (on ? await this.refresh() : undefined) ?? this.now();
+  }
 }
 
 /**
@@ -182,10 +189,11 @@ export class FramePerfectPace implements Pace {
     }
   }
 
-  async capture(on: boolean): Promise<void> {
+  async capture(on: boolean): Promise<number> {
     this.pump.capture(on);
     if (on) {
       await this.pump.wait(this.pump.frameMs);
     }
+    return this.now();
   }
 }

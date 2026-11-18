@@ -10,7 +10,13 @@ describe('resolveOptions', () => {
     assert.equal(options.name, 'screencast');
     assert.deepEqual(options.viewport, { width: 1280, height: 720 });
     assert.equal(options.deviceScaleFactor, 2);
-    assert.deepEqual(options.capture, { mode: 'realtime', fps: 60, format: 'jpeg', quality: 92 });
+    assert.deepEqual(options.capture, {
+      mode: 'realtime',
+      fps: 60,
+      clockLead: 600_000,
+      format: 'jpeg',
+      quality: 92,
+    });
     assert.deepEqual(options.cursor, {
       start: { x: 640, y: 360 },
       speed: 1,
@@ -50,6 +56,7 @@ describe('resolveOptions', () => {
     assert.throws(() => resolveOptions({ viewport: { width: 10.5, height: 10 } }), /viewport/);
     assert.throws(() => resolveOptions({ cursor: { speed: 0 } }), /cursor\.speed/);
     assert.throws(() => resolveOptions({ timeout: 0 }), /timeout/);
+    assert.throws(() => resolveOptions({ capture: { clockLead: -1 } }), /capture\.clockLead/);
   });
 });
 

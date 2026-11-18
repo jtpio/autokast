@@ -48,17 +48,24 @@ after(async () => {
 
 it('types the exact text with auto indentation, also in an editor that indents', async () => {
   const values: Record<string, string> = {};
+  const field: { box?: { x: number; y: number; width: number; height: number } | null } = {};
   const ids = ['plain-auto', 'plain-raw', 'smart-auto', 'smart-raw'];
   const { session } = await record(
     { url: server.url, sessionDir: dir, pacing: { startDelay: 0, endDelay: 0 } },
     async (cast) => {
+      field.box = await cast.page.locator('#plain-auto').boundingBox();
       for (const id of ids) {
         const indent = id.endsWith('raw') ? 'raw' : 'auto';
-        await cast.type(CODE, { into: `#${id}`, indent, delay: 5, variance: 0 });
+        const position = { x: 0.9, y: 0.5 };
+        await cast.type(CODE, { into: `#${id}`, position, indent, delay: 5, variance: 0 });
         values[id] = await cast.page.locator(`#${id}`).inputValue();
       }
     },
   );
+  const down = session.events.find((event) => event.type === 'mouseDown');
+  const box = field.box;
+  assert.ok(down && box && down.type === 'mouseDown');
+  assert.deepEqual([down.x, down.y], [box.x + 0.9 * box.width, box.y + 0.5 * box.height]);
   assert.equal(values['plain-auto'], CODE);
   assert.equal(values['plain-raw'], CODE);
   assert.equal(values['smart-auto'], CODE);

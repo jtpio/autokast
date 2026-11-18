@@ -77,7 +77,7 @@ describe('drag options and positions outside the target', () => {
         await cast.hover('#bar2', { position: { x: 0.5, y: -0.625 }, hold: 50 });
         await cast.moveTo('#bar2', { position: { x: 0.5, y: 0.1 } });
         log.hover = await cast.page.evaluate(read);
-        await cast.click('#bar3', { position: { x: 0.5, y: -0.25 } });
+        await cast.click('#bar3', { position: { x: 0.5, y: -0.25 }, afterClick: 0 });
         log.click = await cast.page.evaluate(read);
         await cast.drag('#handle', '#zone', {
           position: { x: 0.2, y: 0.2 },
@@ -105,6 +105,14 @@ describe('drag options and positions outside the target', () => {
     assert.deepEqual(log.click!.clicked, ['above']);
     const down = session.events.find((event) => event.type === 'mouseDown') as MouseButtonEvent;
     assert.deepEqual([down.x, down.y], [450, 350]);
+  });
+
+  it('waits afterClick after the press, here 0', () => {
+    const up = session.events.find((event) => event.type === 'mouseUp') as MouseButtonEvent;
+    const click = session.events.find(
+      (event): event is ActionEvent => event.type === 'action' && event.call.startsWith('click('),
+    )!;
+    assert.ok(click.end - up.t < 60, `${click.end - up.t} ms after the press`);
   });
 
   it('uses position for the source, toPosition for the destination', () => {

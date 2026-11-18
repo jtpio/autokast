@@ -230,6 +230,12 @@ export interface CaptureOptions {
    * Frames per second of page time in `frame-perfect` mode. Default: 60.
    */
   fps?: number;
+  /**
+   * In `frame-perfect` mode, how far the page clock starts ahead of the real clock, in
+   * milliseconds. The page clock runs slower than real time, so without a lead a time
+   * stamp from a server can be in the page's future. Default: 600000.
+   */
+  clockLead?: number;
   format?: 'jpeg' | 'png';
   /**
    * JPEG quality, 0-100.

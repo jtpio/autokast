@@ -342,8 +342,8 @@ export class Director implements Cast {
 
   zoomOut(options: Omit<ZoomToOptions, 'scale' | 'padding'> = {}): Promise<void> {
     return this.step('zoomOut()', async () => {
-      const { duration, easing } = options;
-      this.push({ type: 'zoom', t: this.timeline.now(), focus: null, duration, easing });
+      const { duration, easing, follow } = options;
+      this.push({ type: 'zoom', t: this.timeline.now(), focus: null, duration, easing, follow });
       if (options.wait !== false) {
         await this.pace.sleep(duration ?? CAST_DEFAULTS.zoomDuration);
       }
@@ -451,11 +451,9 @@ export class Director implements Cast {
     try {
       return await fn();
     } finally {
-      if (kind === 'cut') {
-        await this.pace.capture(true);
-      }
+      const end = kind === 'cut' ? await this.pace.capture(true) : this.timeline.now();
       this.region = undefined;
-      done(t, this.timeline.now());
+      done(t, end);
     }
   }
 
