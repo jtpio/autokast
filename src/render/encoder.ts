@@ -27,6 +27,12 @@ const COLOR_TAGS = [
   'tv',
 ];
 
+/*
+ * Newer ffmpeg versions take the color tags from the frames, not from the output options,
+ * so the filter chain sets them too.
+ */
+const FRAME_TAGS = 'setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv';
+
 /**
  * The ffmpeg binary: `encode.ffmpegPath`, then `AUTOCAST_FFMPEG`, then `ffmpeg` on PATH.
  */
@@ -87,7 +93,7 @@ export function encoderArgs(
   const pixelFormat = encode.pixelFormat;
   const convert = [
     '-vf',
-    `scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=${pixelFormat}`,
+    `scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=${pixelFormat},${FRAME_TAGS}`,
   ];
   if (format === 'webm') {
     const q = VP9[encode.quality] ?? VP9.standard;
@@ -123,7 +129,7 @@ export function encoderArgs(
     '-crf',
     String(encode.crf ?? q.crf),
     '-x264-params',
-    'aq-mode=3',
+    'aq-mode=3:colorprim=bt709:transfer=bt709:colormatrix=bt709',
     '-pix_fmt',
     pixelFormat,
     ...COLOR_TAGS,
