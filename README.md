@@ -45,9 +45,9 @@ script ──▶ record ──▶ session ──▶ render ──▶ video
            + CDP        timeline   frame, backdrop
 ```
 
-1. **Record.** Headless Chromium runs the script in real time. The page is captured at twice
-   the viewport resolution through the Chrome DevTools Protocol. No cursor is in the capture.
-   Every cursor position, click, key, zoom and cut goes to a timeline.
+1. **Record.** Headless Chromium runs the script. The page is captured at twice the viewport
+   resolution through the Chrome DevTools Protocol, in real time or frame by frame. No cursor
+   is in the capture. Every cursor position, click, key, zoom and cut goes to a timeline.
 2. **Session.** The result is a directory with `session.json` and the frames. It is plain data,
    so a session can be rendered again with other settings without a new recording.
 3. **Render.** For each output frame the renderer composes the backdrop, the framed page, the
@@ -137,6 +137,7 @@ export default defineScreencast({
   viewport: { width: 1280, height: 720 }, // CSS pixels; a smaller viewport gives a larger UI
   deviceScaleFactor: 2, // capture scale; 3 keeps deep zooms and 4K output sharp
   colorScheme: 'dark',
+  capture: { mode: 'realtime' }, // or 'frame-perfect' for final recordings
   cursor: { speed: 1, curvature: 0.2 },
   typing: { delay: 55, variance: 0.35 },
   pacing: { startDelay: 600, endDelay: 1200, afterClick: 350 },
@@ -159,6 +160,10 @@ Notes on the options that change the look most:
 
 - **`render.size`, `render.fps`, `render.encode`** set the resolution, the frame rate and the
   quality. `encode.crf`, `encode.preset` and `encode.pixelFormat` give full control of x264.
+- **`capture.mode`**: `realtime` (default) records at the speed of the video.
+  `frame-perfect` controls the page clock and captures one frame for each 1/60 s of page time,
+  so scrolls, drags and animations are exact on any machine; the recording takes 3 to 4 times
+  longer. Use it for final recordings: `autocast record script.ts --set capture.mode=frame-perfect`.
 - **`render.zoom.mode`**: `camera` scales the full window past the edges of the video, like a
   camera that moves closer. `crop` zooms inside a fixed window.
 - **`render.zoom.auto`** adds zooms on clicks and typing when the script has none.
@@ -191,13 +196,17 @@ JupyterLab.
 
 ## Examples
 
-| Script                                                               | Shows                                      |
-| -------------------------------------------------------------------- | ------------------------------------------ |
-| [`examples/jupyterlab-notebook.ts`](examples/jupyterlab-notebook.ts) | A first data analysis in a new notebook.   |
-| [`examples/orbit-board.ts`](examples/orbit-board.ts)                 | A generic web app: forms, drag, shortcuts. |
+| Script                                                               | Shows                                                                               |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [`examples/jupyterlab-notebook.ts`](examples/jupyterlab-notebook.ts) | JupyterLab: a first data analysis in a new notebook.                                |
+| [`examples/jupyterlab-tour.ts`](examples/jupyterlab-tour.ts)         | JupyterLab: table of contents, side-by-side documents, command palette, dark theme. |
+| [`examples/jupyterlite.ts`](examples/jupyterlite.ts)                 | JupyterLite: Python in the browser with the Pyodide kernel.                         |
+| [`examples/orbit-board.ts`](examples/orbit-board.ts)                 | A generic web app: dialog, drag, command palette, chart, theme.                     |
+| [`examples/jupyterlab-overlays.ts`](examples/jupyterlab-overlays.ts) | The optional captions and keycaps.                                                  |
 
-`examples/jupyterlab/serve.sh` starts JupyterLab for the Jupyter examples, and
-`node examples/demo-app/serve.mjs` serves the demo app.
+`examples/jupyterlab/serve.sh` starts JupyterLab, `examples/jupyterlite/serve.sh` builds and
+serves a JupyterLite site, and `node examples/demo-app/serve.mjs` serves the demo app. Set
+`JUPYTER_URL`, `JUPYTERLITE_URL` or `ORBIT_URL` when a server runs on another port.
 
 ## Development
 
@@ -214,6 +223,6 @@ Source files run directly with Node (type stripping). `src/record` holds the rec
 ## Limits
 
 - One page per recording. Popups, new tabs and native `<select>` lists are not captured.
-- Capture is in real time. A page that paints slowly gives fewer distinct frames; the cursor and
-  the camera stay at the full frame rate.
+- The default capture is in real time: a page that paints slowly gives fewer distinct frames.
+  The `frame-perfect` capture mode removes this limit at the cost of a longer recording.
 - No audio.

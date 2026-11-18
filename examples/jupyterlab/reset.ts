@@ -1,8 +1,14 @@
 import type { Page } from 'playwright';
 
 /**
+ * Files that the example screencasts create.
+ */
+const CREATED = ['weather-analysis.ipynb'];
+
+/**
  * Brings a JupyterLab server back to a known state so that a recording repeats:
- * stops the kernels, deletes untitled notebooks and `files`, restores the default theme.
+ * stops the kernels, deletes untitled notebooks, the files that the examples create
+ * and `files`, restores the default theme.
  * The page must already be on the server, because the API needs its XSRF cookie.
  */
 export async function resetJupyterLab(
@@ -24,7 +30,7 @@ export async function resetJupyterLab(
   const untitled = root.content
     .map((item: { name: string }) => item.name)
     .filter((name: string) => /^Untitled\d*\.ipynb$/.test(name));
-  for (const name of [...untitled, ...files]) {
+  for (const name of [...untitled, ...CREATED, ...files]) {
     await api.delete(`${baseUrl}/api/contents/${encodeURIComponent(name)}`, options);
   }
 

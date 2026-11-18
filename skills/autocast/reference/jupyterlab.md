@@ -136,9 +136,9 @@ Verified with jupyterlite-core 0.8 and jupyterlite-pyodide-kernel 0.8.
 - The first kernel start loads Pyodide, and each first import loads its package: several
   seconds each. Wait for the output, not for the idle indicator, and cut the wait.
 - Each recording uses a new browser profile with an empty cache. To make the recorded part
-  fast and independent of the network, warm the cache in `setup`: open a second tab in the same
-  context (`page.context().newPage()`), start a Console there, run the imports the video needs,
-  then close the tab.
+  fast and independent of the network, warm the cache in `setup` on the same page: start a
+  Console from the launcher, run the imports the video needs, wait for the output, then load
+  `/lab/index.html?reset` again. A console creates no file, and `?reset` closes it.
 - Pyodide comes from a CDN. When the browser needs a proxy, pass it in the definition:
   `browser: { launchOptions: { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' } } }`.
 - `platform.platform()` returns a string that starts with `Emscripten`, and `sys.platform` is

@@ -41,8 +41,10 @@ In a clone of the repository, `node src/cli.ts <command>` runs from source and
    fewer so the tiles stay readable; `--tile-width 640 --cols 3` gives larger tiles.
 6. **Adjust and repeat** from step 4 until the sheet is right. Look options (backdrop, cursor
    size, output size) need no new recording: pass them to `render` or `inspect`.
-7. **Render**: `autocast render .autocast/<name> -o demo.mp4`. Then
-   `autocast inspect demo.mp4 -o final.png` and read it as the last check.
+7. **Final recording and render**: record once more with
+   `--set capture.mode=frame-perfect` (see "Capture modes"), then
+   `autocast render .autocast/<name> -o demo.mp4`. Run `autocast inspect demo.mp4 -o final.png`
+   and read it as the last check.
 
 ## Script template
 
@@ -199,16 +201,36 @@ To change a camera move without a new recording, edit the `zoom` events in
 `.autocast/<name>/session.json` (`focus` rectangle, `scale`, `t` in milliseconds) and render
 again.
 
+## Capture modes
+
+- `realtime` (default): the recording takes as long as the video. The page is captured as fast
+  as it paints. On a machine without a GPU, a heavy page such as JupyterLab paints only 20 to
+  25 frames per second while it scrolls or animates.
+- `frame-perfect`: the library controls the page clock and captures one frame for each 1/60 s
+  of page time. Scrolls, drags and animations are exact at 60 fps on any machine, and the
+  result does not change with the machine load. The recording takes 3 to 4 times longer.
+
+Work in `realtime` while you write and adjust the script. Make the final recording with
+`--set capture.mode=frame-perfect` (or `capture: { mode: 'frame-perfect' }` in the script).
+
+Rules for `frame-perfect`:
+
+- It needs the default headless Chromium: no `--headed`, no `browser.channel`.
+- Only the recorded page gets frames. Do not open a second tab in `setup` or `run`.
+- `cast.wait` and all Cast pauses are page time. `page.waitForTimeout` is real time.
+- Waits inside `cast.cut` cost little: no frames are captured there.
+- Answers from a server arrive early in page time, so a loading state can be very short.
+
 ## Problems
 
-| Symptom                                   | Fix                                                                                                        |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `strict mode violation`                   | The locator matches several elements. Narrow it or use `.first()`.                                         |
-| `intercepts pointer events`               | Something covers the target (dialog, toast). Close it or wait.                                             |
-| Timeout on a Cast call                    | The target is not visible. Look at `error.png`. Wait for it inside `cast.cut`.                             |
-| Cursor does not move but the page changes | The script uses `page.click` or `page.keyboard`. Use `cast`.                                               |
-| Blurry text when zoomed                   | Lower the zoom scale or record with `deviceScaleFactor: 3`.                                                |
-| Choppy page animation                     | The page paints slowly on this machine. Close other work, or accept it: the cursor and camera stay smooth. |
+| Symptom                                   | Fix                                                                                     |
+| ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| `strict mode violation`                   | The locator matches several elements. Narrow it or use `.first()`.                      |
+| `intercepts pointer events`               | Something covers the target (dialog, toast). Close it or wait.                          |
+| Timeout on a Cast call                    | The target is not visible. Look at `error.png`. Wait for it inside `cast.cut`.          |
+| Cursor does not move but the page changes | The script uses `page.click` or `page.keyboard`. Use `cast`.                            |
+| Blurry text when zoomed                   | Lower the zoom scale or record with `deviceScaleFactor: 3`.                             |
+| Choppy scroll, drag or page animation     | The page paints slowly on this machine. Record with `--set capture.mode=frame-perfect`. |
 
 ## More
 

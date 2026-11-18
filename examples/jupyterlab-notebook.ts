@@ -25,7 +25,7 @@ export default defineScreencast({
   typing: { delay: 45 },
 
   async setup({ page }) {
-    await resetJupyterLab(page, BASE, ['weather-analysis.ipynb']);
+    await resetJupyterLab(page, BASE);
     await page.goto(`${BASE}/lab?reset`);
     await page.locator('.jp-Launcher').waitFor();
     await page.locator('#jupyterlab-splash').waitFor({ state: 'detached' });

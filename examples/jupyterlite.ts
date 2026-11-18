@@ -31,19 +31,21 @@ export default defineScreencast({
     : undefined,
 
   async setup({ page }) {
-    await page.locator('.jp-Launcher').waitFor();
-    await page.locator('#jupyterlab-splash').waitFor({ state: 'detached' });
+    const ready = async () => {
+      await page.locator('.jp-Launcher').waitFor();
+      await page.locator('#jupyterlab-splash').waitFor({ state: 'detached' });
+    };
+    await ready();
 
-    // Download Pyodide and the packages once in a second tab, so that the recording does not
-    // wait on the network. A console creates no file.
-    const warm = await page.context().newPage();
-    await warm.goto(page.url());
-    await warm.locator('.jp-LauncherCard[data-category="Console"]').click();
-    await warm.locator('.jp-CodeConsole-input .cm-content').click();
-    await warm.keyboard.type('import pandas, matplotlib.pyplot; print("ready")');
-    await warm.keyboard.press('Shift+Enter');
-    await warm.locator('.jp-OutputArea-output', { hasText: 'ready' }).waitFor(KERNEL);
-    await warm.close();
+    // Download Pyodide and the packages once, so that the recording does not wait on the
+    // network. A console creates no file, and the reset closes it.
+    await page.locator('.jp-LauncherCard[data-category="Console"]').click();
+    await page.locator('.jp-CodeConsole-input .cm-content').click();
+    await page.keyboard.type('import pandas, matplotlib.pyplot; print("ready")');
+    await page.keyboard.press('Shift+Enter');
+    await page.locator('.jp-OutputArea-output', { hasText: 'ready' }).waitFor(KERNEL);
+    await page.goto(`${SITE}/lab/index.html?reset`);
+    await ready();
   },
 
   async run(cast) {

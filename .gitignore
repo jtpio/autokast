@@ -6,3 +6,8 @@ out/
 .ipynb_checkpoints/
 __pycache__/
 .venv/
+/*.mp4
+/*.webm
+/*.gif
+/contact-sheet.png
+/frame-*.png
