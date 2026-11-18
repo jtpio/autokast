@@ -9,13 +9,13 @@ import { render, renderFrame } from './render/index.ts';
 import { loadSession } from './session.ts';
 import type { RenderOptions, ScreencastDefinition, Size } from './types.ts';
 
-const HELP = `autocast - automated, polished screencasts of web apps
+const HELP = `autokast - automated, polished screencasts of web apps
 
 Usage:
-  autocast record <script> [options]     Record a screencast script, then render it
-  autocast render <session> [options]    Render a recorded session again
-  autocast frame <session> --at <sec>    Render one still frame (PNG)
-  autocast inspect <session|video>       Print the timeline and write a contact sheet
+  autokast record <script> [options]     Record a screencast script, then render it
+  autokast render <session> [options]    Render a recorded session again
+  autokast frame <session> --at <sec>    Render one still frame (PNG)
+  autokast inspect <session|video>       Print the timeline and write a contact sheet
 
 Common options:
   -o, --out <file>        Output file (.mp4, .webm, .gif; .png for frame and inspect)
@@ -28,7 +28,7 @@ Common options:
       --range <a:b>       Render only this output time range, in seconds
 
 record options:
-      --session <dir>     Session directory (default: .autocast/<name>)
+      --session <dir>     Session directory (default: .autokast/<name>)
       --no-render         Record only
       --headed            Show the browser window
 
@@ -192,7 +192,7 @@ async function loadDefinition(script: string): Promise<ScreencastDefinition> {
 async function commandRecord(positionals: string[], flags: Flags): Promise<void> {
   const script = positionals[0];
   if (!script) {
-    throw new Error('Usage: autocast record <script>');
+    throw new Error('Usage: autokast record <script>');
   }
   const definition = await loadDefinition(script);
   const overrides: Record<string, unknown> = {};
@@ -222,7 +222,7 @@ async function commandRecord(positionals: string[], flags: Flags): Promise<void>
 async function commandRender(positionals: string[], flags: Flags): Promise<void> {
   const dir = positionals[0];
   if (!dir) {
-    throw new Error('Usage: autocast render <session>');
+    throw new Error('Usage: autokast render <session>');
   }
   const session = await loadSession(dir);
   const options = await renderOptions(flags, flags.set ?? []);
@@ -242,7 +242,7 @@ function printResult(result: Awaited<ReturnType<typeof render>>): void {
 async function commandFrame(positionals: string[], flags: Flags): Promise<void> {
   const dir = positionals[0];
   if (!dir || flags.at === undefined) {
-    throw new Error('Usage: autocast frame <session> --at <seconds> [-o frame.png]');
+    throw new Error('Usage: autokast frame <session> --at <seconds> [-o frame.png]');
   }
   const options = await renderOptions(flags, flags.set ?? []);
   const out = flags.out ?? `frame-${flags.at}s.png`;
@@ -256,7 +256,7 @@ async function commandFrame(positionals: string[], flags: Flags): Promise<void> 
 async function commandInspect(positionals: string[], flags: Flags): Promise<void> {
   const source = positionals[0];
   if (!source) {
-    throw new Error('Usage: autocast inspect <session|video> [-o sheet.png]');
+    throw new Error('Usage: autokast inspect <session|video> [-o sheet.png]');
   }
   const options = await renderOptions(flags, flags.set ?? []);
   const out = flags.out ?? 'contact-sheet.png';
@@ -305,9 +305,9 @@ async function main(): Promise<void> {
 
 main().catch((error: Error) => {
   const [summary, ...details] = error.message.split('\n');
-  console.error(`autocast: ${error.message}`);
+  console.error(`autokast: ${error.message}`);
   if (details.length > 3) {
-    console.error(`\nautocast: ${summary}`);
+    console.error(`\nautokast: ${summary}`);
   }
   process.exitCode = 1;
 });

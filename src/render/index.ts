@@ -103,7 +103,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
   const total = last - first;
 
   const { compositor, source } = await setup(sessionDir, scene);
-  const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autocast-')) : null;
+  const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autokast-')) : null;
   const target = temp ? path.join(temp, 'frames.mkv') : opts.output;
   const encoder = new FfmpegProcess(
     binary,

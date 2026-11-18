@@ -126,7 +126,7 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
     viewport,
     deviceScaleFactor,
     colorScheme: options.colorScheme,
-    sessionDir: path.resolve(options.sessionDir ?? path.join('.autocast', safeName)),
+    sessionDir: path.resolve(options.sessionDir ?? path.join('.autokast', safeName)),
     browser: options.browser ?? {},
     capture,
     cursor,

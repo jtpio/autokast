@@ -34,10 +34,10 @@ const COLOR_TAGS = [
 const FRAME_TAGS = 'setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv';
 
 /**
- * The ffmpeg binary: `encode.ffmpegPath`, then `AUTOCAST_FFMPEG`, then `ffmpeg` on PATH.
+ * The ffmpeg binary: `encode.ffmpegPath`, then `AUTOKAST_FFMPEG`, then `ffmpeg` on PATH.
  */
 export function ffmpegPath(options: ResolvedOptions): string {
-  return options.encode.ffmpegPath || process.env.AUTOCAST_FFMPEG || 'ffmpeg';
+  return options.encode.ffmpegPath || process.env.AUTOKAST_FFMPEG || 'ffmpeg';
 }
 
 /**
@@ -50,7 +50,7 @@ export async function checkFfmpeg(binary: string): Promise<void> {
       reject(
         new Error(
           error.code === 'ENOENT'
-            ? `ffmpeg not found ("${binary}"). Install ffmpeg, or set encode.ffmpegPath or the AUTOCAST_FFMPEG environment variable.`
+            ? `ffmpeg not found ("${binary}"). Install ffmpeg, or set encode.ffmpegPath or the AUTOKAST_FFMPEG environment variable.`
             : `Cannot run ffmpeg ("${binary}"): ${error.message}`,
         ),
       );

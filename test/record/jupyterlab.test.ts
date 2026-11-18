@@ -7,7 +7,7 @@ import { record } from '../../src/record/index.ts';
 import type { TypingOptions } from '../../src/types.ts';
 import { CODE } from './helpers.ts';
 
-const LAB = process.env.AUTOCAST_JUPYTERLAB_URL ?? 'http://localhost:8888';
+const LAB = process.env.AUTOKAST_JUPYTERLAB_URL ?? 'http://localhost:8888';
 const LAUNCHER_NOTEBOOK = '.jp-LauncherCard[data-category="Notebook"]';
 
 let xsrf: string | undefined;
@@ -43,7 +43,7 @@ function readCell(content: Element): { source: string; lines: string } {
 }
 
 describe('typing in JupyterLab', { skip: available ? false : `no JupyterLab at ${LAB}` }, () => {
-  const workspace = `autocast-test-${process.pid}-${Date.now()}`;
+  const workspace = `autokast-test-${process.pid}-${Date.now()}`;
   const notebooks: string[] = [];
 
   after(async () => {
@@ -63,7 +63,7 @@ describe('typing in JupyterLab', { skip: available ? false : `no JupyterLab at $
   ];
   for (const [label, typing] of speeds) {
     it(`gives the exact cell source at ${label}`, async () => {
-      const dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-jlab-'));
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-jlab-'));
       let cell = { source: '', lines: '' };
       try {
         await record(

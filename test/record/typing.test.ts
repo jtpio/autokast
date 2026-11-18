@@ -38,7 +38,7 @@ let dir: string;
 
 before(async () => {
   server = await serve({ '/': PAGE });
-  dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-typing-'));
+  dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-typing-'));
 });
 
 after(async () => {

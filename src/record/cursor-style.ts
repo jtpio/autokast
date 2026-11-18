@@ -1,9 +1,9 @@
 import type { BrowserContext, Frame, Page } from 'playwright';
 import type { CursorStyle, Point } from '../types.ts';
 
-const REPORT_BINDING = '__autocastCursorStyle';
-const POINTER_BINDING = '__autocastPointer';
-const PROBE_FUNCTION = '__autocastProbe';
+const REPORT_BINDING = '__autokastCursorStyle';
+const POINTER_BINDING = '__autokastPointer';
+const PROBE_FUNCTION = '__autokastProbe';
 
 /**
  * Reported by a frame when the pointer is over a child frame, which reports for itself.

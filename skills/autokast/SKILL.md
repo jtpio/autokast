@@ -1,55 +1,55 @@
 ---
-name: autocast
-description: Record polished, Screen Studio-style screencasts of web apps with the autocast library (smooth cursor, click effects, eased zooms, framed window). Use when asked to record a screencast, demo video, GIF or feature showcase of a web UI such as JupyterLab, JupyterLite or any site that opens in a browser.
+name: autokast
+description: Record polished, Screen Studio-style screencasts of web apps with the autokast library (smooth cursor, click effects, eased zooms, framed window). Use when asked to record a screencast, demo video, GIF or feature showcase of a web UI such as JupyterLab, JupyterLite or any site that opens in a browser.
 ---
 
-# autocast
+# autokast
 
-`autocast` turns a script into a finished screencast. You write what happens on the page and
+`autokast` turns a script into a finished screencast. You write what happens on the page and
 where the camera looks. The library records the page with Playwright, then renders the cursor,
 the click effects, the zooms and the framed window.
 
 You cannot watch a video, so the workflow depends on two commands that show you the result:
-`autocast inspect` (timeline as text plus a contact sheet image) and `autocast frame` (one
+`autokast inspect` (timeline as text plus a contact sheet image) and `autokast frame` (one
 still). Look at their output with your image reader after every recording.
 
 ## Setup
 
 ```sh
-npm install --save-dev @jtpio/autocast playwright
+npm install --save-dev autokast playwright
 npx playwright install chromium                # skip when Chromium is already installed
 ffmpeg -version                                # must be on the PATH
 ```
 
-Run the commands as `npx autocast <command>`. Scripts import from `@jtpio/autocast`. In a clone
-of the autocast repository, `node src/cli.ts <command>` runs from source.
+Run the commands as `npx autokast <command>`. Scripts import from `autokast`. In a clone
+of the autokast repository, `node src/cli.ts <command>` runs from source.
 
 ## Workflow
 
 1. **Explore the app first.** Open it with plain Playwright, take screenshots at the recording
    viewport (1280x720 by default), and find stable locators for everything you will touch.
-   Run the whole flow once without autocast to learn what needs a wait.
+   Run the whole flow once without autokast to learn what needs a wait.
 2. **Write a storyboard.** Four to eight beats, one idea per beat, 30 to 90 seconds in total.
    For each beat: the action, what the viewer must read, and whether the camera zooms.
 3. **Write the script** (template below). Put everything that must not be on video in `setup`.
-4. **Record**: `autocast record script.ts --no-render`. A failure names the failing call and
+4. **Record**: `autokast record script.ts --no-render`. A failure names the failing call and
    saves `error.png` in the session directory; look at it.
-5. **Inspect**: `autocast inspect .autocast/<name> -o sheet.png`, then read `sheet.png`. Check
+5. **Inspect**: `autokast inspect .autokast/<name> -o sheet.png`, then read `sheet.png`. Check
    the list in "Review" below. For a closer look at one moment:
-   `autocast inspect .autocast/<name> --from 10 --to 14 --every 0.25 -o part.png` or
-   `autocast frame .autocast/<name> --at 12.4 -o still.png`. Keep a sheet to 16 tiles or
+   `autokast inspect .autokast/<name> --from 10 --to 14 --every 0.25 -o part.png` or
+   `autokast frame .autokast/<name> --at 12.4 -o still.png`. Keep a sheet to 16 tiles or
    fewer so the tiles stay readable; `--tile-width 640 --cols 3` gives larger tiles.
 6. **Adjust and repeat** from step 4 until the sheet is right. Look options (backdrop, cursor
    size, output size) need no new recording: pass them to `render` or `inspect`.
 7. **Final recording and render**: record once more with
    `--set capture.mode=frame-perfect` (see "Capture modes"), then
-   `autocast render .autocast/<name> -o demo.mp4`. Run `autocast inspect demo.mp4 -o final.png`
+   `autokast render .autokast/<name> -o demo.mp4`. Run `autokast inspect demo.mp4 -o final.png`
    and read it as the last check.
 
 ## Script template
 
 ```ts
-import { defineScreencast } from '@jtpio/autocast';
+import { defineScreencast } from 'autokast';
 
 export default defineScreencast({
   name: 'feature-demo',
@@ -176,11 +176,11 @@ Read the contact sheet and check:
 Pass these to `record`, `render`, `frame` or `inspect`. None of them needs a new recording.
 
 ```sh
-autocast render .autocast/demo -o demo.mp4 --background harbor
-autocast render .autocast/demo -o demo-4k.mp4 --size 3840x2160 --set encode.quality=high
-autocast render .autocast/demo -o demo.gif --size 1280x720 --fps 20
-autocast render .autocast/demo -o tall.mp4 --size 1080x1920
-autocast render .autocast/demo --preview -o quick.mp4
+autokast render .autokast/demo -o demo.mp4 --background harbor
+autokast render .autokast/demo -o demo-4k.mp4 --size 3840x2160 --set encode.quality=high
+autokast render .autokast/demo -o demo.gif --size 1280x720 --fps 20
+autokast render .autokast/demo -o tall.mp4 --size 1080x1920
+autokast render .autokast/demo --preview -o quick.mp4
 ```
 
 | Option                                                | Values                                                                                                                                                  |
@@ -206,13 +206,13 @@ autocast render .autocast/demo --preview -o quick.mp4
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`
 (sand), `clay` (terracotta), `dusk` (slate blue with a warm corner), `harbor` (deep teal),
 `graphite` (dark gray), `ink` (blue-black), `ember` (dark brown). Pick one that does not fight
-the app's own colors, and check it with `autocast frame <session> --at 1 --background <name>`.
+the app's own colors, and check it with `autokast frame <session> --at 1 --background <name>`.
 
 The capture scale is `deviceScaleFactor: 2` by default. For deep zooms or 4K output, record
 with `deviceScaleFactor: 3`.
 
 To change a camera move without a new recording, edit the `zoom` events in
-`.autocast/<name>/session.json` (`focus` rectangle, `scale`, `t` in milliseconds) and render
+`.autokast/<name>/session.json` (`focus` rectangle, `scale`, `t` in milliseconds) and render
 again.
 
 ## Capture modes
@@ -250,4 +250,4 @@ Rules for `frame-perfect`:
 
 - [reference/jupyterlab.md](reference/jupyterlab.md): server setup, locators and waits for
   JupyterLab, Notebook and JupyterLite.
-- `src/types.ts` in the autocast package: every option with its type.
+- `src/types.ts` in the autokast package: every option with its type.

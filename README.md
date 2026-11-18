@@ -1,4 +1,4 @@
-# autocast
+# autokast
 
 Automated, polished screencasts of web apps. Built for agents.
 
@@ -7,7 +7,7 @@ Automated, polished screencasts of web apps. Built for agents.
 ![A web app in a framed window on a soft backdrop, with a large cursor](docs/images/window.jpg)
 
 You write a short script that says what happens on the page and where the camera looks.
-`autocast` records the page with Playwright and renders the video: a smooth cursor, click
+`autokast` records the page with Playwright and renders the video: a smooth cursor, click
 effects, zooms that follow the action, and a framed window. There is no editor.
 
 It works with anything that opens in a browser.
@@ -15,7 +15,7 @@ It works with anything that opens in a browser.
 ## Install
 
 ```sh
-npm install --save-dev @jtpio/autocast playwright
+npm install --save-dev autokast playwright
 npx playwright install chromium
 ```
 
@@ -39,7 +39,7 @@ and renders the video.
 ## Write a script
 
 ```ts
-import { defineScreencast } from '@jtpio/autocast';
+import { defineScreencast } from 'autokast';
 
 export default defineScreencast({
   name: 'new-task',
@@ -57,7 +57,7 @@ export default defineScreencast({
 ```
 
 ```sh
-npx autocast record new-task.ts -o new-task.mp4
+npx autokast record new-task.ts -o new-task.mp4
 ```
 
 A target is a Playwright locator, a selector, a point or a rectangle.
@@ -89,7 +89,7 @@ waits and for reading state.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
   page motion is exact at 60 fps on any machine. Use it for the final recording.
-- **Made for agents.** `autocast inspect` prints the timeline and writes a contact sheet, so an
+- **Made for agents.** `autokast inspect` prints the timeline and writes a contact sheet, so an
   agent can check a video that it cannot watch.
 
 ![A contact sheet: a grid of stills with their times](docs/images/contact-sheet.jpg)
@@ -97,22 +97,22 @@ waits and for reading state.
 ## Commands
 
 ```sh
-autocast record <script>           # record, then render
-autocast render <session>          # render a recording again, with other options
-autocast frame <session> --at 12   # one still frame
-autocast inspect <session|video>   # timeline and contact sheet
+autokast record <script>           # record, then render
+autokast render <session>          # render a recording again, with other options
+autokast frame <session> --at 12   # one still frame
+autokast inspect <session|video>   # timeline and contact sheet
 ```
 
-A recording is stored as a session in `.autocast/<name>`. The look is decided at render time,
+A recording is stored as a session in `.autokast/<name>`. The look is decided at render time,
 so one recording can give many videos:
 
 ```sh
-autocast render .autocast/new-task -o tall.mp4 --size 1080x1920 --background ink
-autocast render .autocast/new-task -o big.mp4 --size 3840x2160 --set encode.quality=high
-autocast render .autocast/new-task -o plain.mp4 --set cursor.tilt=0 --set zoom.follow=off
+autokast render .autokast/new-task -o tall.mp4 --size 1080x1920 --background ink
+autokast render .autokast/new-task -o big.mp4 --size 3840x2160 --set encode.quality=high
+autokast render .autokast/new-task -o plain.mp4 --set cursor.tilt=0 --set zoom.follow=off
 ```
 
-`--set key=value` sets any option. Run `autocast --help` for the other flags.
+`--set key=value` sets any option. Run `autokast --help` for the other flags.
 
 ## Options
 
@@ -139,7 +139,7 @@ export default defineScreencast({
 ```
 
 Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill in
-[`skills/autocast`](skills/autocast/SKILL.md) has the full workflow and the direction rules.
+[`skills/autokast`](skills/autokast/SKILL.md) has the full workflow and the direction rules.
 
 ## Examples
 

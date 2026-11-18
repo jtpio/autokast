@@ -66,7 +66,7 @@ describe('smooth scroll into view', () => {
 
   before(async () => {
     server = await serve({ '/': PAGE });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-scroll-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-scroll-'));
   });
 
   after(async () => {

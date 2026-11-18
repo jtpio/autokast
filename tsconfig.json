@@ -14,7 +14,7 @@
     "noEmit": true,
     "types": ["node"],
     "paths": {
-      "@jtpio/autocast": ["./src/index.ts"]
+      "autokast": ["./src/index.ts"]
     }
   },
   "include": ["src", "test", "examples"]

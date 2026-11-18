@@ -331,7 +331,7 @@ export interface RecordOptions {
   deviceScaleFactor?: number;
   colorScheme?: 'light' | 'dark';
   /**
-   * Directory for the session. Default: `.autocast/<name>`.
+   * Directory for the session. Default: `.autokast/<name>`.
    */
   sessionDir?: string;
   browser?: BrowserOptions;

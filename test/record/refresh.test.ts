@@ -17,7 +17,7 @@ let dir: string;
 
 before(async () => {
   server = await serve({ '/': PAGE });
-  dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-refresh-'));
+  dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-refresh-'));
 });
 
 after(async () => {

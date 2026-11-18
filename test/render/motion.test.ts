@@ -256,7 +256,7 @@ let dir: string;
 let fixture: Session;
 
 before(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-motion-'));
+  dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-motion-'));
   fixture = await createFixture(dir, { deviceScaleFactor: 1 });
 });
 

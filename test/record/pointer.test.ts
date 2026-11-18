@@ -66,7 +66,7 @@ describe('drag options and positions outside the target', () => {
 
   before(async () => {
     server = await serve({ '/': PAGE });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-pointer-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-pointer-'));
     const read = (): PageLog => {
       const win = window as unknown as PageLog;
       return { entered: [...win.entered], clicked: [...win.clicked] };

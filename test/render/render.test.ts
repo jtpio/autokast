@@ -22,7 +22,7 @@ let dir: string;
 let session: Session;
 
 before(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-render-'));
+  dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-render-'));
   session = await createFixture(path.join(dir, 'session'), { deviceScaleFactor: 1 });
 });
 

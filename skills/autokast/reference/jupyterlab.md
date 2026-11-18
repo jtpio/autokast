@@ -16,7 +16,7 @@ jupyter lab --no-browser --port 8888 --IdentityProvider.token='' --ServerApp.roo
 ```
 
 The notification setting removes the "Jupyter news" prompt, which otherwise appears in the
-recording. `examples/jupyterlab/serve.sh` in the autocast repository does all of this.
+recording. `examples/jupyterlab/serve.sh` in the autokast repository does all of this.
 
 ## Start state
 
@@ -114,7 +114,7 @@ recording. `examples/jupyterlab/serve.sh` in the autocast repository does all of
 
 - To start in the dark theme without showing the change, apply it in `setup`.
 - `?reset` restores the layout only. The theme setting, running kernels and files from an
-  earlier run stay. `examples/jupyterlab/reset.ts` in the autocast repository resets them
+  earlier run stay. `examples/jupyterlab/reset.ts` in the autokast repository resets them
   through the REST API; copy it.
 
 ## Notebook 7
@@ -130,7 +130,7 @@ Verified with jupyterlite-core 0.8 and jupyterlite-pyodide-kernel 0.8.
   `<site>` with any static server (`python3 -m http.server --directory <site>`) and open
   `/lab/index.html`. The files in `<dir>` appear at the root of the file browser. The build
   writes a cache file into the current directory, so run it in a temporary directory.
-  `examples/jupyterlite/serve.sh` in the autocast repository does this.
+  `examples/jupyterlite/serve.sh` in the autokast repository does this.
 - The launcher has a Notebook card and a Console card, both named `Python (Pyodide)`. There is
   no terminal. The locators above apply. No news prompt appears.
 - The first kernel start loads Pyodide, and each first import loads its package: several

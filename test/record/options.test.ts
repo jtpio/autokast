@@ -33,14 +33,14 @@ describe('resolveOptions', () => {
       afterType: 120,
       pressDuration: 90,
     });
-    assert.equal(options.sessionDir, path.resolve('.autocast/screencast'));
+    assert.equal(options.sessionDir, path.resolve('.autokast/screencast'));
     assert.equal(options.scrollBehavior, 'smooth');
     assert.equal(options.timeout, 10_000);
   });
 
   it('derives the session directory and the seed from the name', () => {
     const a = resolveOptions({ name: 'my demo/../x' });
-    assert.equal(a.sessionDir, path.resolve('.autocast/my-demo-..-x'));
+    assert.equal(a.sessionDir, path.resolve('.autokast/my-demo-..-x'));
     assert.equal(a.seed, resolveOptions({ name: 'my demo/../x' }).seed);
     assert.notEqual(a.seed, resolveOptions({ name: 'other' }).seed);
     assert.equal(resolveOptions({ seed: 5 }).seed, 5);

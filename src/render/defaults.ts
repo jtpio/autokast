@@ -179,7 +179,7 @@ export function resolveOptions(
   outputDuration: number,
 ): ResolvedOptions {
   const merged = deepMerge(DEFAULTS, session.render, options) as typeof DEFAULTS & RenderOptions;
-  const output = path.resolve(merged.output ?? `${session.name || 'autocast'}.mp4`);
+  const output = path.resolve(merged.output ?? `${session.name || 'autokast'}.mp4`);
   const ext = path.extname(output).toLowerCase();
   const format = ext === '.webm' ? 'webm' : ext === '.gif' ? 'gif' : 'mp4';
   const encode = merged.encode as ResolvedOptions['encode'];

@@ -1,7 +1,7 @@
 # Release
 
-The package is `@jtpio/autocast` on npm. The unscoped name `autocast` belongs to another
-package. The command and the skill keep the name `autocast`.
+The package, the command and the skill are named `autokast`. The repository is
+`jtpio/autocast`: the name `autocast` belongs to another package on npm.
 
 ## One-time setup
 
@@ -14,7 +14,7 @@ package. The command and the skill keep the name `autocast`.
    ```
 
 2. **Trusted publisher.** On npmjs.com, open the package, then Settings, then Trusted
-   publisher, and add GitHub Actions with owner `jtpio`, repository `autocast` and workflow
+   publisher, and add GitHub Actions with owner `jtpio`, repository `autokast` and workflow
    `release.yml`. After this, the workflow publishes without a token.
 3. **Public repository.** npm adds provenance only for a public repository, and
    `npx skills add jtpio/autocast` needs one too.
@@ -40,7 +40,7 @@ generated notes.
 
 ## The skill
 
-The skill is the directory `skills/autocast`. `npx skills add jtpio/autocast` reads it from the
+The skill is the directory `skills/autokast`. `npx skills add jtpio/autocast` reads it from the
 default branch, so it has no release step: a push to the default branch updates it. The skill
 is also part of the npm package.
 

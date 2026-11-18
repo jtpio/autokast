@@ -27,7 +27,7 @@ before(async () => {
     '/': page('Home', '<a id="same" href="/two">Same origin</a>'),
     '/two': page('Two', `<a id="cross" href="${second.url}/">Cross site</a>`),
   });
-  dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-nav-'));
+  dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-nav-'));
 });
 
 after(async () => {

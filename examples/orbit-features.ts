@@ -1,7 +1,7 @@
-import { defineScreencast } from '@jtpio/autocast';
+import { defineScreencast } from 'autokast';
 
 /**
- * A tour of the autocast features on the Orbit demo app, with a caption for each one.
+ * A tour of the autokast features on the Orbit demo app, with a caption for each one.
  * Start the app with `node examples/demo-app/serve.mjs` first.
  */
 export default defineScreencast({

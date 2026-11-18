@@ -74,7 +74,7 @@ describe('the first frame', () => {
 
   before(async () => {
     server = await serve({ '/': HERO });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-frame0-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-frame0-'));
   });
 
   after(async () => {

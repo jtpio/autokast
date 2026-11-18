@@ -150,7 +150,7 @@ describe('frame-perfect capture', () => {
   before(async () => {
     second = await serve({ '/': SECOND }, 'localhost');
     first = await serve({ '/': home(`${second.url}/`) });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-fp-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-fp-'));
     ({ session } = await record(
       {
         url: first.url,
@@ -291,7 +291,7 @@ describe('frame-perfect failures and limits', () => {
 
   before(async () => {
     server = await serve({ '/': '<!doctype html><button id="go">Go</button>' });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-fp-fail-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-fp-fail-'));
   });
 
   after(async () => {
@@ -439,7 +439,7 @@ describe('frame-perfect drag in the Orbit demo app', () => {
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-fp-orbit-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-fp-orbit-'));
   });
 
   after(async () => {

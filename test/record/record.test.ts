@@ -112,7 +112,7 @@ describe('record() end to end', () => {
 
   before(async () => {
     server = await serve({ '/': PAGE });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-record-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-record-'));
     const started = Date.now();
     recorded = await record(
       {
@@ -323,7 +323,7 @@ describe('record() edge cases', () => {
 
   before(async () => {
     server = await serve({ '/': EDGE_PAGE });
-    dir = await mkdtemp(path.join(os.tmpdir(), 'autocast-edge-'));
+    dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-edge-'));
   });
 
   after(async () => {

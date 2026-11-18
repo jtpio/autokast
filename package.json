@@ -1,5 +1,5 @@
 {
-  "name": "@jtpio/autocast",
+  "name": "autokast",
   "version": "0.1.0",
   "description": "Automated, polished screencasts of web apps. Built for agents.",
   "license": "BSD-3-Clause",
@@ -23,7 +23,7 @@
   ],
   "type": "module",
   "bin": {
-    "autocast": "dist/cli.js"
+    "autokast": "dist/cli.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -62,8 +62,5 @@
     "playwright": "1.63.0",
     "prettier": "^3.10.0",
     "typescript": "^5.9.0"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }
