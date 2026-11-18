@@ -234,6 +234,29 @@ test('the browser frame adds a toolbar in the light or dark theme', async () => 
   assert.ok((await bar('dark')) < 0.1);
 });
 
+test('a caption is in the middle of the band, also with the browser frame', async () => {
+  for (const chrome of ['none', 'browser'] as const) {
+    const options = { frame: { chrome } };
+    const scene = buildScene(session, options);
+    const band = scene.band!;
+    const image = await loadImage(await renderFrame(path.join(dir, 'session'), 1800, options));
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    // Light pixels of the text in one row, over the first part of the caption.
+    const light = (y: number) => {
+      const row = context.getImageData(band.window.x, y, 420, 1).data;
+      let count = 0;
+      for (let i = 0; i < row.length; i += 4)
+        if (Math.min(row[i], row[i + 1], row[i + 2]) > 200) count++;
+      return count;
+    };
+    const bottom = band.window.y + band.window.height;
+    assert.ok(light(Math.round(band.center)) > 15, `${chrome}: text in the middle of the band`);
+    assert.equal(light(Math.round(bottom + 14)), 0, `${chrome}: no text at the window edge`);
+  }
+});
+
 test('the larger address field follows the frame and stays clear of the buttons', async () => {
   const typed = path.join(dir, 'typed');
   await mkdir(typed, { recursive: true });

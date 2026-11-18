@@ -414,6 +414,8 @@ export class Compositor {
       ctx.setTransform(fa, 0, 0, fa, fe, ff);
       drawAddressLens(ctx, L.window, L.bar, L.unit, dark, this.barLeft(), input.address);
     }
+    // The band cover, the captions and the keycaps are in output pixels.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     if (input.band > 0 && this.band) this.drawBandCover(ctx, input.band, fa, ff, H);
     for (const cue of input.captions) this.drawCaptionCue(ctx, cue, input.t);
