@@ -15,6 +15,7 @@ import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { luminance, parseColor } from '../../src/render/color.ts';
 import { adaptiveClickColor } from '../../src/render/effects.ts';
 import { buildScene } from '../../src/render/scene.ts';
+import { applyStage, stageAt } from '../../src/render/stage.ts';
 import type { Session } from '../../src/types.ts';
 import { createFixture } from './fixture.ts';
 
@@ -231,6 +232,44 @@ test('the browser frame adds a toolbar in the light or dark theme', async () => 
   };
   assert.ok((await bar('light')) > 0.8);
   assert.ok((await bar('dark')) < 0.1);
+});
+
+test('the larger address field follows the frame and stays clear of the buttons', async () => {
+  const typed = path.join(dir, 'typed');
+  await mkdir(typed, { recursive: true });
+  await symlink(path.join(dir, 'session', 'frames'), path.join(typed, 'frames'));
+  const events = [
+    ...session.events,
+    {
+      type: 'url' as const,
+      t: 400,
+      url: 'http://localhost:8000/notebooks/index.html',
+      typing: 600,
+    },
+  ];
+  await writeFile(path.join(typed, 'session.json'), JSON.stringify({ ...session, events }));
+  const options = { frame: { chrome: 'browser' as const } };
+  const scene = buildScene({ ...session, events }, options);
+  // At 1200 ms the caption band is open: the window is smaller than at rest.
+  const i = scene.times.findIndex((t) => t >= 1200);
+  const stage = stageAt(scene.band, scene.bandOpen[i]);
+  assert.ok(stage.scale < 0.97, `stage scale ${stage.scale}`);
+  const image = await loadImage(await renderFrame(typed, scene.times[i], options));
+  const canvas = createCanvas(image.width, image.height);
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  const { window, bar } = scene.layout;
+  const at = (x: number) => {
+    const point = applyStage(stage, {
+      x: window.x + x,
+      y: window.y + bar / 2,
+      width: 0,
+      height: 0,
+    });
+    return [...context.getImageData(point.x, point.y, 1, 1).data.slice(0, 3)];
+  };
+  assert.deepEqual(at(window.width / 2 + 300), [255, 255, 255], 'the field is in the middle');
+  assert.ok(at(165)[0] < 250, 'the bar shows next to the reload button');
 });
 
 test('a fit zoom fills the whole output in camera mode and the frame box in crop mode', () => {

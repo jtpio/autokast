@@ -411,6 +411,7 @@ export class Compositor {
     this.drawEdges(ctx);
     if (input.address && this.options.frame.chrome === 'browser') {
       const dark = this.options.frame.chromeTheme === 'dark';
+      ctx.setTransform(fa, 0, 0, fa, fe, ff);
       drawAddressLens(ctx, L.window, L.bar, L.unit, dark, this.barLeft(), input.address);
     }
 
