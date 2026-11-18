@@ -85,6 +85,27 @@ test('a caption at the start of a cut or inside it starts at the cut point', () 
   );
 });
 
+test('a page address inside a cut is kept at the cut point', () => {
+  const map = new TimeMap(events, 6000);
+  const timed = timedEvents(
+    [
+      { type: 'url', t: 0, url: 'http://a/' },
+      { type: 'url', t: 1400, url: 'http://a/b' },
+      { type: 'url', t: 1700, url: 'http://a/c' },
+      ...events,
+    ],
+    map,
+  );
+  assert.deepEqual(
+    timed.map((e) => [e.type === 'url' && e.url, e.out]),
+    [
+      ['http://a/', 0],
+      ['http://a/b', 1000],
+      ['http://a/c', 1000],
+    ],
+  );
+});
+
 test('frameIndexAt finds the latest frame at or before a time', () => {
   const frames = [0, 100, 250, 900].map((t) => ({ t, file: `${t}.jpg` }));
   assert.equal(frameIndexAt(frames, -5), 0);

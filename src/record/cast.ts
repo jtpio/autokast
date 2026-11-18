@@ -4,12 +4,14 @@ import type {
   Cast,
   ClickOptions,
   DragOptions,
+  GotoOptions,
   MouseButton,
   MoveOptions,
   Point,
   Rect,
   ScrollOptions,
   ScrollToOptions,
+  ShowUrlOptions,
   Size,
   SpotlightOptions,
   Target,
@@ -409,6 +411,42 @@ export class Director implements Cast {
         );
       }
       return this.inRegion('speed', fn, (t, end) => this.push({ type: 'speed', t, end, rate }));
+    });
+  }
+
+  private get browserFrame(): boolean {
+    return this.options.render?.frame?.chrome === 'browser';
+  }
+
+  showUrl(options: ShowUrlOptions = {}): Promise<void> {
+    return this.step('showUrl()', async () => {
+      if (!this.browserFrame) return;
+      const show = options.duration ?? CAST_DEFAULTS.addressShow;
+      this.push({ type: 'url', t: this.timeline.now(), url: this.page.url(), show });
+      if (options.wait ?? true) {
+        await this.pace.sleep(show);
+      }
+    });
+  }
+
+  goto(url: string, options: GotoOptions = {}): Promise<void> {
+    return this.step(`goto(${describeText(url)})`, async () => {
+      const target = new URL(url, this.page.url()).href;
+      const open = () => this.page.goto(target);
+      if (this.region === 'cut') {
+        await open();
+        return;
+      }
+      if (options.typing ?? this.browserFrame) {
+        const text = target.replace(/^https?:\/\//, '');
+        const typing = Math.min(
+          CAST_DEFAULTS.addressMax,
+          CAST_DEFAULTS.addressPerChar * text.length,
+        );
+        this.push({ type: 'url', t: this.timeline.now(), url: target, typing });
+        await this.pace.sleep(typing + CAST_DEFAULTS.addressEnter);
+      }
+      await this.inRegion('cut', open, (t, end) => this.push({ type: 'cut', t, end }));
     });
   }
 

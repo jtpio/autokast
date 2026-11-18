@@ -186,6 +186,19 @@ export interface MarkerEvent {
 }
 
 /**
+ * The address of the page from `t`. With `typing`, the address bar of the browser frame
+ * shows the text as it is typed during that many milliseconds. With `show`, the address
+ * bar is larger for that many milliseconds.
+ */
+export interface UrlEvent {
+  type: 'url';
+  t: number;
+  url: string;
+  typing?: number;
+  show?: number;
+}
+
+/**
  * One Cast call with its start and end time, for inspection and debugging.
  */
 export interface ActionEvent {
@@ -205,7 +218,8 @@ export type TimelineEvent =
   | SpeedEvent
   | CaptionEvent
   | SpotlightEvent
-  | MarkerEvent;
+  | MarkerEvent
+  | UrlEvent;
 
 /**
  * The content of `session.json`.
@@ -470,6 +484,25 @@ export interface CaptionOptions {
   wait?: boolean;
 }
 
+export interface GotoOptions {
+  /**
+   * Shows the URL as typed text in the address bar before the page opens. Default: true
+   * when the script selects the browser frame, false otherwise.
+   */
+  typing?: boolean;
+}
+
+export interface ShowUrlOptions {
+  /**
+   * Default: 2000 ms.
+   */
+  duration?: number;
+  /**
+   * Waits for the end. Default: true.
+   */
+  wait?: boolean;
+}
+
 export interface SpotlightOptions {
   duration?: number;
   padding?: number;
@@ -499,6 +532,17 @@ export interface Cast {
 
   type(text: string, options?: TypeOptions): Promise<void>;
   press(keys: string, options?: { hold?: number }): Promise<void>;
+  /**
+   * Opens a URL and removes the load from the video. With the browser frame
+   * (`render.frame.chrome: 'browser'`), the address bar first shows the URL as it is typed.
+   */
+  goto(url: string, options?: GotoOptions): Promise<void>;
+  /**
+   * Makes the address bar of the browser frame larger for a moment, so that the viewer can
+   * read the URL of the page. Does nothing when the script does not select the browser
+   * frame.
+   */
+  showUrl(options?: ShowUrlOptions): Promise<void>;
 
   zoomTo(target: Target, options?: ZoomToOptions): Promise<void>;
   /**
@@ -555,11 +599,22 @@ export interface FrameOptions {
   radius?: number;
   shadow?: ShadowOptions | false;
   /**
-   * `window` adds a title bar above the content.
+   * `window` adds a title bar above the content. `browser` adds a browser toolbar with an
+   * address bar that follows the URL of the page.
    */
-  chrome?: 'none' | 'window';
+  chrome?: 'none' | 'window' | 'browser';
   title?: string;
   chromeTheme?: 'light' | 'dark';
+  /**
+   * Text of the address bar. `true` (default) shows the URL of the page, a string shows
+   * that text for the whole video, and `false` leaves the address bar empty.
+   */
+  address?: boolean | string;
+  /**
+   * Replaces the origin of the page URL in the address bar, for example
+   * `jupyterlite.github.io/demo` for a site that was recorded on `localhost:8000`.
+   */
+  origin?: string;
 }
 
 export interface ClickEffectOptions {

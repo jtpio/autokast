@@ -120,6 +120,7 @@ export type TimedEvent<E extends TimelineEvent = TimelineEvent> = E & { out: num
  * A zoom inside a cut is kept with duration 0, so it takes effect at the cut point.
  * A caption inside a cut is kept and starts at the cut point: with the frame-perfect
  * clock, a caption set just before `cast.cut` has the same time as the start of the cut.
+ * A page address inside a cut is kept too: the page has it when the video continues.
  */
 export function timedEvents(events: TimelineEvent[], map: TimeMap): TimedEvent[] {
   const result: TimedEvent[] = [];
@@ -128,7 +129,8 @@ export function timedEvents(events: TimelineEvent[], map: TimeMap): TimedEvent[]
     if (e.type === 'cut' || e.type === 'speed') continue;
     if (map.inCut(e.t)) {
       if (e.type === 'zoom') result.push({ ...e, duration: 0, out: map.toOutput(e.t) });
-      else if (e.type === 'caption') result.push({ ...e, out: map.toOutput(e.t) });
+      else if (e.type === 'caption' || e.type === 'url')
+        result.push({ ...e, out: map.toOutput(e.t) });
       continue;
     }
     result.push({ ...e, out: map.toOutput(e.t) });

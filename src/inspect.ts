@@ -59,6 +59,8 @@ function describeEvent(event: TimelineEvent): string | undefined {
       return `spotlight for ${seconds(event.duration)}`;
     case 'marker':
       return `marker "${event.label}"`;
+    case 'url':
+      return `${event.typing ? 'type address' : event.show ? 'show address' : 'address'} ${event.url}`;
     case 'key':
       return event.kind === 'shortcut' ? `press ${event.key}` : undefined;
     default:
@@ -95,10 +97,12 @@ export function describeSession(session: Session, options?: RenderOptions): stri
         lines.push(`  ${at(event.t)}  ${event.call}  (${seconds(length)})`);
       } else if (event.type === 'cut' || event.type === 'speed') {
         lines.push(`  ${at(event.t)}  ${describeEvent(event)}`);
+      } else if (event.type === 'url' && !event.typing && !event.show) {
+        lines.push(`  ${at(event.t)}  ${describeEvent(event)}`);
       }
       continue;
     }
-    if (event.type !== 'cut' && isCut(session, event.t)) {
+    if (event.type !== 'cut' && event.type !== 'url' && isCut(session, event.t)) {
       continue;
     }
     if (event.type === 'key' && event.kind === 'text') {

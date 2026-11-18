@@ -224,6 +224,13 @@ export async function record(
     timeline.sample(opts.cursor.start, 0);
     timeline.push({ type: 'cursorStyle', t: 0, style: cursorStyle.style });
     cursorStyle.onChange = (style) => timeline.push({ type: 'cursorStyle', t: pace.now(), style });
+    let address = page.url();
+    timeline.push({ type: 'url', t: 0, url: address });
+    page.on('framenavigated', (frame) => {
+      if (frame !== page.mainFrame() || frame.url() === address) return;
+      address = frame.url();
+      timeline.push({ type: 'url', t: pace.now(), url: address });
+    });
 
     const director = new Director({ page, options: opts, timeline, pace, cursorStyle });
     let failed: Error | undefined;

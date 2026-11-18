@@ -4,6 +4,7 @@ import type {
   RenderOptions,
   Session,
   SpotlightEvent,
+  UrlEvent,
   ZoomEvent,
 } from '../types.ts';
 import { BACKGROUND_PRESETS } from './background.ts';
@@ -15,6 +16,7 @@ import {
   type CameraTrack,
   type FitRegion,
 } from './camera.ts';
+import { addressAt } from './browser.ts';
 import {
   bandAt,
   bandTrack,
@@ -61,6 +63,10 @@ export interface Scene {
   spotlights: TimedEvent<SpotlightEvent>[];
   captions: CaptionCue[];
   keys: KeyCue[];
+  /**
+   * Addresses of the page, in output time order, for the browser frame.
+   */
+  urls: TimedEvent<UrlEvent>[];
   /**
    * Caption band geometry when open, or null without captions.
    */
@@ -151,6 +157,7 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     spotlights: events.filter((e): e is TimedEvent<SpotlightEvent> => e.type === 'spotlight'),
     captions: cues,
     keys,
+    urls: events.filter((e): e is TimedEvent<UrlEvent> => e.type === 'url'),
     band,
     bandOpen: bandTrack(times, groups),
     frameIndex,
@@ -333,5 +340,9 @@ export function frameInput(scene: Scene, i: number): Input {
       .filter((s) => s.amount > 0),
     captions: scene.captions.filter((c) => t >= c.textIn && t <= c.textOut + 250),
     keys: scene.keys.filter((k) => keyCueVisible(k, t)),
+    address:
+      scene.options.frame.chrome === 'browser'
+        ? addressAt(scene.urls, t, scene.options.frame, scene.session.url)
+        : undefined,
   };
 }

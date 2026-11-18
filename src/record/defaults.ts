@@ -48,6 +48,14 @@ export const CAST_DEFAULTS = {
   spotlightDuration: 2000,
   captionBase: 1500,
   captionPerChar: 55,
+  /**
+   * Typing of a URL in the address bar: time for each character, the longest time for
+   * the whole URL, and the pause between the last character and the page change.
+   */
+  addressPerChar: 32,
+  addressMax: 1500,
+  addressEnter: 380,
+  addressShow: 2000,
   dragHold: 110,
   dragSlowdown: 1.6,
   dragMinDuration: 700,

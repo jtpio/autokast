@@ -211,6 +211,28 @@ test('the caption band has room for one line, and long text shows one line at a 
   assert.equal(buildScene({ ...session, events: [] }).band, null);
 });
 
+test('the browser frame adds a toolbar in the light or dark theme', async () => {
+  const light = buildScene(session, { frame: { chrome: 'browser' } });
+  const plain = buildScene(session);
+  assert.equal(light.layout.bar, 52);
+  assert.ok(light.layout.content.height < plain.layout.content.height);
+  assert.equal(light.layout.window.height, light.layout.content.height + 52);
+  const bar = async (chromeTheme: 'light' | 'dark') => {
+    const png = await renderFrame(path.join(dir, 'session'), 0, {
+      frame: { chrome: 'browser', chromeTheme },
+    });
+    const image = await loadImage(png);
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    const { window } = light.layout;
+    const [r, g, b] = context.getImageData(window.x + window.width - 40, window.y + 26, 1, 1).data;
+    return luminance({ r, g, b, a: 1 });
+  };
+  assert.ok((await bar('light')) > 0.8);
+  assert.ok((await bar('dark')) < 0.1);
+});
+
 test('a fit zoom fills the whole output in camera mode and the frame box in crop mode', () => {
   const zoom = {
     type: 'zoom' as const,
