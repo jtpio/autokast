@@ -138,6 +138,10 @@ export interface CaptionEvent {
   t: number;
   duration: number;
   text: string;
+  /**
+   * Short kicker above the text, such as `01` or `Step 2`.
+   */
+  label?: string;
 }
 
 /**
@@ -161,7 +165,18 @@ export interface MarkerEvent {
   label: string;
 }
 
+/**
+ * One Cast call with its start and end time, for inspection and debugging.
+ */
+export interface ActionEvent {
+  type: 'action';
+  t: number;
+  end: number;
+  call: string;
+}
+
 export type TimelineEvent =
+  | ActionEvent
   | CursorStyleEvent
   | MouseButtonEvent
   | KeyEvent
@@ -285,6 +300,14 @@ export interface RecordOptions {
   typing?: TypingOptions;
   pacing?: PacingOptions;
   /**
+   * How an off-screen target comes into view before an action. Default: `smooth`.
+   */
+  scrollBehavior?: 'smooth' | 'instant';
+  /**
+   * Default time limit for one Cast call, in milliseconds.
+   */
+  timeout?: number;
+  /**
    * Seed for the random variations (path curvature, typing rhythm).
    */
   seed?: number;
@@ -330,6 +353,11 @@ export interface TypeOptions extends TypingOptions {
    * Clicks this target first to focus it.
    */
   into?: Target;
+  /**
+   * `auto` makes each line start at the indentation given in the text, also in
+   * editors that indent by themselves. `raw` sends the characters as they are.
+   */
+  indent?: 'auto' | 'raw';
 }
 
 export interface ScrollOptions {
@@ -338,6 +366,15 @@ export interface ScrollOptions {
    */
   at?: Target;
   duration?: number;
+}
+
+export interface ScrollToOptions {
+  /**
+   * Where the target ends in its scroll container. Default: `center`.
+   */
+  block?: 'start' | 'center' | 'end' | 'nearest';
+  duration?: number;
+  timeout?: number;
 }
 
 export interface ZoomToOptions {
@@ -360,6 +397,10 @@ export interface CaptionOptions {
    * Waits for the caption to end. Default: false.
    */
   wait?: boolean;
+  /**
+   * Short kicker above the text, such as `01` or `Step 2`.
+   */
+  label?: string;
 }
 
 export interface SpotlightOptions {
@@ -384,6 +425,10 @@ export interface Cast {
   hover(target: Target, options?: MoveOptions & { hold?: number }): Promise<void>;
   drag(from: Target, to: Target, options?: MoveOptions): Promise<void>;
   scroll(delta: { x?: number; y?: number }, options?: ScrollOptions): Promise<void>;
+  /**
+   * Scrolls smoothly until the target is in view.
+   */
+  scrollTo(target: Target, options?: ScrollToOptions): Promise<void>;
 
   type(text: string, options?: TypeOptions): Promise<void>;
   press(keys: string, options?: { hold?: number }): Promise<void>;
@@ -513,10 +558,15 @@ export interface CaptionRenderOptions {
 
 export interface EncodeOptions {
   /**
-   * `draft` renders fast for iteration; `high` gives the best quality.
+   * `draft` renders fast for iteration; `max` is visually lossless and gives large files.
    */
-  quality?: 'draft' | 'standard' | 'high';
+  quality?: 'draft' | 'standard' | 'high' | 'max';
+  /**
+   * Overrides for the encoder: constant rate factor, speed preset, pixel format.
+   */
   crf?: number;
+  preset?: string;
+  pixelFormat?: string;
   ffmpegPath?: string;
 }
 

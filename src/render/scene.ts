@@ -1,0 +1,264 @@
+import type {
+  CaptionEvent,
+  KeyEvent,
+  RenderOptions,
+  Session,
+  SpotlightEvent,
+  ZoomEvent,
+} from '../types.ts';
+import { BACKGROUND_PRESETS } from './background.ts';
+import { autoZoomEvents, computeCamera, type CameraState, type CameraTrack } from './camera.ts';
+import { bandTrack, planCaptions, type CaptionCue } from './captions.ts';
+import { computeLayout, type CursorFrame, type FrameInput, type Layout } from './compositor.ts';
+import { clickMarks, computeCursor, type ClickMark, type CursorTrack } from './cursor.ts';
+import { resolveOptions, type ResolvedOptions } from './defaults.ts';
+import { spotlightAmount } from './effects.ts';
+import { keyCueVisible, planKeys, type KeyCue } from './keycaps.ts';
+import { bandLayout, stageAt, type BandLayout } from './stage.ts';
+import {
+  frameIndexAt,
+  frameTimes,
+  sessionTimeMap,
+  timedEvents,
+  type TimedEvent,
+  type TimeMap,
+} from './timeline.ts';
+
+/**
+ * Arrow height of a size-1 cursor in CSS pixels: the follow camera keeps this much room.
+ */
+const CURSOR_EXTENT = 20;
+
+/**
+ * Everything precomputed for a render: options, layout, and per-frame camera, cursor and
+ * source frame. Stateful motion (springs, interrupted transitions) is solved here in one
+ * pass over all output frames.
+ */
+export interface Scene {
+  session: Session;
+  options: ResolvedOptions;
+  map: TimeMap;
+  layout: Layout;
+  times: Float64Array;
+  camera: CameraTrack;
+  cursor: CursorTrack;
+  clicks: ClickMark[];
+  spotlights: TimedEvent<SpotlightEvent>[];
+  captions: CaptionCue[];
+  keys: KeyCue[];
+  /**
+   * Caption band geometry when open, or null without captions.
+   */
+  band: BandLayout | null;
+  /**
+   * How far the caption band is open at each output frame, 0 to 1.
+   */
+  bandOpen: Float64Array;
+  /**
+   * Index into `session.frames` for each output frame.
+   */
+  frameIndex: Int32Array;
+}
+
+/**
+ * Builds the scene. `extraTime` adds one output time to the frame grid (for a still
+ * between two frames).
+ */
+export function buildScene(session: Session, options?: RenderOptions, extraTime?: number): Scene {
+  const map = sessionTimeMap(session);
+  const resolved = resolveOptions(session, options, BACKGROUND_PRESETS, map.duration);
+  let times = frameTimes(map.duration, resolved.fps);
+  if (extraTime !== undefined && !times.includes(extraTime)) {
+    times = Float64Array.from([...times, extraTime].sort((a, b) => a - b));
+  }
+  const events = timedEvents(session.events, map);
+  const cursor = computeCursor(times, session.cursor, session.events, map, resolved.cursor);
+  let zooms = events.filter((e): e is TimedEvent<ZoomEvent> => e.type === 'zoom');
+  if (resolved.zoom.auto && zooms.length === 0) {
+    const at = (out: number) => {
+      const i = Math.min(times.length - 1, Math.max(0, Math.round((out * resolved.fps) / 1000)));
+      return { x: cursor.x[i], y: cursor.y[i] };
+    };
+    zooms = autoZoomEvents(
+      events,
+      at,
+      session.viewport,
+      resolved.zoom.auto,
+      resolved.zoom.duration,
+    );
+  }
+  const camera = computeCamera(
+    times,
+    zooms,
+    { ...cursor, extent: CURSOR_EXTENT * resolved.cursor.size },
+    session.viewport,
+    resolved.zoom,
+  );
+  const frameIndex = new Int32Array(times.length);
+  for (let i = 0; i < times.length; i++) {
+    frameIndex[i] = frameIndexAt(session.frames, map.toRecord(times[i]));
+  }
+  const layout = computeLayout(resolved, session.viewport);
+  const { cues, groups } = planCaptions(
+    events.filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption'),
+  );
+  const keys =
+    resolved.keystrokes.show === 'none'
+      ? []
+      : planKeys(events.filter((e): e is TimedEvent<KeyEvent> => e.type === 'key'));
+  return {
+    session,
+    options: resolved,
+    map,
+    layout,
+    times,
+    camera,
+    cursor,
+    clicks: resolved.cursor.click.type === 'none' ? [] : clickMarks(events),
+    spotlights: events.filter((e): e is TimedEvent<SpotlightEvent> => e.type === 'spotlight'),
+    captions: cues,
+    keys,
+    band: cues.length ? bandLayout(layout, resolved.captions.position) : null,
+    bandOpen: bandTrack(times, groups),
+    frameIndex,
+  };
+}
+
+type Input = Omit<FrameInput, 'image'>;
+
+const CAMERA_SAMPLES = 20;
+const CURSOR_SAMPLES = 24;
+
+/**
+ * Value of a per-frame track `delta` frames away from frame i (|delta| <= 1).
+ */
+function at(track: ArrayLike<number>, i: number, delta: number): number {
+  const j = delta < 0 ? Math.max(0, i - 1) : Math.min(track.length - 1, i + 1);
+  return track[i] + (track[j] - track[i]) * Math.abs(delta);
+}
+
+function cameraAt(scene: Scene, i: number, delta: number): CameraState {
+  const c = scene.camera;
+  return { scale: at(c.scale, i, delta), cx: at(c.cx, i, delta), cy: at(c.cy, i, delta) };
+}
+
+/**
+ * Largest screen movement, in output pixels, of the visible content between two camera
+ * states.
+ */
+function cameraTravel(
+  scene: Scene,
+  a: CameraState,
+  b: CameraState,
+  mid: CameraState,
+  stageScale: number,
+): number {
+  const { width, height } = scene.session.viewport;
+  const hw = width / (2 * mid.scale);
+  const hh = height / (2 * mid.scale);
+  let d = 0;
+  for (const [x, y] of [
+    [mid.cx - hw, mid.cy - hh],
+    [mid.cx + hw, mid.cy - hh],
+    [mid.cx - hw, mid.cy + hh],
+    [mid.cx + hw, mid.cy + hh],
+  ]) {
+    const dx = (x - a.cx) * a.scale - (x - b.cx) * b.scale;
+    const dy = (y - a.cy) * a.scale - (y - b.cy) * b.scale;
+    d = Math.max(d, Math.hypot(dx, dy));
+  }
+  return d * scene.layout.k * stageScale;
+}
+
+/**
+ * Sub-frame offsets (in frames) spread over the shutter, or [0] when the movement
+ * is too small to blur.
+ */
+function shutterOffsets(travel: number, shutter: number, pixelsPerSample: number, max: number) {
+  const n = Math.min(max, Math.ceil(travel / pixelsPerSample));
+  if (shutter <= 0 || n < 3) return [0];
+  return Array.from({ length: n }, (_, j) => (j / (n - 1) - 0.5) * shutter);
+}
+
+/**
+ * Compositor inputs for output frame `i`, without the source image. More than one input
+ * means camera motion blur: the compositor averages them.
+ */
+export function frameInputs(scene: Scene, i: number): Input[] {
+  const base = frameInput(scene, i);
+  const zoomBlur = Math.min(1, Math.max(0, scene.options.zoom.motionBlur));
+  if (zoomBlur > 0) {
+    const h = zoomBlur / 2;
+    const travel = cameraTravel(
+      scene,
+      cameraAt(scene, i, -h),
+      cameraAt(scene, i, h),
+      base.camera,
+      base.stage.scale,
+    );
+    const offsets = shutterOffsets(travel, zoomBlur, 2, CAMERA_SAMPLES);
+    if (offsets.length > 1) {
+      return offsets.map((delta) => ({
+        ...base,
+        camera: cameraAt(scene, i, delta),
+        cursor: base.cursor && {
+          ...base.cursor,
+          x: at(scene.cursor.x, i, delta),
+          y: at(scene.cursor.y, i, delta),
+        },
+      }));
+    }
+  }
+  const cursorBlur = Math.min(1, Math.max(0, scene.options.cursor.motionBlur));
+  if (cursorBlur > 0 && base.cursor) {
+    const h = cursorBlur / 2;
+    const c = scene.cursor;
+    const travel =
+      Math.hypot(at(c.x, i, h) - at(c.x, i, -h), at(c.y, i, h) - at(c.y, i, -h)) *
+      scene.layout.k *
+      base.stage.scale *
+      base.camera.scale;
+    const offsets = shutterOffsets(travel, cursorBlur, 1.5, CURSOR_SAMPLES);
+    if (offsets.length > 1) {
+      base.cursorTrail = offsets.map((delta) => ({ x: at(c.x, i, delta), y: at(c.y, i, delta) }));
+    }
+  }
+  return [base];
+}
+
+/**
+ * Compositor input for output frame `i`, without the source image or motion blur.
+ */
+export function frameInput(scene: Scene, i: number): Input {
+  const t = scene.times[i];
+  const c = scene.cursor;
+  const cursor: CursorFrame | null =
+    c.opacity[i] > 0
+      ? {
+          x: c.x[i],
+          y: c.y[i],
+          style: c.style[i],
+          previousStyle: c.previousStyle[i],
+          styleMix: c.styleMix[i],
+          press: c.press[i],
+          opacity: c.opacity[i],
+        }
+      : null;
+  const duration = scene.options.cursor.click.duration;
+  const band = scene.bandOpen[i];
+  return {
+    t,
+    band,
+    stage: stageAt(scene.band, band),
+    camera: { scale: scene.camera.scale[i], cx: scene.camera.cx[i], cy: scene.camera.cy[i] },
+    cursor,
+    clicks: scene.clicks
+      .filter((m) => t >= m.out && t < m.out + duration)
+      .map((mark) => ({ mark, age: t - mark.out })),
+    spotlights: scene.spotlights
+      .map((event) => ({ event, amount: spotlightAmount(event, t) }))
+      .filter((s) => s.amount > 0),
+    captions: scene.captions.filter((c) => t >= c.textIn && t <= c.textOut + 250),
+    keys: scene.keys.filter((k) => keyCueVisible(k, t)),
+  };
+}

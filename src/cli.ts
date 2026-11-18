@@ -271,7 +271,9 @@ async function commandInspect(positionals: string[], flags: Flags): Promise<void
     columns: flags.cols ? Number(flags.cols) : undefined,
     render: options,
   });
-  console.log(`Contact sheet: ${sheet.out} (${sheet.tiles} tiles, one every ${sheet.every / 1000}s)`);
+  console.log(
+    `Contact sheet: ${sheet.out} (${sheet.tiles} tiles, one every ${sheet.every / 1000}s)`,
+  );
 }
 
 async function main(): Promise<void> {

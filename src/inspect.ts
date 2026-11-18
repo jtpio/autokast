@@ -105,7 +105,9 @@ export function describeSession(session: Session, options?: RenderOptions): stri
   }
   flush();
   if (options?.range) {
-    lines.push(`Range: ${seconds(options.range.start ?? 0)} to ${seconds(options.range.end ?? output)}`);
+    lines.push(
+      `Range: ${seconds(options.range.start ?? 0)} to ${seconds(options.range.end ?? output)}`,
+    );
   }
   return lines.join('\n');
 }

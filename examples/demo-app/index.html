@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit · Launch v2</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      {
+        const theme = new URLSearchParams(location.search).get('theme');
+        const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme =
+          theme === 'dark' || (theme !== 'light' && prefersDark) ? 'dark' : 'light';
+      }
+    </script>
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m20 20-4.2-4.2" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-board" viewBox="0 0 24 24">
+        <rect x="3.5" y="4" width="5" height="16" rx="1.5" />
+        <rect x="10.5" y="4" width="5" height="10" rx="1.5" />
+        <rect x="17.5" y="4" width="3" height="13" rx="1.5" />
+      </symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24">
+        <path d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path d="M4 7h8M18 7h2M4 17h2M12 17h8" />
+        <circle cx="15" cy="7" r="2.5" />
+        <circle cx="9" cy="17" r="2.5" />
+      </symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path
+          d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"
+        />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24">
+        <path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></symbol>
+      <symbol id="i-command" viewBox="0 0 24 24">
+        <path
+          d="M9 6.5A2.5 2.5 0 1 0 6.5 9H9zm0 0v11m0-11h6m-6 11A2.5 2.5 0 1 1 6.5 15H9zm0 0h6m0-11a2.5 2.5 0 1 1 2.5 2.5H15zm0 0v11m0 0a2.5 2.5 0 1 0 2.5-2.5H15z"
+        />
+      </symbol>
+      <symbol id="i-comment" viewBox="0 0 24 24">
+        <path d="M20 14.5a2 2 0 0 1-2 2H9l-4.5 3.5V6.5a2 2 0 0 1 2-2H18a2 2 0 0 1 2 2z" />
+      </symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24">
+        <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+        <path d="M4 10h16M9 3.5v4M15 3.5v4" />
+      </symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24">
+        <path d="M12 19V5.5M6.5 11 12 5.5l5.5 5.5" />
+      </symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24">
+        <path d="M12 5v13.5M6.5 13l5.5 5.5 5.5-5.5" />
+      </symbol>
+    </svg>
+
+    <div class="sidebar" data-testid="sidebar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <circle
+            cx="16"
+            cy="16"
+            r="12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            opacity="0.38"
+          />
+          <circle cx="16" cy="16" r="5.5" fill="currentColor" />
+          <circle class="brand-moon" cx="24.49" cy="7.51" r="3.4" />
+        </svg>
+        <div class="brand-text">
+          <span class="brand-name">Orbit</span>
+          <span class="brand-workspace">Halcyon Labs</span>
+        </div>
+      </div>
+
+      <button class="quick" type="button" data-testid="quick-actions" aria-keyshortcuts="Control+K">
+        <svg class="icon" aria-hidden="true"><use href="#i-command"></use></svg>
+        <span>Quick actions</span>
+        <span class="keys" aria-hidden="true"><kbd>Ctrl</kbd><kbd>K</kbd></span>
+      </button>
+
+      <nav class="nav" aria-label="Main">
+        <span class="nav-indicator" aria-hidden="true"></span>
+        <a class="nav-link" href="#board" data-view="board" data-testid="nav-board">
+          <svg class="icon" aria-hidden="true"><use href="#i-board"></use></svg>
+          <span>Board</span>
+          <span class="nav-count" id="nav-board-count" aria-hidden="true"></span>
+        </a>
+        <a class="nav-link" href="#analytics" data-view="analytics" data-testid="nav-analytics">
+          <svg class="icon" aria-hidden="true"><use href="#i-chart"></use></svg>
+          <span>Analytics</span>
+        </a>
+        <a class="nav-link" href="#settings" data-view="settings" data-testid="nav-settings">
+          <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <section class="side-section" aria-labelledby="projects-label">
+        <h2 class="micro side-label" id="projects-label">Projects</h2>
+        <ul class="projects">
+          <li class="project is-current" style="--dot: var(--accent)">
+            <span class="project-dot"></span>Launch v2<span class="project-count">11</span>
+          </li>
+          <li class="project" style="--dot: #3d7fa6">
+            <span class="project-dot"></span>Mobile app<span class="project-count">24</span>
+          </li>
+          <li class="project" style="--dot: #4f8a5b">
+            <span class="project-dot"></span>Website refresh<span class="project-count">8</span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="sprint">
+        <div class="sprint-row">
+          <span class="micro">Sprint 14</span>
+          <span class="sprint-days">6 days left</span>
+        </div>
+        <div
+          class="meter"
+          role="progressbar"
+          aria-label="Sprint progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="57"
+        >
+          <span style="width: 57%"></span>
+        </div>
+        <span class="sprint-meta">16 of 28 tasks done</span>
+      </div>
+    </div>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="search">
+          <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+          <input
+            id="search"
+            class="search-input"
+            type="search"
+            placeholder="Search tasks"
+            aria-label="Search tasks"
+            aria-keyshortcuts="/"
+            autocomplete="off"
+            spellcheck="false"
+            data-testid="search-input"
+          />
+          <kbd class="search-kbd" aria-hidden="true">/</kbd>
+          <button
+            class="search-clear"
+            type="button"
+            aria-label="Clear search"
+            data-testid="search-clear"
+            hidden
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </div>
+        <div class="topbar-actions">
+          <button
+            class="btn btn-primary"
+            type="button"
+            data-testid="new-task-button"
+            aria-keyshortcuts="N"
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+            New task
+          </button>
+          <button
+            class="icon-btn theme-toggle"
+            type="button"
+            aria-label="Toggle theme"
+            aria-pressed="false"
+            data-testid="theme-toggle"
+          >
+            <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"></use></svg>
+            <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"></use></svg>
+          </button>
+          <span class="topbar-rule" aria-hidden="true"></span>
+          <span id="me-avatar" role="img" aria-label="Jordan Reyes" data-testid="avatar"></span>
+        </div>
+      </header>
+
+      <main class="views">
+        <section
+          class="view view-board"
+          data-view="board"
+          data-testid="board-view"
+          aria-labelledby="board-title"
+          hidden
+        >
+          <header class="view-head">
+            <div>
+              <p class="micro view-kicker">Projects / Launch v2</p>
+              <h1 class="view-title" id="board-title">Launch v2</h1>
+              <p class="view-sub">Sprint 14 · Nov 10 – Nov 23 · <span id="board-count"></span></p>
+            </div>
+            <div class="members" id="members"></div>
+          </header>
+          <div class="board" id="board-columns" data-testid="board"></div>
+        </section>
+
+        <section
+          class="view view-analytics"
+          data-view="analytics"
+          data-testid="analytics-view"
+          aria-labelledby="analytics-title"
+          hidden
+        >
+          <header class="view-head">
+            <div>
+              <p class="micro view-kicker">Halcyon Labs / Delivery</p>
+              <h1 class="view-title" id="analytics-title">Analytics</h1>
+              <p class="view-sub">Twelve weeks of delivery, Aug 25 – Nov 16</p>
+            </div>
+          </header>
+          <div class="stats" id="stats"></div>
+          <div class="analytics-grid">
+            <section class="panel" aria-labelledby="chart-title">
+              <header class="panel-head">
+                <div>
+                  <h2 class="panel-title" id="chart-title">Completed per week</h2>
+                  <p class="panel-sub">Tasks moved to Done. The current week is highlighted.</p>
+                </div>
+              </header>
+              <div class="chart" id="chart" data-testid="chart">
+                <div class="chart-tooltip" role="tooltip" data-testid="chart-tooltip">
+                  <strong></strong><span></span>
+                </div>
+              </div>
+            </section>
+            <section class="panel" aria-labelledby="team-title">
+              <header class="panel-head">
+                <div>
+                  <h2 class="panel-title" id="team-title">Team</h2>
+                  <p class="panel-sub">Select a column to sort.</p>
+                </div>
+              </header>
+              <table class="table" id="team-table" data-testid="team-table">
+                <thead>
+                  <tr>
+                    <th scope="col" data-key="name">
+                      <button class="sort" type="button" data-testid="sort-name">
+                        Member
+                        <svg class="icon" aria-hidden="true"><use href="#i-arrow-down"></use></svg>
+                      </button>
+                    </th>
+                    <th scope="col" class="num" data-key="open">
+                      <button class="sort" type="button" data-testid="sort-open">
+                        Open
+                        <svg class="icon" aria-hidden="true"><use href="#i-arrow-down"></use></svg>
+                      </button>
+                    </th>
+                    <th scope="col" class="num" data-key="done">
+                      <button class="sort" type="button" data-testid="sort-done">
+                        Done
+                        <svg class="icon" aria-hidden="true"><use href="#i-arrow-down"></use></svg>
+                      </button>
+                    </th>
+                    <th scope="col" class="num" data-key="cycle">
+                      <button class="sort" type="button" data-testid="sort-cycle">
+                        Cycle time
+                        <svg class="icon" aria-hidden="true"><use href="#i-arrow-down"></use></svg>
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="team-body"></tbody>
+              </table>
+            </section>
+          </div>
+        </section>
+
+        <section
+          class="view view-settings"
+          data-view="settings"
+          data-testid="settings-view"
+          aria-labelledby="settings-title"
+          hidden
+        >
+          <header class="view-head">
+            <div>
+              <p class="micro view-kicker">Halcyon Labs / Preferences</p>
+              <h1 class="view-title" id="settings-title">Settings</h1>
+              <p class="view-sub">Your profile and how Orbit looks and behaves.</p>
+            </div>
+            <button class="btn btn-primary" type="button" data-testid="save-settings">
+              Save changes
+            </button>
+          </header>
+          <div class="settings-grid">
+            <div class="settings-col">
+              <section class="panel" aria-labelledby="profile-title">
+                <header class="panel-head">
+                  <h2 class="panel-title" id="profile-title">Profile</h2>
+                </header>
+                <div class="setting">
+                  <div class="setting-text">
+                    <label class="setting-label" for="display-name">Display name</label>
+                    <p>Shown on cards and in mentions.</p>
+                  </div>
+                  <input
+                    id="display-name"
+                    class="input"
+                    type="text"
+                    value="Jordan Reyes"
+                    autocomplete="off"
+                    spellcheck="false"
+                    data-testid="display-name"
+                  />
+                </div>
+                <div class="setting">
+                  <div class="setting-text">
+                    <span class="setting-label">Email</span>
+                    <p>Managed by your workspace admin.</p>
+                  </div>
+                  <span class="setting-value">jordan@halcyon.example</span>
+                </div>
+              </section>
+              <section class="panel" aria-labelledby="appearance-title">
+                <header class="panel-head">
+                  <h2 class="panel-title" id="appearance-title">Appearance</h2>
+                </header>
+                <div class="setting">
+                  <div class="setting-text">
+                    <span class="setting-label" id="theme-label">Theme</span>
+                    <p>Paper by day, night sky after dark.</p>
+                  </div>
+                  <div
+                    class="segmented"
+                    role="radiogroup"
+                    aria-labelledby="theme-label"
+                    data-setting="theme"
+                    data-testid="theme-segmented"
+                    style="--count: 2; --index: 0"
+                  >
+                    <span class="segmented-thumb" aria-hidden="true"></span>
+                    <button type="button" role="radio" data-value="light" data-testid="theme-light">
+                      Light
+                    </button>
+                    <button type="button" role="radio" data-value="dark" data-testid="theme-dark">
+                      Dark
+                    </button>
+                  </div>
+                </div>
+                <div class="setting">
+                  <div class="setting-text">
+                    <span class="setting-label" id="density-label">Card density</span>
+                    <p>Compact keeps titles to one line.</p>
+                  </div>
+                  <div
+                    class="segmented"
+                    role="radiogroup"
+                    aria-labelledby="density-label"
+                    data-setting="density"
+                    data-testid="density-segmented"
+                    style="--count: 2; --index: 0"
+                  >
+                    <span class="segmented-thumb" aria-hidden="true"></span>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked="true"
+                      data-value="comfortable"
+                      data-testid="density-comfortable"
+                    >
+                      Comfortable
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked="false"
+                      tabindex="-1"
+                      data-value="compact"
+                      data-testid="density-compact"
+                    >
+                      Compact
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="settings-col">
+              <section class="panel" aria-labelledby="notifications-title">
+                <header class="panel-head">
+                  <h2 class="panel-title" id="notifications-title">Notifications</h2>
+                </header>
+                <div class="setting">
+                  <div class="setting-text">
+                    <label class="setting-label" for="notify-digest">Morning digest</label>
+                    <p>A short summary of yesterday, at 8:00.</p>
+                  </div>
+                  <button
+                    id="notify-digest"
+                    class="switch"
+                    type="button"
+                    role="switch"
+                    aria-checked="true"
+                    data-testid="toggle-digest"
+                  ></button>
+                </div>
+                <div class="setting">
+                  <div class="setting-text">
+                    <label class="setting-label" for="notify-mentions">Mentions</label>
+                    <p>When a teammate mentions you or assigns a task.</p>
+                  </div>
+                  <button
+                    id="notify-mentions"
+                    class="switch"
+                    type="button"
+                    role="switch"
+                    aria-checked="true"
+                    data-testid="toggle-mentions"
+                  ></button>
+                </div>
+                <div class="setting">
+                  <div class="setting-text">
+                    <label class="setting-label" for="notify-report">Weekly report</label>
+                    <p>Sprint metrics every Monday.</p>
+                  </div>
+                  <button
+                    id="notify-report"
+                    class="switch"
+                    type="button"
+                    role="switch"
+                    aria-checked="false"
+                    data-testid="toggle-report"
+                  ></button>
+                </div>
+              </section>
+              <section class="panel" aria-labelledby="board-settings-title">
+                <header class="panel-head">
+                  <h2 class="panel-title" id="board-settings-title">Board</h2>
+                </header>
+                <div class="setting">
+                  <div class="setting-text">
+                    <label class="setting-label" for="wip-limit">Work-in-progress limit</label>
+                    <p>Caps the In progress column.</p>
+                  </div>
+                  <div class="slider">
+                    <input
+                      id="wip-limit"
+                      class="range"
+                      type="range"
+                      min="1"
+                      max="8"
+                      step="1"
+                      value="4"
+                      style="--p: 0.4286"
+                      data-testid="wip-limit"
+                    />
+                    <output class="slider-value" id="wip-output" for="wip-limit">4</output>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toasts" role="status" aria-live="polite" data-testid="toasts"></div>
+
+    <template id="tpl-detail">
+      <aside class="detail" aria-label="Task details" data-testid="detail-panel">
+        <header class="detail-head">
+          <span class="detail-id" data-slot="id"></span>
+          <button
+            class="icon-btn icon-btn-quiet"
+            type="button"
+            aria-label="Close details"
+            data-testid="detail-close"
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <div class="detail-body">
+          <h2 class="detail-title" data-slot="title"></h2>
+          <dl class="props">
+            <div class="prop">
+              <dt>Status</dt>
+              <dd data-slot="status"></dd>
+            </div>
+            <div class="prop">
+              <dt>Priority</dt>
+              <dd data-slot="priority"></dd>
+            </div>
+            <div class="prop">
+              <dt>Assignee</dt>
+              <dd data-slot="assignee"></dd>
+            </div>
+            <div class="prop">
+              <dt>Tags</dt>
+              <dd data-slot="tags"></dd>
+            </div>
+            <div class="prop">
+              <dt>Due date</dt>
+              <dd data-slot="due"></dd>
+            </div>
+          </dl>
+          <section class="detail-section">
+            <h3 class="micro">Description</h3>
+            <p class="detail-description" data-slot="description"></p>
+          </section>
+          <section class="detail-section">
+            <h3 class="micro">Activity</h3>
+            <ol class="activity" data-slot="activity"></ol>
+          </section>
+        </div>
+      </aside>
+    </template>
+
+    <template id="tpl-modal">
+      <div class="overlay" data-testid="modal-overlay">
+        <div
+          class="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          data-testid="new-task-modal"
+        >
+          <form class="modal-form" novalidate>
+            <header class="modal-head">
+              <div>
+                <h2 class="modal-title" id="modal-title">New task</h2>
+                <p class="modal-sub">Adds to <strong data-slot="column"></strong></p>
+              </div>
+              <button
+                class="icon-btn icon-btn-quiet"
+                type="button"
+                aria-label="Close"
+                data-action="cancel"
+              >
+                <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+              </button>
+            </header>
+            <div class="modal-body">
+              <div class="field">
+                <label class="field-label" for="task-title">Title</label>
+                <input
+                  id="task-title"
+                  class="input"
+                  type="text"
+                  placeholder="What needs to happen?"
+                  autocomplete="off"
+                  spellcheck="false"
+                  data-testid="task-title-input"
+                />
+              </div>
+              <div class="field">
+                <label class="field-label" for="task-description">Description</label>
+                <textarea
+                  id="task-description"
+                  class="input textarea"
+                  rows="3"
+                  placeholder="Add context, links or acceptance criteria"
+                  spellcheck="false"
+                  data-testid="task-description-input"
+                ></textarea>
+              </div>
+              <div class="field">
+                <span class="field-label" id="priority-label">Priority</span>
+                <div class="select">
+                  <button
+                    class="select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-labelledby="priority-label priority-value"
+                    data-testid="priority-select"
+                  >
+                    <span class="select-value" data-slot="priority"></span>
+                    <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron"></use></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="field">
+                <span class="field-label" id="tags-label">Tags</span>
+                <div class="chips" role="group" aria-labelledby="tags-label" data-slot="tags"></div>
+              </div>
+            </div>
+            <footer class="modal-foot">
+              <span class="hint" aria-hidden="true"><kbd>Ctrl</kbd><kbd>Enter</kbd> to create</span>
+              <button class="btn" type="button" data-action="cancel" data-testid="cancel-task">
+                Cancel
+              </button>
+              <button class="btn btn-primary" type="submit" data-testid="create-task" disabled>
+                Create task
+              </button>
+            </footer>
+          </form>
+        </div>
+      </div>
+    </template>
+
+    <template id="tpl-palette">
+      <div class="overlay overlay-palette" data-testid="palette-overlay">
+        <div
+          class="palette"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Command palette"
+          data-testid="command-palette"
+        >
+          <div class="palette-search">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+            <input
+              class="palette-input"
+              type="text"
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="palette-list"
+              aria-autocomplete="list"
+              aria-label="Search commands"
+              placeholder="Type a command"
+              autocomplete="off"
+              spellcheck="false"
+              data-testid="command-input"
+            />
+            <kbd>Esc</kbd>
+          </div>
+          <div class="palette-list" id="palette-list" role="listbox" aria-label="Commands"></div>
+          <footer class="palette-foot" aria-hidden="true">
+            <span><kbd>↑</kbd><kbd>↓</kbd> Move</span>
+            <span><kbd>↵</kbd> Run</span>
+            <span><kbd>Esc</kbd> Close</span>
+          </footer>
+        </div>
+      </div>
+    </template>
+  </body>
+</html>
