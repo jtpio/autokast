@@ -170,11 +170,13 @@ moment has motion or something new to read.
 - Keep a caption to one line: about 60 characters. Write a short sentence, with no number.
 - A viewer needs about 3 s to read a caption and see the action. Make each part at least
   that long; the limit of one fifth for holds does not apply to a captioned tour.
-- While a caption shows, the window is smaller and the view above the caption is wider than
-  the video: about 15:7 for a 16:9 video. A `zoomTo` without `scale` or `level` keeps the
-  whole target in that view, so a 16:9 target shows more of the page at its sides. Give the
-  target the shape of the view, for example `{ x: 0, y: 28, width: 960, height: 448 }` with
-  `padding: 0`, or use a `level`.
+- The space for captions is as high as one line needs. It gets higher, and the window
+  smaller, when a caption needs two lines.
+- While a caption shows, the view above the caption is wider than the video: about 2:1 for
+  a 16:9 video. A `zoomTo` without `scale` or `level` keeps the whole target in that view,
+  so a 16:9 target shows more of the page at its sides. Give the target the shape of the
+  view, for example `{ x: 0, y: 28, width: 960, height: 472 }` with `padding: 0`, or use a
+  `level`.
 
 **State**
 

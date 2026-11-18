@@ -15,7 +15,15 @@ import {
   type CameraTrack,
   type FitRegion,
 } from './camera.ts';
-import { bandAt, bandTrack, planCaptions, type CaptionCue } from './captions.ts';
+import {
+  bandAt,
+  bandTrack,
+  CAPTION_WIDTH,
+  captionMeasure,
+  layoutCaption,
+  planCaptions,
+  type CaptionCue,
+} from './captions.ts';
 import { computeLayout, type CursorFrame, type FrameInput, type Layout } from './compositor.ts';
 import { clickMarks, computeCursor, type ClickMark, type CursorTrack } from './cursor.ts';
 import { resolveOptions, type ResolvedOptions } from './defaults.ts';
@@ -98,7 +106,7 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
   const { cues, groups } = planCaptions(
     events.filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption'),
   );
-  const band = cues.length ? bandLayout(layout, resolved.captions.position) : null;
+  const band = captionBand(cues, layout, resolved);
   const camera = computeCamera(
     times,
     zooms,
@@ -138,6 +146,26 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     bandOpen: bandTrack(times, groups),
     frameIndex,
   };
+}
+
+/**
+ * Band geometry for the captions, or null without captions. The band has the height for
+ * one line unless a caption needs two lines.
+ */
+function captionBand(
+  cues: CaptionCue[],
+  layout: Layout,
+  options: ResolvedOptions,
+): BandLayout | null {
+  if (cues.length === 0) return null;
+  const { position, fontFamily, fontSize } = options.captions;
+  const measure = captionMeasure(fontFamily);
+  const band = bandLayout(layout, position, 1);
+  const width = band.window.width * CAPTION_WIDTH;
+  const lines = cues.map(
+    (cue) => layoutCaption(cue.text, measure, width, fontSize * layout.unit).lines.length,
+  );
+  return Math.max(...lines) > 1 ? bandLayout(layout, position, 2) : band;
 }
 
 /**

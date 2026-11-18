@@ -1,4 +1,4 @@
-import type { SKRSContext2D } from '@napi-rs/canvas';
+import { createCanvas, type SKRSContext2D } from '@napi-rs/canvas';
 import type { CaptionEvent } from '../types.ts';
 import { rgba, type Rgba } from './color.ts';
 import { clamp, easing, smoothstep } from './easing.ts';
@@ -241,8 +241,25 @@ const easeOutQuart = (t: number) => 1 - (1 - clamp(t, 0, 1)) ** 4;
 const easeOutCubic = (t: number) => 1 - (1 - clamp(t, 0, 1)) ** 3;
 const sweep = easing('smooth');
 
-export function captionFont(style: CaptionStyle, size: number): string {
+export function captionFont(style: Pick<CaptionStyle, 'family'>, size: number): string {
   return `500 ${size}px "${style.family}"`;
+}
+
+/**
+ * Share of the window width that a caption can take.
+ */
+export const CAPTION_WIDTH = 0.72;
+
+/**
+ * Width of text in the caption font, for `layoutCaption`.
+ */
+export function captionMeasure(family: string): (text: string, size: number) => number {
+  const context = createCanvas(4, 4).getContext('2d');
+  return (text, size) => {
+    context.font = captionFont({ family }, size);
+    context.letterSpacing = tracking(size);
+    return context.measureText(text).width;
+  };
 }
 
 /**

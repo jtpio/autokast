@@ -14,9 +14,10 @@ export interface StageTransform {
 export const IDENTITY: StageTransform = { scale: 1, x: 0, y: 0 };
 
 /**
- * Band height as a fraction of the short side of the output.
+ * Band height as a fraction of the short side of the output, for captions of one line
+ * and for captions of two lines.
  */
-const BAND = 0.17;
+const BAND = [0.125, 0.17];
 
 /**
  * Where things go when the caption band is fully open.
@@ -38,11 +39,12 @@ export interface BandLayout {
 /**
  * The band takes the place of the padding on its side and grows it to BAND of the short
  * side; the window (chrome and shadow included) scales down uniformly to fit the rest.
+ * `lines` is the line count of the tallest caption: the band is only as high as it needs.
  */
-export function bandLayout(layout: Layout, side: 'bottom' | 'top'): BandLayout {
+export function bandLayout(layout: Layout, side: 'bottom' | 'top', lines = 2): BandLayout {
   const { width: W, height: H } = layout.size;
   const pad = layout.padding;
-  const height = BAND * Math.min(W, H);
+  const height = BAND[lines > 1 ? 1 : 0] * Math.min(W, H);
   const w0 = layout.window;
   const availW = W - 2 * pad;
   const availH = H - height - pad;

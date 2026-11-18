@@ -3,11 +3,11 @@ import type { CursorStyle, Rect, Size, SpotlightEvent } from '../types.ts';
 import type { CameraState } from './camera.ts';
 import { luminance, parseColor, rgba, type Rgba } from './color.ts';
 import {
-  captionFont,
+  CAPTION_WIDTH,
   captionHeight,
+  captionMeasure,
   drawCaption,
   layoutCaption,
-  tracking,
   type CaptionCue,
   type CaptionLines,
   type CaptionStyle,
@@ -524,14 +524,13 @@ export class Compositor {
     let lines = this.captionLines.get(cue);
     if (!lines) {
       const style = this.captionStyle;
-      const m = createCanvas(4, 4).getContext('2d');
-      const measure = (text: string, size: number) => {
-        m.font = captionFont(style, size);
-        m.letterSpacing = tracking(size);
-        return m.measureText(text).width;
-      };
       const width = this.band ? this.band.window.width : this.layout.window.width;
-      lines = layoutCaption(cue.text, measure, width * 0.72, style.fontSize);
+      lines = layoutCaption(
+        cue.text,
+        captionMeasure(style.family),
+        width * CAPTION_WIDTH,
+        style.fontSize,
+      );
       this.captionLines.set(cue, lines);
     }
     return lines;
