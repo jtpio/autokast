@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.autocast/
+out/
+*.tsbuildinfo
+.ipynb_checkpoints/
+__pycache__/
+.venv/

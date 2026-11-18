@@ -1,0 +1,5 @@
+dist/
+node_modules/
+.autocast/
+out/
+package-lock.json
