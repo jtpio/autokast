@@ -50,6 +50,7 @@ export interface ResolvedOptions {
     pressScale: number;
     hideAfter: number;
     motionBlur: number;
+    tilt: number;
     click: { type: 'ripple' | 'ring' | 'none'; color: string; size: number; duration: number };
   };
   zoom: {
@@ -100,6 +101,7 @@ const DEFAULTS = {
     pressScale: 0.82,
     hideAfter: 0,
     motionBlur: 0.5,
+    tilt: 1,
     click: { type: 'ripple', color: 'auto', size: 26, duration: 520 },
   },
   zoom: {

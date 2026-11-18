@@ -104,6 +104,10 @@ export interface CursorFrame {
   styleMix: number;
   press: number;
   opacity: number;
+  /**
+   * Lean about the hotspot, in radians.
+   */
+  angle: number;
 }
 
 export interface FrameInput {
@@ -186,13 +190,13 @@ function drawCursorFrame(
   const alpha = cur.opacity * weight;
   const mix = cur.styleMix;
   if (mix >= 1 || cur.previousStyle === cur.style) {
-    drawCursor(ctx, cur.style, x, y, scale, alpha);
+    drawCursor(ctx, cur.style, x, y, scale, alpha, cur.angle);
   } else if (cur.previousStyle === 'none' || cur.style === 'none') {
-    drawCursor(ctx, cur.previousStyle, x, y, scale, alpha * (1 - mix));
-    drawCursor(ctx, cur.style, x, y, scale, alpha * mix);
+    drawCursor(ctx, cur.previousStyle, x, y, scale, alpha * (1 - mix), cur.angle);
+    drawCursor(ctx, cur.style, x, y, scale, alpha * mix, cur.angle);
   } else {
     const style = mix < 0.5 ? cur.previousStyle : cur.style;
-    drawCursor(ctx, style, x, y, scale * (1 - 0.1 * Math.sin(Math.PI * mix)), alpha);
+    drawCursor(ctx, style, x, y, scale * (1 - 0.1 * Math.sin(Math.PI * mix)), alpha, cur.angle);
   }
 }
 
@@ -671,7 +675,15 @@ export class Compositor {
   ): void {
     const { width, height } = this.layout.size;
     const m = Math.ceil(30 * scale);
-    const key = [cur.style, cur.previousStyle, cur.styleMix, cur.press, cur.opacity, scale].join();
+    const key = [
+      cur.style,
+      cur.previousStyle,
+      cur.styleMix,
+      cur.press,
+      cur.opacity,
+      cur.angle,
+      scale,
+    ].join();
     if (!this.sprite || this.sprite.width < 2 * m) this.sprite = createCanvas(2 * m, 2 * m);
     if (key !== this.spriteKey) {
       const sprite = this.sprite.getContext('2d');

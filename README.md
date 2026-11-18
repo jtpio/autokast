@@ -173,7 +173,7 @@ export default defineScreencast({
     fps: 60,
     background: 'dusk', // paper, fog, sage, dune, clay, dusk, harbor, graphite, ink, ember
     frame: { padding: 0.07, radius: 16, chrome: 'none' },
-    cursor: { size: 1.9, smoothing: 0.3, motionBlur: 0.5, click: { type: 'ripple' } },
+    cursor: { size: 1.9, smoothing: 0.3, motionBlur: 0.5, tilt: 1, click: { type: 'ripple' } },
     zoom: { mode: 'camera', easing: 'smooth', duration: 900, follow: 'edge', auto: false },
     encode: { quality: 'standard' }, // draft, standard, high, max
   },
@@ -199,6 +199,8 @@ Notes on the options that change the look most:
   cursor). Each `zoomTo` or `zoom` call can set its own `follow`.
 - **`render.zoom.levels`** gives the scale of the named zoom levels (`wide` 1.3, `medium` 1.6,
   `close` 2.2), so a render can retune every shot of one level.
+- **`render.cursor.tilt`** (on by default, 0 turns it off) makes the cursor lean into its
+  travel, as if it had weight.
 - **`render.cursor.motionBlur`** (0 to 1, on by default) blurs the cursor during fast moves.
   **`render.zoom.motionBlur`** does the same for camera moves and is off by default.
 - Pixel values are for a 1080-pixel output and scale with the output size, so a preview looks

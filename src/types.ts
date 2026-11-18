@@ -596,6 +596,11 @@ export interface CursorRenderOptions {
    * Motion blur of the cursor during fast moves, 0 (off) to 1 (a full frame of blur).
    */
   motionBlur?: number;
+  /**
+   * How much the cursor leans into its travel, as if it had weight: 0 (off) to 1 and
+   * above. It swings back upright when the cursor stops.
+   */
+  tilt?: number;
   click?: ClickEffectOptions;
 }
 

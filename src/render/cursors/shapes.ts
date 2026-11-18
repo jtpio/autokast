@@ -287,8 +287,26 @@ export function cursorShape(style: CursorStyle): CursorShape | null {
 }
 
 /**
+ * Transform from design units to output pixels: scale, then rotate by `angle` (radians,
+ * clockwise) about the hotspot, which lands exactly on (x, y).
+ */
+export function cursorMatrix(
+  hotspot: { x: number; y: number },
+  x: number,
+  y: number,
+  scale: number,
+  angle: number,
+): [number, number, number, number, number, number] {
+  if (angle === 0) return [scale, 0, 0, scale, x - hotspot.x * scale, y - hotspot.y * scale];
+  const a = scale * Math.cos(angle);
+  const b = scale * Math.sin(angle);
+  return [a, b, -b, a, x - (a * hotspot.x - b * hotspot.y), y - (b * hotspot.x + a * hotspot.y)];
+}
+
+/**
  * Draws a cursor with its hotspot at (x, y) in output pixels. `scale` is output
- * pixels per design unit. The drop shadow has a tight contact layer and a soft layer.
+ * pixels per design unit; the body leans by `angle` about the hotspot. The drop shadow
+ * has a tight contact layer and a soft layer, offset straight down whatever the angle.
  */
 export function drawCursor(
   ctx: SKRSContext2D,
@@ -297,12 +315,13 @@ export function drawCursor(
   y: number,
   scale: number,
   alpha: number,
+  angle = 0,
 ): void {
   const s = cursorShape(style);
   if (!s || alpha <= 0.002 || scale <= 0) return;
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.setTransform(scale, 0, 0, scale, x - s.hotspot.x * scale, y - s.hotspot.y * scale);
+  ctx.setTransform(...cursorMatrix(s.hotspot, x, y, scale, angle));
   ctx.fillStyle = '#ffffff';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
   ctx.shadowBlur = 5 * scale;

@@ -1,6 +1,6 @@
 import type { CursorSample, CursorStyle, MouseButtonEvent, TimelineEvent } from '../types.ts';
 import { clamp, smoothstep } from './easing.ts';
-import { springSmooth } from './spring.ts';
+import { springSmooth, springStep } from './spring.ts';
 import type { TimedEvent, TimeMap } from './timeline.ts';
 
 const STYLES: ReadonlySet<string> = new Set<CursorStyle>([
@@ -50,6 +50,10 @@ export interface CursorTrack {
    * Press amount: 1 fully pressed, 0 released (slightly negative during the release bounce).
    */
   press: Float64Array;
+  /**
+   * Lean of the cursor body around its hotspot, in radians (positive is clockwise).
+   */
+  angle: Float64Array;
 }
 
 export interface ClickMark {
@@ -137,6 +141,71 @@ export interface CursorTrackOptions {
   visible: boolean;
   smoothing: number;
   hideAfter: number;
+  /**
+   * Strength of the lean: 0 off, 1 the default look.
+   */
+  tilt?: number;
+}
+
+/**
+ * Cursor lean: a damped spring pulls the angle toward a target set by the horizontal
+ * speed of the hotspot on the page, `TILT_MAX * tanh(vx / TILT_SPEED)`. The body trails
+ * behind like a weight hanging from the tip; vertical travel gives no lean, as a body
+ * hanging in line with its pivot does not turn. Slightly underdamped: a soft build-up and
+ * a small, quick swing back when the cursor stops.
+ */
+export const TILT_MAX = (13 * Math.PI) / 180;
+export const TILT_SPEED = 1400;
+export const TILT_OMEGA = 14;
+export const TILT_DAMPING = 0.78;
+
+/**
+ * How much each cursor shape leans. Shapes that read as axes or symbols stay upright.
+ */
+const TILT_FACTOR: Partial<Record<CursorStyle, number>> = {
+  default: 1,
+  pointer: 0.85,
+  grab: 0.6,
+  grabbing: 0.6,
+};
+
+export function tiltFactor(style: CursorStyle): number {
+  return TILT_FACTOR[style] ?? 0;
+}
+
+/**
+ * Lean angle per output frame from the hotspot positions, in radians. At a break (a cut)
+ * the jump is not motion, so it gives no push; the angle stays continuous.
+ */
+export function tiltTrack(
+  times: ArrayLike<number>,
+  x: ArrayLike<number>,
+  breaks: ArrayLike<boolean>,
+  strength: number,
+): Float64Array {
+  const n = times.length;
+  const out = new Float64Array(n);
+  if (strength <= 0) return out;
+  let angle = 0;
+  let spin = 0;
+  for (let i = 1; i < n; i++) {
+    const dt = (times[i] - times[i - 1]) / 1000;
+    if (dt <= 0) {
+      out[i] = angle;
+      continue;
+    }
+    const vx = breaks[i] ? 0 : (x[i] - x[i - 1]) / dt;
+    const target = strength * TILT_MAX * Math.tanh(vx / TILT_SPEED);
+    const steps = Math.ceil(dt / 0.002);
+    const h = dt / steps;
+    for (let k = 0; k < steps; k++) {
+      spin +=
+        (TILT_OMEGA * TILT_OMEGA * (target - angle) - 2 * TILT_DAMPING * TILT_OMEGA * spin) * h;
+      angle += spin * h;
+    }
+    out[i] = angle;
+  }
+  return out;
 }
 
 /**
@@ -161,6 +230,7 @@ export function computeCursor(
     previousStyle: new Array(n),
     styleMix: new Float64Array(n),
     press: new Float64Array(n),
+    angle: new Float64Array(n),
   };
   const path = cursorPath(samples);
   const rec = new Float64Array(n);
@@ -240,6 +310,17 @@ export function computeCursor(
         ? pressTarget
         : pressFrom + (pressTarget - pressFrom) * (pressTarget ? easeOutCubic(k) : easeOutBack(k));
     track.press[i] = press;
+  }
+
+  const lean = tiltTrack(times, track.x, breaks, options.tilt ?? 0);
+  let factor = n > 0 ? tiltFactor(track.style[0]) : 0;
+  let rate = 0;
+  for (let i = 0; i < n; i++) {
+    if (i > 0) {
+      const target = tiltFactor(track.style[i]);
+      [factor, rate] = springStep(factor, rate, target, 28, (times[i] - times[i - 1]) / 1000);
+    }
+    track.angle[i] = lean[i] * factor;
   }
 
   const hasCursor = options.visible && samples.length > 0;

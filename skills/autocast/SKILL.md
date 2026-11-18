@@ -198,6 +198,7 @@ autocast render .autocast/demo --preview -o quick.mp4
 | `zoom.levels`                                         | Scale of each named level, for example `--set 'zoom.levels={"close":2.6}'`.                                                                             |
 | `zoom.auto`                                           | `true` adds zooms on clicks and typing when the script has none.                                                                                        |
 | `zoom.edges`                                          | `fill` (default: a zoomed shot is all page) or `keep` (the window edge and backdrop stay in view).                                                      |
+| `cursor.tilt`                                         | How much the cursor leans into its travel (default 1; 0 turns it off).                                                                                  |
 | `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                |
 | `keystrokes.show`                                     | `none` (default) or `shortcuts`: shows key combinations from `cast.press` as keycaps.                                                                   |
 | `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                        |

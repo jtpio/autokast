@@ -297,6 +297,7 @@ export function frameInput(scene: Scene, i: number): Input {
           styleMix: c.styleMix[i],
           press: c.press[i],
           opacity: c.opacity[i],
+          angle: c.angle[i],
         }
       : null;
   const duration = scene.options.cursor.click.duration;

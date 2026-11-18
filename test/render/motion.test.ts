@@ -299,3 +299,15 @@ test('motion stays continuous through transitions, follow and the caption band',
   assert.ok(jerkRatio(scene, false) < 0.12, `camera ${jerkRatio(scene, false)}`);
   assert.ok(jerkRatio(scene, true) < 0.12, `with band ${jerkRatio(scene, true)}`);
 });
+
+test('a pure camera pan does not tilt the cursor', () => {
+  const scene = buildScene(
+    session([zoom(300, TARGETS.corner, 2), zoom(1500, TARGETS.right, 2), zoom(2700, null)]),
+    { zoom: { follow: 'off' } },
+  );
+  assert.ok(
+    scene.camera.cx.some((c) => Math.abs(c - 640) > 100),
+    'the camera pans',
+  );
+  assert.ok(scene.cursor.angle.every((a) => a === 0));
+});
