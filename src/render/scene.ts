@@ -9,6 +9,7 @@ import type {
 import { BACKGROUND_PRESETS } from './background.ts';
 import {
   autoZoomEvents,
+  clampCamera,
   computeCamera,
   type CameraState,
   type CameraTrack,
@@ -20,7 +21,7 @@ import { clickMarks, computeCursor, type ClickMark, type CursorTrack } from './c
 import { resolveOptions, type ResolvedOptions } from './defaults.ts';
 import { spotlightAmount } from './effects.ts';
 import { keyCueVisible, planKeys, type KeyCue } from './keycaps.ts';
-import { bandLayout, stageAt, type BandLayout } from './stage.ts';
+import { bandLayout, fillEdges, stageAt, type BandLayout } from './stage.ts';
 import {
   frameIndexAt,
   frameTimes,
@@ -103,7 +104,15 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     zooms,
     { ...cursor, extent: CURSOR_EXTENT * resolved.cursor.size },
     session.viewport,
-    { ...resolved.zoom, fit: (t) => fitRegion(resolved, layout, band, bandAt(groups, t)) },
+    {
+      ...resolved.zoom,
+      fit: (t) => fitRegion(resolved, layout, band, bandAt(groups, t)),
+      constrain: (state, t) => {
+        const clamped = clampCamera(state, session.viewport);
+        if (resolved.zoom.mode === 'crop' || resolved.zoom.edges === 'keep') return clamped;
+        return fillEdges(layout, band, band ? bandAt(groups, t) : 0, clamped);
+      },
+    },
   );
   const frameIndex = new Int32Array(times.length);
   for (let i = 0; i < times.length; i++) {

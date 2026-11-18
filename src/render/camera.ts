@@ -30,7 +30,14 @@ export interface CameraOptions {
    * larger than 1 in camera mode, where the page may use the whole output.
    */
   fit?: (t: number) => FitRegion;
+  /**
+   * Framing rules for end states and held states at an output time (edges, caption
+   * band). Default: the visible rectangle stays inside the viewport.
+   */
+  constrain?: Constrain;
 }
+
+export type Constrain = (state: CameraState, t: number) => CameraState;
 
 export interface FitRegion {
   x: number;
@@ -90,10 +97,10 @@ export function zoomTarget(
 }
 
 /**
- * Interpolates two camera states. The scale changes geometrically and the center
- * moves so that the zoom pivots on the one point that has the same screen position
- * in both states, like a pinch zoom. Equal scales give a straight pan.
- * Both ends clamped means every intermediate state is clamped too.
+ * Interpolates two camera states. The scale changes geometrically and the center moves
+ * so that the zoom pivots on the one page point that has the same screen position in
+ * both states, like a pinch zoom: every page point moves on a straight line, with one
+ * speed peak. Equal scales give a straight pan. Only the end states are constrained.
  */
 export function interpolateCamera(a: CameraState, b: CameraState, e: number): CameraState {
   const r = a.scale / b.scale;
@@ -117,7 +124,14 @@ interface TransitionTrajectory {
 
 type Trajectory =
   | { kind: 'static'; state: CameraState }
-  | { kind: 'coast'; state: CameraState; vx: number; vy: number; t0: number; viewport: Size }
+  | {
+      kind: 'coast';
+      state: CameraState;
+      vx: number;
+      vy: number;
+      t0: number;
+      constrain: Constrain;
+    }
   | TransitionTrajectory;
 
 /**
@@ -128,7 +142,7 @@ function evaluate(tr: Trajectory, t: number): CameraState {
   if (tr.kind === 'coast') {
     const k = (1 - Math.exp((-FOLLOW_OMEGA * (t - tr.t0)) / 1000)) / FOLLOW_OMEGA;
     const s = tr.state;
-    return clampCamera({ scale: s.scale, cx: s.cx + tr.vx * k, cy: s.cy + tr.vy * k }, tr.viewport);
+    return tr.constrain({ scale: s.scale, cx: s.cx + tr.vx * k, cy: s.cy + tr.vy * k }, t);
   }
   if (t >= tr.t0 + tr.duration) return tr.to;
   const e = tr.duration > 0 ? tr.ease((t - tr.t0) / tr.duration) : 1;
@@ -148,7 +162,14 @@ interface Transition {
   t0: number;
   end: number;
   event: TimedEvent<ZoomEvent>;
-  to: CameraState;
+  /**
+   * The directed framing, constrained at the end time.
+   */
+  home: CameraState;
+  /**
+   * Where the transition lands: the home view, or the follow target at the end time.
+   */
+  land: CameraState;
 }
 
 /**
@@ -167,6 +188,7 @@ function followTargets(
   cursor: CursorInput | null,
   viewport: Size,
   enabled: boolean,
+  constrain: Constrain,
 ): [Float64Array, Float64Array] {
   const n = times.length;
   const fx = new Float64Array(n).fill(NaN);
@@ -180,7 +202,7 @@ function followTargets(
       segment = active[i];
       engaged = false;
     }
-    const home = tr ? tr.to : rest;
+    const home = tr ? tr.home : rest;
     const follow = tr?.event.follow ?? enabled;
     const s = home.scale;
     const hw = viewport.width / (2 * s);
@@ -199,7 +221,7 @@ function followTargets(
       else if (x > home.cx + hw - mx - ext) cx = x - hw + mx + ext;
       if (y < home.cy - hh + my) cy = y + hh - my;
       else if (y > home.cy + hh - my - ext) cy = y - hh + my + ext;
-      const c = clampCamera({ scale: s, cx, cy }, viewport);
+      const c = constrain({ scale: s, cx, cy }, times[i]);
       cx = c.cx;
       cy = c.cy;
     }
@@ -213,8 +235,9 @@ function followTargets(
  * Computes the camera for every output frame. A zoom event starts a transition from the
  * current motion (a running transition keeps running underneath, so position and
  * velocity stay continuous). Between transitions, a critically damped spring pans toward
- * the deadzone follow target. The spring reads the target 2/omega ahead, which cancels
- * its lag, so the cursor stays in view even during fast moves.
+ * the follow target. The spring reads the target 2/omega ahead, which cancels its lag, so
+ * the cursor stays in view even during fast moves. A transition lands on the follow target
+ * of its end time, so an engaged follow adds no second move.
  */
 export function computeCamera(
   times: ArrayLike<number>,
@@ -229,16 +252,14 @@ export function computeCamera(
     cx: new Float64Array(n),
     cy: new Float64Array(n),
   };
+  const constrain: Constrain = options.constrain ?? ((state) => clampCamera(state, viewport));
   const transitions: Transition[] = [...zooms]
     .sort((a, b) => a.out - b.out)
     .map((event) => {
-      const duration = Math.max(0, event.duration ?? options.duration);
-      return {
-        t0: event.out,
-        end: event.out + duration,
-        event,
-        to: zoomTarget(event, viewport, options.maxScale, options.fit?.(event.out)),
-      };
+      const end = event.out + Math.max(0, event.duration ?? options.duration);
+      const target = zoomTarget(event, viewport, options.maxScale, options.fit?.(end));
+      const home = constrain(target, end);
+      return { t0: event.out, end, event, home, land: home };
     });
   const active = new Int32Array(n).fill(-1);
   for (let i = 0, j = -1; i < n; i++) {
@@ -252,8 +273,28 @@ export function computeCamera(
     cursor,
     viewport,
     options.followCursor,
+    constrain,
   );
   const lead = 2000 / FOLLOW_OMEGA;
+  const lookAhead = (from: number) => {
+    let a = from;
+    while (
+      a + 1 < n &&
+      times[a + 1] <= times[from] + lead &&
+      active[a + 1] === active[from] &&
+      !Number.isNaN(fx[a + 1])
+    ) {
+      a++;
+    }
+    return a;
+  };
+  transitions.forEach((tr, j) => {
+    let i = 0;
+    while (i < n && (active[i] < j || (active[i] === j && times[i] < tr.end))) i++;
+    if (i >= n || active[i] !== j || Number.isNaN(fx[i])) return;
+    const a = lookAhead(i);
+    tr.land = constrain({ scale: tr.home.scale, cx: fx[a], cy: fy[a] }, tr.end);
+  });
 
   let state: CameraState = { scale: 1, cx: viewport.width / 2, cy: viewport.height / 2 };
   let vx = 0;
@@ -268,12 +309,13 @@ export function computeCamera(
       const tr = transitions[++current];
       let from: Trajectory;
       if (traj && tr.t0 < traj.t0 + traj.duration) from = traj;
-      else if (Math.hypot(vx, vy) > 1) from = { kind: 'coast', state, vx, vy, t0: prevT, viewport };
-      else from = { kind: 'static', state };
+      else if (Math.hypot(vx, vy) > 1) {
+        from = { kind: 'coast', state, vx, vy, t0: prevT, constrain };
+      } else from = { kind: 'static', state };
       traj = {
         kind: 'transition',
         from,
-        to: tr.to,
+        to: tr.land,
         t0: tr.t0,
         duration: tr.end - tr.t0,
         ease: easing(tr.event.easing ?? options.easing),
@@ -309,10 +351,10 @@ export function computeCamera(
       let cy: number;
       [cx, vx] = springStep(state.cx, vx, tx, FOLLOW_OMEGA, dt);
       [cy, vy] = springStep(state.cy, vy, ty, FOLLOW_OMEGA, dt);
-      const clamped = clampCamera({ scale: state.scale, cx, cy }, viewport);
-      if (clamped.cx !== cx) vx = 0;
-      if (clamped.cy !== cy) vy = 0;
-      state = clamped;
+      const held = constrain({ scale: state.scale, cx, cy }, t);
+      if (held.cx !== cx) vx = 0;
+      if (held.cy !== cy) vy = 0;
+      state = held;
     }
     track.scale[i] = state.scale;
     track.cx[i] = state.cx;

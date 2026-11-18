@@ -32,7 +32,7 @@ import {
   type CapTheme,
   type KeyCue,
 } from './keycaps.ts';
-import { IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
+import { contentMap, IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
 import type { TimedEvent } from './timeline.ts';
 
 /**
@@ -133,11 +133,6 @@ export interface FrameInput {
  * Width of the soft edge where the wallpaper covers a zoomed frame in the caption band.
  */
 const FEATHER = 56;
-
-/**
- * Camera scale by which edges 'fill' has moved every page edge past the output edge.
- */
-const FILL_SCALE = 1.35;
 
 /**
  * Shadow layers as fractions of the configured blur and offset, with their share of the
@@ -411,75 +406,23 @@ export class Compositor {
 
   /**
    * The content matrix (CSS pixels to output: scale `ks`, offset `ex`, `ey`) and the frame
-   * matrix (rest layout to output: scale `fa`, offset `fe`, `ff`) for a frame.
+   * matrix (rest layout to output: scale `fa`, offset `fe`, `ff`): plain affine maps of the
+   * camera state and the stage.
    */
-  private matrices(input: Pick<FrameInput, 'camera' | 'stage' | 'band'>) {
+  private matrices(input: Pick<FrameInput, 'camera' | 'stage'>) {
     const L = this.layout;
-    const cam = input.camera;
     const st = input.stage ?? IDENTITY;
-    const ccx = st.x + st.scale * (L.content.x + L.content.width / 2);
-    const ccy = st.y + st.scale * (L.content.y + L.content.height / 2);
-    const ks = L.k * st.scale * cam.scale;
+    const { ks, ex, ey } = contentMap(L, st, input.camera);
     const camera = this.options.zoom.mode === 'camera';
-    const fa = camera ? st.scale * cam.scale : st.scale;
-    const fe = camera ? ccx - fa * (L.content.x + cam.cx * L.k) : st.x;
-    const ff = camera ? ccy - fa * (L.content.y + cam.cy * L.k) : st.y;
-    const [dx, dy] =
-      camera && this.options.zoom.edges === 'fill'
-        ? this.fillShift(cam.scale, st, input.band ?? 0, fa, fe, ff)
-        : [0, 0];
+    const fa = camera ? st.scale * input.camera.scale : st.scale;
     return {
       ks,
-      ex: ccx - cam.cx * ks + dx,
-      ey: ccy - cam.cy * ks + dy,
+      ex,
+      ey,
       fa,
-      fe: fe + dx,
-      ff: ff + dy,
+      fe: camera ? ex - fa * L.content.x : st.x,
+      ff: camera ? ey - fa * L.content.y : st.y,
     };
-  }
-
-  /**
-   * Edges 'fill': the gap allowed between the page and each output edge blends from the
-   * rest gap at scale 1 to a small bleed past the edge by FILL_SCALE; the page moves by
-   * the smallest shift that respects it. On the caption band side the edge is the band.
-   * Zooming toward an edge, the shift grows monotonically with the scale.
-   */
-  private fillShift(
-    scale: number,
-    st: StageTransform,
-    open: number,
-    fa: number,
-    fe: number,
-    ff: number,
-  ): [number, number] {
-    const v = Math.min(1, Math.max(0, (scale - 1) / (FILL_SCALE - 1)));
-    const w = v * v * v * (v * (6 * v - 15) + 10);
-    if (w <= 0) return [0, 0];
-    const L = this.layout;
-    const { width: W, height: H } = L.size;
-    const c = L.content;
-    const bleed = 0.32 * L.radius * fa + 2 * L.unit;
-    const band = this.band;
-    const top = band && band.side === 'top' ? band.window.y * open : 0;
-    const bottom =
-      band && band.side === 'bottom' ? H + (band.window.y + band.window.height - H) * open : H;
-    const rest = {
-      left: st.scale * c.x + st.x,
-      right: st.scale * (c.x + c.width) + st.x,
-      top: st.scale * c.y + st.y,
-      bottom: st.scale * (c.y + c.height) + st.y,
-    };
-    const gap = (restGap: number) => restGap + (-bleed - restGap) * w;
-    const shift = (lo: number, hi: number) =>
-      lo <= hi ? Math.min(Math.max(0, lo), hi) : (lo + hi) / 2;
-    const left = fa * c.x + fe;
-    const right = fa * (c.x + c.width) + fe;
-    const upper = fa * c.y + ff;
-    const lower = fa * (c.y + c.height) + ff;
-    return [
-      shift(W - gap(W - rest.right) - right, gap(rest.left) - left),
-      shift(bottom - gap(bottom - rest.bottom) - lower, top + gap(rest.top - top) - upper),
-    ];
   }
 
   /**
