@@ -22,16 +22,16 @@ export default defineScreencast({
     const card = (id: string) => page.getByTestId(`card-ORB-${id}`);
     const bar = (index: number) => page.getByTestId(`chart-bar-${index}`);
     // Each caption stays until the next one replaces it.
-    const caption = (label: string, text: string) => cast.caption(text, { label, duration: 9000 });
+    const caption = (text: string) => cast.caption(text, { duration: 9000 });
 
-    await caption('01', 'A cursor with weight, and click effects');
+    await caption('A **cursor** with weight, and **click effects**');
     await cast.click(page.getByRole('button', { name: 'New task' }), { afterClick: 0 });
     await cast.cut(() => dialog.waitFor());
     await cast.type('Ship the onboarding tour', { into: page.getByLabel('Title') });
     await cast.click(page.getByRole('button', { name: 'Create task' }));
     await cast.wait(500);
 
-    await caption('02', 'Zoom levels, and a camera that follows the cursor');
+    await caption('**Zoom levels**, and a camera that **follows the cursor**');
     await cast.moveTo(card('118'));
     await cast.zoom('medium');
     await cast.hover(card('133'), { hold: 250 });
@@ -40,14 +40,14 @@ export default defineScreencast({
     await cast.hover(card('104'), { hold: 900 });
     await cast.zoomOut();
 
-    await caption('03', 'Any action on the page: click, type, drag, scroll');
+    await caption('Any action on the page: **click, type, drag, scroll**');
     const created = page
       .locator('[data-testid^="card-ORB"]')
       .filter({ hasText: 'Ship the onboarding tour' });
     await cast.drag(created, card('112'), { position: { x: 0.5, y: 0.25 } });
     await cast.wait(1300);
 
-    await caption('04', 'Shortcuts shown as keycaps');
+    await caption('Shortcuts shown as **keycaps**');
     await cast.wait(500);
     await cast.press('Control+K');
     await cast.cut(() => palette.waitFor());
@@ -57,7 +57,7 @@ export default defineScreencast({
     await cast.press('Enter');
     await cast.wait(1400);
 
-    await cast.caption('Shots that frame one element', { label: '05', duration: 4200 });
+    await cast.caption('Shots that **frame one element**', { duration: 4200 });
     await cast.moveTo(bar(9), { position: { x: 0.5, y: -0.4 } });
     await cast.zoomTo(page.getByRole('region', { name: 'Completed per week' }), {
       padding: 30,

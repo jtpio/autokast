@@ -14,9 +14,9 @@ export interface StageTransform {
 export const IDENTITY: StageTransform = { scale: 1, x: 0, y: 0 };
 
 /**
- * Band height as a fraction of the short side of the output.
+ * Band height as a fraction of the short side of the output: room for one line of text.
  */
-const BAND = 0.17;
+const BAND = 0.125;
 
 /**
  * Where things go when the caption band is fully open.

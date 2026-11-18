@@ -124,13 +124,20 @@ output locators are the same as in JupyterLab.
 
 ## JupyterLite
 
-Verified with jupyterlite-core 0.8 and jupyterlite-pyodide-kernel 0.8.
+Verified with jupyterlite-core and jupyterlite-pyodide-kernel 0.8 and 0.9.
 
 - Build and serve a site: `jupyter lite build --contents <dir> --output-dir <site>`, then serve
   `<site>` with any static server (`python3 -m http.server --directory <site>`) and open
   `/lab/index.html`. The files in `<dir>` appear at the root of the file browser. The build
   writes a cache file into the current directory, so run it in a temporary directory.
+  `--contents` needs `jupyter-server` in the same environment.
   `examples/jupyterlite/serve.sh` in the autokast repository does this.
+- Other pages of the site: `/tree/index.html` is the Notebook file browser,
+  `/notebooks/index.html?path=<file>` opens a notebook in Notebook, and
+  `/doc/index.html?path=<file>` opens the Simple Interface of JupyterLab.
+- From 0.9, the left sidebar has the Extension Manager
+  (`.jp-SideBar .lm-TabBar-tab[data-id="extensionmanager.main-view"]`, entries
+  `.jp-extensionmanager-entry`). `Disable` and `Enable` open a dialog with a `Reload` button.
 - The launcher has a Notebook card and a Console card, both named `Python (Pyodide)`. There is
   no terminal. The locators above apply. No news prompt appears.
 - The first kernel start loads Pyodide, and each first import loads its package: several

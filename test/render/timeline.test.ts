@@ -66,6 +66,25 @@ test('events inside cuts are dropped, but a zoom applies instantly at the cut po
   assert.equal((timed[0] as { duration?: number }).duration, 0);
 });
 
+test('a caption at the start of a cut or inside it starts at the cut point', () => {
+  const map = new TimeMap(events, 6000);
+  const timed = timedEvents(
+    [
+      { type: 'caption', t: 1000, duration: 4000, text: 'before' },
+      { type: 'caption', t: 1600, duration: 4000, text: 'inside' },
+      ...events,
+    ],
+    map,
+  );
+  assert.deepEqual(
+    timed.map((e) => [e.type, e.out, (e as { duration?: number }).duration]),
+    [
+      ['caption', 1000, 4000],
+      ['caption', 1000, 4000],
+    ],
+  );
+});
+
 test('frameIndexAt finds the latest frame at or before a time', () => {
   const frames = [0, 100, 250, 900].map((t) => ({ t, file: `${t}.jpg` }));
   assert.equal(frameIndexAt(frames, -5), 0);

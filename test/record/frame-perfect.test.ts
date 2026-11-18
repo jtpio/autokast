@@ -205,13 +205,21 @@ describe('frame-perfect capture', () => {
       .filter((frame, i) => Math.abs(frame.t - before[i].t - FRAME) > 0.01)
       .map((frame) => frame.t.toFixed(2));
     assert.deepEqual(gaps, [], 'every frame is stored: frames after a gap');
+    // The page clock has a resolution of 0.1 ms, and `left` snaps to device pixels. When
+    // the red or green box is near a pixel boundary, some frames land one pixel off. The
+    // blue box moves with a transform, which does not snap.
+    const slack: Record<string, number> = { red: 1.1, blue: 0.5, green: 1.1 };
     for (const color of ['red', 'blue', 'green']) {
-      const off = before
+      const steps = before
         .slice(1)
         .map((frame, i) => ({ t: frame.t, step: frame.x[color] - before[i].x[color] }))
-        .filter(({ step }) => step > -1000 && Math.abs(step - 20) > 0.5)
+        .filter(({ step }) => step > -1000);
+      const off = steps
+        .filter(({ step }) => Math.abs(step - 20) > slack[color])
         .map(({ t, step }) => `${t.toFixed(2)}: ${step.toFixed(2)}`);
       assert.deepEqual(off, [], `${color} moves 10 CSS px (20 device px) in every frame`);
+      const drift = steps.reduce((sum, { step }) => sum + step - 20, 0);
+      assert.ok(Math.abs(drift) <= slack[color], `${color} drifts by ${drift.toFixed(2)} px`);
     }
   });
 

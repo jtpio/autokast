@@ -5,7 +5,9 @@ import {
   bandAt,
   layoutCaption,
   MERGE_GAP,
+  parseCaption,
   planCaptions,
+  splitCaption,
 } from '../../src/render/captions.ts';
 import { keyLabel, parseShortcut, planKeys, pressDepth } from '../../src/render/keycaps.ts';
 import type { TimedEvent } from '../../src/render/timeline.ts';
@@ -67,38 +69,101 @@ test('band progress is continuous and monotonic while it opens and closes', () =
 });
 
 const measure = (text: string, size: number) => text.length * size * 0.5;
+const LONG = 'Give it a name. The camera stays on the cursor while you type, so nothing is missed.';
 
-test('short text stays on one line', () => {
+test('a line that fits keeps the font size, and each word has its place', () => {
   const l = layoutCaption('Create a new project', measure, 1000, 40);
-  assert.deepEqual(l.lines, ['Create a new project']);
+  assert.equal(l.text, 'Create a new project');
   assert.equal(l.fontSize, 40);
+  assert.equal(l.width, measure(l.text, 40));
   assert.deepEqual(
-    l.words.map((w) => w.x),
+    l.runs.map((run) => run.x),
     [0, measure('Create ', 40), measure('Create a ', 40), measure('Create a new ', 40)],
   );
 });
 
-test('long text breaks into two balanced lines', () => {
-  const text =
-    'Give it a name. The camera stays on the cursor while you type, so nothing is missed.';
-  const l = layoutCaption(text, measure, 1000, 40);
-  assert.equal(l.lines.length, 2);
-  assert.equal(l.fontSize, 40);
-  const [a, b] = l.lines.map((s) => measure(s, 40));
+test('long text splits into the fewest lines, of about the same width', () => {
+  assert.deepEqual(splitCaption('Create a new project', measure, 1000, 40), [
+    'Create a new project',
+  ]);
+  const two = splitCaption(LONG, measure, 1000, 40);
+  assert.equal(two.length, 2);
+  assert.equal(two.join(' '), LONG);
+  const [a, b] = two.map((line) => measure(line, 40));
+  assert.ok(a <= 1000 && b <= 1000);
   assert.ok(Math.abs(a - b) <= 40 * 0.5 * 8, `unbalanced ${a} / ${b}`);
-  assert.equal(l.lines.join(' '), text);
-  assert.ok(l.words.filter((w) => w.line === 1)[0].x === 0);
+  const four = splitCaption(`${LONG} ${LONG}`, measure, 1000, 40);
+  assert.equal(four.length, 4);
+  for (const line of four) assert.ok(measure(line, 40) <= 1000, line);
 });
 
-test('text too long for two lines shrinks, then ends with an ellipsis', () => {
-  const words = 'one two three four five six seven eight nine ten eleven twelve'.split(' ');
-  const shrunk = layoutCaption(words.join(' '), measure, 600, 40);
-  assert.equal(shrunk.lines.length, 2);
-  assert.ok(shrunk.fontSize < 40 && shrunk.fontSize >= 40 * 0.78 - 1e-9);
-  const cut = layoutCaption([...words, ...words, ...words].join(' '), measure, 700, 40);
-  assert.equal(cut.lines.length, 2);
-  assert.ok(cut.lines[1].endsWith('…'));
-  for (const line of cut.lines) assert.ok(measure(line, cut.fontSize) <= 700);
+test('a word wider than the line has a line of its own, and its font shrinks to fit', () => {
+  const word = 'a'.repeat(80);
+  assert.deepEqual(splitCaption(`see ${word} now`, measure, 1000, 40), ['see', word, 'now']);
+  const l = layoutCaption(word, measure, 1000, 40);
+  assert.ok(l.fontSize < 40);
+  assert.ok(Math.abs(l.width - 1000) < 1e-6);
+});
+
+test('** marks the emphasis, also inside a word, and is not part of the text', () => {
+  assert.deepEqual(
+    parseCaption('Built on **JupyterLab 4.7**, with **no** server').map((word) => word.runs),
+    [
+      [{ text: 'Built', strong: false }],
+      [{ text: 'on', strong: false }],
+      [{ text: 'JupyterLab', strong: true }],
+      [
+        { text: '4.7', strong: true },
+        { text: ',', strong: false },
+      ],
+      [{ text: 'with', strong: false }],
+      [{ text: 'no', strong: true }],
+      [{ text: 'server', strong: false }],
+    ],
+  );
+  const l = layoutCaption('The **doc** URL, **fast**', measure, 1000, 40);
+  assert.equal(l.text, 'The doc URL, fast');
+  assert.deepEqual(
+    l.runs.map((run) => [run.text, run.x, run.strong]),
+    [
+      ['The', 0, false],
+      ['doc', measure('The ', 40), true],
+      ['URL,', measure('The doc ', 40), false],
+      ['fast', measure('The doc URL, ', 40), true],
+    ],
+  );
+});
+
+test('the marks stay with their words when the text splits', () => {
+  const text = '**one two three** four five **six** seven';
+  const lines = splitCaption(text, measure, 240, 40);
+  assert.ok(lines.length > 2);
+  assert.deepEqual(parseCaption(lines.join(' ')), parseCaption(text));
+  assert.ok(lines[0].startsWith('**one**'));
+});
+
+test('a caption with several lines shows one line at a time, in one band', () => {
+  const split = () => ['**aaaa** bbbb', 'cccc'];
+  const { cues, groups } = planCaptions([caption(1000, 9000, '**aaaa** bbbb cccc')], split);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(
+    cues.map((cue) => [cue.text, cue.start, cue.end, cue.emphasis]),
+    [
+      ['**aaaa** bbbb', 1000, 1000 + 1500 + 55 * 9, true],
+      ['cccc', 1000 + 1500 + 55 * 9, 10000, true],
+    ],
+  );
+  assert.ok(cues[1].textIn > cues[0].textOut);
+  const short = planCaptions([caption(0, 1000, 'aaaa bbbb cccc')], split).cues;
+  assert.ok(Math.abs(short[1].end - 1000) < 1e-9);
+  assert.ok(short[0].end > 400 && short[0].end < 700);
+});
+
+test('text without marks, or with every word marked, has one tone', () => {
+  const emphasis = (text: string) => planCaptions([caption(0, 1000, text)]).cues[0].emphasis;
+  assert.equal(emphasis('Create a new project'), false);
+  assert.equal(emphasis('**Create a new project**'), false);
+  assert.equal(emphasis('Create a **new project**'), true);
 });
 
 const key = (out: number, combo: string): TimedEvent<KeyEvent> => ({

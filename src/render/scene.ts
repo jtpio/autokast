@@ -15,7 +15,15 @@ import {
   type CameraTrack,
   type FitRegion,
 } from './camera.ts';
-import { bandAt, bandTrack, planCaptions, type CaptionCue } from './captions.ts';
+import {
+  bandAt,
+  bandTrack,
+  CAPTION_WIDTH,
+  captionMeasure,
+  planCaptions,
+  splitCaption,
+  type CaptionCue,
+} from './captions.ts';
 import { computeLayout, type CursorFrame, type FrameInput, type Layout } from './compositor.ts';
 import { clickMarks, computeCursor, type ClickMark, type CursorTrack } from './cursor.ts';
 import { resolveOptions, type ResolvedOptions } from './defaults.ts';
@@ -95,10 +103,19 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     );
   }
   const layout = computeLayout(resolved, session.viewport);
-  const { cues, groups } = planCaptions(
-    events.filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption'),
+  const captions = events.filter(
+    (e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '',
   );
-  const band = cues.length ? bandLayout(layout, resolved.captions.position) : null;
+  const band = captions.length ? bandLayout(layout, resolved.captions.position) : null;
+  const measure = captionMeasure(resolved.captions.fontFamily);
+  const { cues, groups } = planCaptions(captions, (text) =>
+    splitCaption(
+      text,
+      measure,
+      (band ?? layout).window.width * CAPTION_WIDTH,
+      resolved.captions.fontSize * layout.unit,
+    ),
+  );
   const camera = computeCamera(
     times,
     zooms,

@@ -354,12 +354,11 @@ export async function createFixture(dir: string, options: FixtureOptions = {}): 
   move(cursor, pCreate, pRow, 5700, 6400, 0.2);
   events.push({ type: 'spotlight', t: 6600, duration: 1800, rect: RECTS.row0 });
   events.push(
-    { type: 'caption', t: 200, duration: 2000, text: 'Create a new project', label: '01' },
+    { type: 'caption', t: 200, duration: 2000, text: 'Create a **new project**' },
     {
       type: 'caption',
       t: 2500,
       duration: 2600,
-      label: 'Step 2',
       text: 'Give it a name. The camera stays on the cursor while you type, so nothing is missed.',
     },
     { type: 'caption', t: 9300, duration: 2600, text: 'Every number, one glance away' },

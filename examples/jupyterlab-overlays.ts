@@ -25,7 +25,7 @@ export default defineScreencast({
     const cells = page.locator('.jp-Notebook .jp-Cell');
     const output = page.locator('.jp-OutputArea-output');
 
-    await cast.caption('Start a notebook from the launcher', { label: '01', duration: 4200 });
+    await cast.caption('Start a notebook from the **launcher**', { duration: 4200 });
     await cast.wait(1200);
     await cast.click(page.locator('.jp-LauncherCard[data-category="Notebook"]').first());
     await cast.cut(() =>
@@ -33,7 +33,7 @@ export default defineScreencast({
     );
     await cast.wait(1600);
 
-    await cast.caption('Run a cell with Shift + Enter', { label: '02', duration: 7500 });
+    await cast.caption('Run a cell with **Shift + Enter**', { duration: 7500 });
     await cast.zoomTo(cells.first(), { scale: 1.5 });
     await cast.type('sum(range(1, 101))');
     await cast.wait(500);

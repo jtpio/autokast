@@ -3,13 +3,13 @@ import type { CursorStyle, Rect, Size, SpotlightEvent } from '../types.ts';
 import type { CameraState } from './camera.ts';
 import { luminance, parseColor, rgba, type Rgba } from './color.ts';
 import {
-  captionFont,
-  captionHeight,
+  CAPTION_WIDTH,
+  captionMeasure,
   drawCaption,
   layoutCaption,
-  tracking,
+  LINE_HEIGHT,
   type CaptionCue,
-  type CaptionLines,
+  type CaptionLine,
   type CaptionStyle,
 } from './captions.ts';
 import type { ClickMark } from './cursor.ts';
@@ -226,7 +226,7 @@ export class Compositor {
   private overlay: Canvas | null = null;
   private overlayKey = '';
   private readonly captionStyle: CaptionStyle;
-  private readonly captionLines = new Map<CaptionCue, CaptionLines>();
+  private readonly captionLines = new Map<CaptionCue, CaptionLine>();
   private readonly keyThemes = new Map<KeyCue, CapTheme>();
 
   constructor(
@@ -520,38 +520,28 @@ export class Compositor {
     ctx.restore();
   }
 
-  private captionLayout(cue: CaptionCue): CaptionLines {
-    let lines = this.captionLines.get(cue);
-    if (!lines) {
+  private captionLayout(cue: CaptionCue): CaptionLine {
+    let line = this.captionLines.get(cue);
+    if (!line) {
       const style = this.captionStyle;
-      const m = createCanvas(4, 4).getContext('2d');
-      const measure = (text: string, size: number) => {
-        m.font = captionFont(style, size);
-        m.letterSpacing = tracking(size);
-        return m.measureText(text).width;
-      };
       const width = this.band ? this.band.window.width : this.layout.window.width;
-      lines = layoutCaption(cue.text, measure, width * 0.72, style.fontSize);
-      this.captionLines.set(cue, lines);
+      line = layoutCaption(
+        cue.text,
+        captionMeasure(style.family),
+        width * CAPTION_WIDTH,
+        style.fontSize,
+      );
+      this.captionLines.set(cue, line);
     }
-    return lines;
+    return line;
   }
 
   private drawCaptionCue(ctx: SKRSContext2D, cue: CaptionCue, t: number): void {
     const band = this.band;
     if (!band) return;
-    const lines = this.captionLayout(cue);
-    const height = captionHeight(lines, this.captionStyle, cue.label);
-    const text = lines.lines.length * lines.fontSize * 1.15;
-    const bandTop =
-      band.side === 'bottom' ? band.window.y + band.window.height : band.window.y - band.height;
-    const margin = 18 * this.layout.unit;
-    const centered = band.center - text / 2 - (height - text);
-    const top = Math.min(
-      Math.max(centered, bandTop + margin),
-      bandTop + band.height - margin - height,
-    );
-    drawCaption(ctx, cue, lines, this.captionStyle, band.window.x, top, t);
+    const line = this.captionLayout(cue);
+    const top = band.center - (line.fontSize * LINE_HEIGHT) / 2;
+    drawCaption(ctx, cue, line, this.captionStyle, band.window.x, top, t);
   }
 
   /**
