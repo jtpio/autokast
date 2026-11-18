@@ -1,4 +1,4 @@
-import { defineScreencast } from 'autocast';
+import { defineScreencast } from '@jtpio/autocast';
 import { resetJupyterLab } from './jupyterlab/reset.ts';
 
 const BASE = process.env.JUPYTER_URL ?? 'http://localhost:8888';

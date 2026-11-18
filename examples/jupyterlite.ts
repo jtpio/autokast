@@ -1,4 +1,4 @@
-import { defineScreencast } from 'autocast';
+import { defineScreencast } from '@jtpio/autocast';
 
 const SITE = process.env.JUPYTERLITE_URL ?? 'http://localhost:8000';
 const PROXY = process.env.HTTPS_PROXY;

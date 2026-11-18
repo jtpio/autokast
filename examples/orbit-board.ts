@@ -1,4 +1,4 @@
-import { defineScreencast } from 'autocast';
+import { defineScreencast } from '@jtpio/autocast';
 
 const TITLE = 'Ship the onboarding tour';
 

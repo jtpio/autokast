@@ -16,13 +16,13 @@ still). Look at their output with your image reader after every recording.
 ## Setup
 
 ```sh
-npm install github:jtpio/autocast playwright   # or use a clone: npm install && npm run build
+npm install --save-dev @jtpio/autocast playwright
 npx playwright install chromium                # skip when Chromium is already installed
 ffmpeg -version                                # must be on the PATH
 ```
 
-In a clone of the repository, `node src/cli.ts <command>` runs from source and
-`node dist/cli.js <command>` runs the build. Elsewhere use `npx autocast <command>`.
+Run the commands as `npx autocast <command>`. Scripts import from `@jtpio/autocast`. In a clone
+of the autocast repository, `node src/cli.ts <command>` runs from source.
 
 ## Workflow
 
@@ -49,7 +49,7 @@ In a clone of the repository, `node src/cli.ts <command>` runs from source and
 ## Script template
 
 ```ts
-import { defineScreencast } from 'autocast';
+import { defineScreencast } from '@jtpio/autocast';
 
 export default defineScreencast({
   name: 'feature-demo',
