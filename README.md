@@ -67,6 +67,31 @@ npm install github:jtpio/autocast
 
 From a clone: `npm install && npm run build`, then use `node dist/cli.js` or `npm link`.
 
+## Use it in another project
+
+The package is self-contained: the library, the `autocast` command and the agent skill come
+with one install. In the project where you want a screencast:
+
+```sh
+npm install --save-dev github:jtpio/autocast playwright
+npx playwright install chromium
+
+# Give the skill to the agent (Claude Code reads .claude/skills)
+mkdir -p .claude/skills
+cp -r node_modules/autocast/skills/autocast .claude/skills/
+```
+
+Then ask the agent for the video, for example: "Record a screencast of http://localhost:3000
+that shows how to create a project." The agent writes a script, records it, checks the
+result on contact sheets and renders the video. To do the same by hand:
+
+```sh
+npx autocast record my-demo.ts -o my-demo.mp4
+```
+
+The install needs read access to this repository and `ffmpeg` on the `PATH`. To make the skill
+available in all your projects, copy it to `~/.claude/skills/` instead.
+
 ## Command line
 
 ```sh
@@ -192,7 +217,8 @@ const png = await renderFrame('.autocast/demo', 4200);
 [`skills/autocast/SKILL.md`](skills/autocast/SKILL.md) is a skill that teaches an agent the
 workflow: explore the app, write the script, record a preview, inspect the contact sheet, adjust,
 render the final video. It also holds direction rules (pacing, when to zoom) and notes for
-JupyterLab.
+JupyterLab. The skill is part of the installed package, at
+`node_modules/autocast/skills/autocast`.
 
 ## Examples
 
