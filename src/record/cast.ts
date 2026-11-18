@@ -1,6 +1,5 @@
 import type { Locator, Page } from 'playwright';
 import type {
-  CaptionEvent,
   CaptionOptions,
   Cast,
   ClickOptions,
@@ -417,11 +416,7 @@ export class Director implements Cast {
     return this.step(`caption(${describeText(text)})`, async () => {
       const duration =
         options.duration ?? CAST_DEFAULTS.captionBase + CAST_DEFAULTS.captionPerChar * text.length;
-      const event: CaptionEvent = { type: 'caption', t: this.timeline.now(), duration, text };
-      if (options.label) {
-        event.label = options.label;
-      }
-      this.push(event);
+      this.push({ type: 'caption', t: this.timeline.now(), duration, text });
       if (options.wait) {
         await this.pace.sleep(duration);
       }

@@ -100,7 +100,7 @@ elements fails, so narrow it.
 | `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                                                                                                   |
 | `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                                                                                                |
 | `cast.spotlight(target, { duration })`                              | Dim everything except the target.                                                                                                                                                                                                                               |
-| `cast.caption(text, { label, duration })`                           | Optional caption on the backdrop below the window. Use only when asked for text in the video.                                                                                                                                                                   |
+| `cast.caption(text, { duration })`                                  | Optional caption on the backdrop below the window. `**` around words gives them the emphasis. Use only when asked for text in the video.                                                                                                                        |
 | `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                                                                                                       |
 
 `cast.page` is the Playwright page. Use it to wait and to read state
@@ -162,9 +162,12 @@ moment has motion or something new to read.
 
 **Captions**
 
-- Use captions for a tour of several features: one caption for each feature, with a `label`
-  such as `01`. A new caption replaces the one on screen, so give each caption a `duration`
-  longer than its part, and let the last one stay until the end.
+- Use captions for a tour of several features: one caption for each feature. Put `**` around
+  the words that name the feature: `cast.caption('**Site Drive** shows the site files')`.
+  These words keep the full tone and the other words are dimmed.
+- A new caption replaces the one on screen, so give each caption a `duration` longer than its
+  part, and let the last one stay until the end.
+- Keep a caption to one line: about 60 characters. Write a short sentence, with no number.
 - A viewer needs about 3 s to read a caption and see the action. Make each part at least
   that long; the limit of one fifth for holds does not apply to a captioned tour.
 - While a caption shows, the window is smaller and the view above the caption is wider than

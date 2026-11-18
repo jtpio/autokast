@@ -154,17 +154,14 @@ export interface SpeedEvent {
 }
 
 /**
- * A text caption shown from `t` for `duration` milliseconds.
+ * A text caption shown from `t` for `duration` milliseconds. `**` in the text starts and
+ * ends the emphasis.
  */
 export interface CaptionEvent {
   type: 'caption';
   t: number;
   duration: number;
   text: string;
-  /**
-   * Short kicker above the text, such as `01` or `Step 2`.
-   */
-  label?: string;
 }
 
 /**
@@ -471,10 +468,6 @@ export interface CaptionOptions {
    * Waits for the caption to end. Default: false.
    */
   wait?: boolean;
-  /**
-   * Short kicker above the text, such as `01` or `Step 2`.
-   */
-  label?: string;
 }
 
 export interface SpotlightOptions {
@@ -528,6 +521,10 @@ export interface Cast {
    */
   speed<T>(rate: number, fn: () => Promise<T>): Promise<T>;
 
+  /**
+   * Shows a caption on the backdrop. Words between `**` get the emphasis: they keep the
+   * full tone and the other words are dimmed.
+   */
   caption(text: string, options?: CaptionOptions): Promise<void>;
   spotlight(target: Target, options?: SpotlightOptions): Promise<void>;
   marker(label: string): void;

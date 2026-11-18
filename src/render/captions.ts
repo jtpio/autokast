@@ -10,10 +10,9 @@ import type { TimedEvent } from './timeline.ts';
 export const BAND_DURATION = 700;
 export const MERGE_GAP = 600;
 const REVEAL_DELAY = 400;
-const REVEAL = 420;
-const STAGGER = 35;
-const KICKER_LEAD = 70;
-const EXIT = 200;
+const REVEAL = 640;
+const LINE_DELAY = 110;
+const EXIT = 240;
 const SWAP_GAP = 120;
 const CLOSE_DELAY = 120;
 const MIN_SHOW = 300;
@@ -23,7 +22,6 @@ const MIN_SHOW = 300;
  */
 export interface CaptionCue {
   text: string;
-  label?: string;
   start: number;
   end: number;
   textIn: number;
@@ -63,7 +61,6 @@ export function planCaptions(events: TimedEvent<CaptionEvent>[]): {
     }
     last = {
       text: e.text.trim(),
-      label: e.label?.trim() || undefined,
       start,
       end,
       textIn,
@@ -94,10 +91,34 @@ export function bandTrack(times: ArrayLike<number>, groups: BandGroup[]): Float6
   return Float64Array.from({ length: times.length }, (_, i) => bandAt(groups, times[i]));
 }
 
+/**
+ * Line height of a caption, in font sizes.
+ */
+export const LINE_HEIGHT = 1.18;
+
+/**
+ * Shape of the reveal, in font sizes: width of the soft edge, blur of the text in it,
+ * and the distance the text settles. DIM is the tone of the words outside the emphasis.
+ */
+const SOFT = 4.4;
+const BLUR = 0.15;
+const SETTLE = 0.14;
+const DIM = 0.62;
+
+/**
+ * A part of a word in one tone. `x` is its offset from the start of the line.
+ */
+export interface CaptionRun {
+  text: string;
+  x: number;
+  strong: boolean;
+}
+
 export interface WordBox {
   text: string;
   line: number;
   x: number;
+  runs: CaptionRun[];
 }
 
 /**
@@ -106,8 +127,35 @@ export interface WordBox {
 export interface CaptionLines {
   fontSize: number;
   lines: string[];
+  widths: number[];
   words: WordBox[];
   width: number;
+  /**
+   * True when `**` marks some of the words, but not all.
+   */
+  emphasis: boolean;
+}
+
+interface ParsedWord {
+  text: string;
+  runs: { text: string; strong: boolean }[];
+}
+
+/**
+ * Splits caption text into words. `**` starts and ends the emphasis and is not shown.
+ */
+export function parseCaption(text: string): ParsedWord[] {
+  const words: ParsedWord[] = [];
+  let strong = false;
+  for (const raw of text.split(/\s+/).filter(Boolean)) {
+    const runs: ParsedWord['runs'] = [];
+    raw.split('**').forEach((part, i) => {
+      if (i > 0) strong = !strong;
+      if (part) runs.push({ text: part, strong });
+    });
+    if (runs.length) words.push({ text: runs.map((run) => run.text).join(''), runs });
+  }
+  return words;
 }
 
 /**
@@ -122,24 +170,40 @@ export function layoutCaption(
   fontSize: number,
   minScale = 0.78,
 ): CaptionLines {
-  const words = text.split(/\s+/).filter(Boolean);
-  const build = (size: number, lines: string[][]): CaptionLines => {
+  const words = parseCaption(text);
+  const tones = words.flatMap((word) => word.runs.map((run) => run.strong));
+  const emphasis = tones.includes(true) && tones.includes(false);
+  const join = (line: ParsedWord[]) => line.map((word) => word.text).join(' ');
+  const build = (size: number, lines: ParsedWord[][]): CaptionLines => {
     const boxes: WordBox[] = [];
     lines.forEach((line, i) => {
       line.forEach((word, j) => {
-        const x = j === 0 ? 0 : measure(`${line.slice(0, j).join(' ')} `, size);
-        boxes.push({ text: word, line: i, x });
+        let before = j === 0 ? '' : `${join(line.slice(0, j))} `;
+        const x = before ? measure(before, size) : 0;
+        const runs = word.runs.map((run) => {
+          const at = before ? measure(before, size) : 0;
+          before += run.text;
+          return { ...run, x: at };
+        });
+        boxes.push({ text: word.text, line: i, x, runs });
       });
     });
-    const width = Math.max(...lines.map((l) => measure(l.join(' '), size)));
-    return { fontSize: size, lines: lines.map((l) => l.join(' ')), words: boxes, width };
+    const widths = lines.map((line) => measure(join(line), size));
+    return {
+      fontSize: size,
+      lines: lines.map(join),
+      widths,
+      words: boxes,
+      width: Math.max(...widths),
+      emphasis,
+    };
   };
   for (let size = fontSize; size >= fontSize * minScale - 1e-9; size *= 0.96) {
-    if (measure(words.join(' '), size) <= maxWidth) return build(size, [words]);
+    if (measure(join(words), size) <= maxWidth) return build(size, [words]);
     let best: { k: number; worst: number; first: number } | null = null;
     for (let k = 1; k < words.length; k++) {
-      const first = measure(words.slice(0, k).join(' '), size);
-      const second = measure(words.slice(k).join(' '), size);
+      const first = measure(join(words.slice(0, k)), size);
+      const second = measure(join(words.slice(k)), size);
       const worst = Math.max(first, second);
       if (worst > maxWidth) continue;
       if (
@@ -153,15 +217,16 @@ export function layoutCaption(
     if (best) return build(size, [words.slice(0, best.k), words.slice(best.k)]);
   }
   const size = fontSize * minScale;
-  const first: string[] = [];
+  const ellipsis: ParsedWord = { text: '…', runs: [{ text: '…', strong: false }] };
+  const first: ParsedWord[] = [];
   let k = 0;
-  while (k < words.length && measure([...first, words[k]].join(' '), size) <= maxWidth)
+  while (k < words.length && measure(join([...first, words[k]]), size) <= maxWidth)
     first.push(words[k++]);
   if (first.length === 0) first.push(words[k++]);
-  const second: string[] = [];
-  while (k < words.length && measure([...second, words[k], '…'].join(' '), size) <= maxWidth)
+  const second: ParsedWord[] = [];
+  while (k < words.length && measure(join([...second, words[k], ellipsis]), size) <= maxWidth)
     second.push(words[k++]);
-  if (k < words.length) second.push('…');
+  if (k < words.length) second.push(ellipsis);
   return build(size, second.length ? [first, second] : [first]);
 }
 
@@ -174,14 +239,10 @@ export interface CaptionStyle {
 
 const easeOutQuart = (t: number) => 1 - (1 - clamp(t, 0, 1)) ** 4;
 const easeOutCubic = (t: number) => 1 - (1 - clamp(t, 0, 1)) ** 3;
+const sweep = easing('smooth');
 
 export function captionFont(style: CaptionStyle, size: number): string {
-  return `600 ${size}px "${style.family}"`;
-}
-
-function kickerFont(style: CaptionStyle): string {
-  const family = style.family === 'Inter Display' ? 'Inter' : style.family;
-  return `500 ${13 * style.unit}px "${family}"`;
+  return `500 ${size}px "${style.family}"`;
 }
 
 /**
@@ -192,18 +253,17 @@ export function tracking(size: number): string {
 }
 
 /**
- * Height of a laid-out caption block, kicker included.
+ * Height of a laid-out caption block.
  */
-export function captionHeight(lines: CaptionLines, style: CaptionStyle, label?: string): number {
-  const kicker = label ? 16 * style.unit + 12 * style.unit : 0;
-  return kicker + lines.lines.length * lines.fontSize * 1.15;
+export function captionHeight(lines: CaptionLines): number {
+  return lines.lines.length * lines.fontSize * LINE_HEIGHT;
 }
 
 /**
- * Draws a caption with its top-left corner at (x, top) in output pixels. Each word rises
- * into place through a clip at its line (masked reveal), staggered word by word; the
- * kicker leads with a short accent rule that draws itself. On exit the block fades with
- * a small upward drift.
+ * Draws a caption with its top-left corner at (x, top) in output pixels. The text comes
+ * into focus from left to right: behind a soft edge that crosses each line it is sharp,
+ * inside the edge it is blurred and faint. Words outside the emphasis have a lower tone.
+ * On exit the block goes out of focus and fades with a small upward drift.
  */
 export function drawCaption(
   ctx: SKRSContext2D,
@@ -215,55 +275,56 @@ export function drawCaption(
   t: number,
 ): void {
   if (t < cue.textIn || t > cue.textOut + EXIT) return;
-  const u = style.unit;
-  const exit = smoothstep(cue.textOut, cue.textOut + EXIT, t);
-  const alpha = 1 - exit;
-  const drift = -6 * u * easeOutCubic((t - cue.textOut) / EXIT);
+  const size = lines.fontSize;
+  const soft = SOFT * size;
+  const exit = clamp((t - cue.textOut) / EXIT, 0, 1);
+  const alpha = style.color.a * (1 - smoothstep(0, 1, exit));
+  const tone = (run: CaptionRun) => alpha * (lines.emphasis && !run.strong ? DIM : 1);
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, drift);
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
-  let y = top;
-  const textStart = cue.label ? cue.textIn + KICKER_LEAD : cue.textIn;
-
-  if (cue.label) {
-    const k = (t - cue.textIn) / REVEAL;
-    const rule = 18 * u * easeOutQuart(k);
-    const mid = y + 8 * u;
-    ctx.fillStyle = rgba(style.color, 0.6 * alpha);
-    ctx.fillRect(x, mid - 0.75 * u, rule, 1.5 * u);
-    ctx.font = kickerFont(style);
-    ctx.letterSpacing = `${(0.08 * 13 * u).toFixed(3)}px`;
-    const rise = (1 - easeOutQuart((t - cue.textIn - 40) / REVEAL)) * 18 * u;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x + 26 * u, y - 2 * u, 2000 * u, 20 * u);
-    ctx.clip();
-    ctx.fillStyle = rgba(style.color, 0.6 * alpha * smoothstep(0, 0.3, k));
-    ctx.fillText(cue.label.toUpperCase(), x + 28 * u, mid + 4.6 * u + rise);
-    ctx.restore();
-    y += 28 * u;
-  }
-
-  const size = lines.fontSize;
-  const lineHeight = size * 1.15;
   ctx.font = captionFont(style, size);
   ctx.letterSpacing = tracking(size);
-  const ascent = size * 0.98;
-  const descent = size * 0.26;
-  const clipH = ascent + descent;
-  lines.words.forEach((word, j) => {
-    const q = (t - textStart - j * STAGGER) / REVEAL;
-    if (q <= 0) return;
-    const baseline = y + word.line * lineHeight + size * 0.93;
-    const rise = (1 - easeOutQuart(q)) * clipH;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x + word.x - size, baseline - ascent, size * 40, clipH);
-    ctx.clip();
-    ctx.fillStyle = rgba(style.color, style.color.a * alpha * smoothstep(0, 0.25, q));
-    ctx.fillText(word.text, x + word.x, baseline + rise);
-    ctx.restore();
+  lines.lines.forEach((_, i) => {
+    const p = clamp((t - cue.textIn - i * LINE_DELAY) / REVEAL, 0, 1);
+    if (p <= 0) return;
+    const edge = x + sweep(p) * (lines.widths[i] + soft);
+    const shift = (1 - easeOutQuart(p) - easeOutCubic(exit)) * SETTLE * size;
+    const baseline = top + i * size * LINE_HEIGHT + size * 0.93 + shift;
+    const runs = lines.words.filter((word) => word.line === i).flatMap((word) => word.runs);
+    // Each stop is a position across the soft edge (0 to 1) and a share of the tone.
+    const draw = (blur: number, stops?: [number, number][]) => {
+      ctx.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : 'none';
+      for (const run of runs) {
+        const a = tone(run);
+        if (stops) {
+          const gradient = ctx.createLinearGradient(edge - soft, 0, edge, 0);
+          for (const [at, share] of stops) gradient.addColorStop(at, rgba(style.color, a * share));
+          ctx.fillStyle = gradient;
+        } else {
+          ctx.fillStyle = rgba(style.color, a);
+        }
+        ctx.fillText(run.text, x + run.x, baseline);
+      }
+    };
+    if (p >= 1) {
+      draw(exit * exit * 2 * BLUR * size);
+      return;
+    }
+    draw(0, [
+      [0, 1],
+      [0.35, 0],
+    ]);
+    draw(0.35 * BLUR * size, [
+      [0, 0],
+      [0.3, 0.9],
+      [0.65, 0],
+    ]);
+    draw(BLUR * size, [
+      [0.3, 0],
+      [0.65, 0.7],
+      [1, 0],
+    ]);
   });
   ctx.restore();
 }

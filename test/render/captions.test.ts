@@ -5,6 +5,7 @@ import {
   bandAt,
   layoutCaption,
   MERGE_GAP,
+  parseCaption,
   planCaptions,
 } from '../../src/render/captions.ts';
 import { keyLabel, parseShortcut, planKeys, pressDepth } from '../../src/render/keycaps.ts';
@@ -99,6 +100,47 @@ test('text too long for two lines shrinks, then ends with an ellipsis', () => {
   assert.equal(cut.lines.length, 2);
   assert.ok(cut.lines[1].endsWith('…'));
   for (const line of cut.lines) assert.ok(measure(line, cut.fontSize) <= 700);
+});
+
+test('** marks the emphasis, also inside a word, and is not part of the text', () => {
+  assert.deepEqual(
+    parseCaption('Built on **JupyterLab 4.7**, with **no** server').map((word) => word.runs),
+    [
+      [{ text: 'Built', strong: false }],
+      [{ text: 'on', strong: false }],
+      [{ text: 'JupyterLab', strong: true }],
+      [
+        { text: '4.7', strong: true },
+        { text: ',', strong: false },
+      ],
+      [{ text: 'with', strong: false }],
+      [{ text: 'no', strong: true }],
+      [{ text: 'server', strong: false }],
+    ],
+  );
+  const l = layoutCaption('The **doc** URL, **fast**', measure, 1000, 40);
+  assert.deepEqual(l.lines, ['The doc URL, fast']);
+  assert.ok(l.emphasis);
+  assert.deepEqual(
+    l.words.flatMap((word) => word.runs.map((run) => [run.text, run.x, run.strong])),
+    [
+      ['The', 0, false],
+      ['doc', measure('The ', 40), true],
+      ['URL,', measure('The doc ', 40), false],
+      ['fast', measure('The doc URL, ', 40), true],
+    ],
+  );
+});
+
+test('text without marks, or with every word marked, has one tone', () => {
+  assert.equal(layoutCaption('Create a new project', measure, 1000, 40).emphasis, false);
+  assert.equal(layoutCaption('**Create a new project**', measure, 1000, 40).emphasis, false);
+  const cut = layoutCaption('**one two three** four five six seven', measure, 240, 40);
+  assert.ok(cut.lines[1].endsWith('…'));
+  assert.deepEqual(
+    cut.widths,
+    cut.lines.map((line) => measure(line, cut.fontSize)),
+  );
 });
 
 const key = (out: number, combo: string): TimedEvent<KeyEvent> => ({

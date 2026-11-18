@@ -541,14 +541,12 @@ export class Compositor {
     const band = this.band;
     if (!band) return;
     const lines = this.captionLayout(cue);
-    const height = captionHeight(lines, this.captionStyle, cue.label);
-    const text = lines.lines.length * lines.fontSize * 1.15;
+    const height = captionHeight(lines);
     const bandTop =
       band.side === 'bottom' ? band.window.y + band.window.height : band.window.y - band.height;
     const margin = 18 * this.layout.unit;
-    const centered = band.center - text / 2 - (height - text);
     const top = Math.min(
-      Math.max(centered, bandTop + margin),
+      Math.max(band.center - height / 2, bandTop + margin),
       bandTop + band.height - margin - height,
     );
     drawCaption(ctx, cue, lines, this.captionStyle, band.window.x, top, t);
