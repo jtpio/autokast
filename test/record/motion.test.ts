@@ -10,7 +10,7 @@ import {
 } from '../../src/record/motion.ts';
 import { createRandom } from '../../src/record/random.ts';
 
-const timing = { speed: 1, minDuration: 250, maxDuration: 1200 };
+const timing = { speed: 1, minDuration: 220, maxDuration: 1000 };
 
 describe('moveDuration', () => {
   it('does not wait for a near-zero distance', () => {
@@ -24,17 +24,17 @@ describe('moveDuration', () => {
     for (let i = 1; i < durations.length; i++) {
       assert.ok(durations[i] >= durations[i - 1]);
     }
-    assert.ok(durations.every((ms) => ms >= 250 && ms <= 1200));
-    assert.equal(Math.round(moveDuration(60, timing)), 390);
-    assert.equal(Math.round(moveDuration(420, timing)), 670);
-    assert.equal(moveDuration(1e6, timing), 1200);
+    assert.ok(durations.every((ms) => ms >= 220 && ms <= 1000));
+    assert.equal(Math.round(moveDuration(60, timing)), 330);
+    assert.equal(Math.round(moveDuration(420, timing)), 570);
+    assert.equal(moveDuration(1e6, timing), 1000);
   });
 
   it('divides by the speed, then clamps', () => {
     const free = { speed: 1, minDuration: 0, maxDuration: Infinity };
     const fast = { ...free, speed: 2 };
     assert.equal(moveDuration(500, fast), moveDuration(500, free) / 2);
-    assert.equal(moveDuration(10, { ...timing, speed: 4 }), 250);
+    assert.equal(moveDuration(10, { ...timing, speed: 4 }), 220);
   });
 });
 

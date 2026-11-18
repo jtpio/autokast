@@ -21,16 +21,16 @@ describe('resolveOptions', () => {
       start: { x: 640, y: 360 },
       speed: 1,
       curvature: 0.2,
-      minDuration: 250,
-      maxDuration: 1200,
+      minDuration: 220,
+      maxDuration: 1000,
     });
-    assert.deepEqual(options.typing, { delay: 55, variance: 0.35 });
+    assert.deepEqual(options.typing, { delay: 45, variance: 0.35 });
     assert.deepEqual(options.pacing, {
-      startDelay: 600,
-      endDelay: 1200,
-      beforeClick: 100,
-      afterClick: 350,
-      afterType: 250,
+      startDelay: 400,
+      endDelay: 900,
+      beforeClick: 60,
+      afterClick: 180,
+      afterType: 120,
       pressDuration: 90,
     });
     assert.equal(options.sessionDir, path.resolve('.autocast/screencast'));

@@ -147,7 +147,12 @@ export class RealtimePace implements Pace {
   }
 
   async capture(on: boolean): Promise<number> {
-    return (on ? await this.refresh() : undefined) ?? this.now();
+    const t = this.now();
+    if (on) {
+      // The forced capture keeps the time of its request: the call need not wait for it.
+      void this.refresh();
+    }
+    return t;
   }
 }
 

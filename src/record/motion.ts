@@ -26,7 +26,7 @@ export function moveDuration(distance: number, timing: MoveTiming): number {
   if (distance < 1) {
     return 0;
   }
-  const base = (250 + 140 * Math.log2(1 + distance / 60)) / timing.speed;
+  const base = (210 + 120 * Math.log2(1 + distance / 60)) / timing.speed;
   return clamp(base, timing.minDuration, timing.maxDuration);
 }
 

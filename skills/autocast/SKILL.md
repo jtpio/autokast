@@ -71,7 +71,6 @@ export default defineScreencast({
     await cast.type('Write the release notes', { into: page.getByLabel('Title') });
     await cast.click(page.getByRole('button', { name: 'Create task' }));
     await cast.zoomOut();
-    await cast.wait(1000);
   },
 });
 ```
@@ -84,22 +83,22 @@ A target is a Playwright locator, a selector string, a point `{ x, y }` or a rec
 `{ x, y, width, height }` (viewport pixels). Locators are strict: a locator that matches two
 elements fails, so narrow it.
 
-| Call                                                                | Use                                                                                                                                                              |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                        |
-| `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.    |
-| `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                |
-| `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                               |
-| `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                  |
-| `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                          |
-| `cast.zoomTo(target, { scale, padding })`                           | Camera move. With `scale` the camera centers on the target; without it the target plus `padding` fills the view. Waits for the move to end unless `wait: false`. |
-| `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                           |
-| `cast.wait(ms)`                                                     | Hold the shot.                                                                                                                                                   |
-| `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                    |
-| `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                 |
-| `cast.spotlight(target, { duration })`                              | Dim everything except the target.                                                                                                                                |
-| `cast.caption(text, { label, duration })`                           | Optional caption on the backdrop below the window. Use only when asked for text in the video.                                                                    |
-| `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                        |
+| Call                                                                | Use                                                                                                                                                                                 |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                                           |
+| `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.                       |
+| `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                                   |
+| `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                  |
+| `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                     |
+| `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                                             |
+| `cast.zoomTo(target, { scale, padding })`                           | Camera move. With `scale` the camera centers on the target; without it the target plus `padding` fills the view. The next action overlaps the move; `wait: true` waits for its end. |
+| `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                                              |
+| `cast.wait(ms)`                                                     | Hold the shot.                                                                                                                                                                      |
+| `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                       |
+| `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                    |
+| `cast.spotlight(target, { duration })`                              | Dim everything except the target.                                                                                                                                                   |
+| `cast.caption(text, { label, duration })`                           | Optional caption on the backdrop below the window. Use only when asked for text in the video.                                                                                       |
+| `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                           |
 
 `cast.page` is the Playwright page. Use it to wait and to read state
 (`await cast.cut(() => page.getByText('Done').waitFor())`). Never click, type or scroll through
@@ -107,16 +106,18 @@ elements fails, so narrow it.
 
 ## Direction
 
-Good screencasts are calm. The viewer follows one thing at a time.
+Good screencasts are calm but never idle. The viewer follows one thing at a time, and every
+moment has motion or something new to read.
 
 **Structure**
 
-- Open on the full view and wait about a second. End on the full view (`zoomOut`, then wait).
-  The recording already holds 0.6 s before the first call and 1.2 s after the last one.
+- Open on the full view and end on the full view (`zoomOut`). The recording already holds
+  0.4 s before the first call and 0.9 s after the last one; do not add more at the start.
 - The cursor starts at the center of the viewport. If that puts it on top of something
   distracting, set `cursor: { start: { x, y } }` to an empty spot.
 - One idea per beat. Show the result of each action before the next action starts.
-- Hold on results long enough to read: about 1.5 s, plus 0.3 s for each line of text.
+- Hold on a result only as long as a reader needs: about 1.2 s for one fact, up to 2 s for a
+  table or a plot.
 
 **Camera**
 
@@ -125,22 +126,27 @@ Good screencasts are calm. The viewer follows one thing at a time.
 - Scale 1.3 to 1.6 for a panel, 1.6 to 2.2 for a control or a few lines. Above 2.5 is rare.
   `scale` is how much larger the page looks than in the full view. Without `scale`, the target
   plus `padding` fills the video exactly; use that to frame one panel or one output.
-- Zoom first, then act. The camera needs its 0.9 s before the action starts.
-- For the next target in the same area, call `zoomTo` again at the same scale: the camera pans.
-  Zoom out before the cursor travels far.
+- Call `zoomTo` just before the action. The call returns after about a third of the camera
+  move, so the cursor or the typing starts while the camera still travels. Pass
+  `{ wait: true }` only when the viewer must see the shot settle before something happens.
+- Go from one zoomed shot to the next with one `zoomTo`: the camera pans and rescales in one
+  move, and a target below the fold scrolls into view by itself. Do not zoom out between two
+  shots unless the next action needs the full layout.
 - While zoomed, the camera pans a little to keep the cursor in view and returns to your
   framing when the cursor is back inside it (`zoom.followCursor`, on by default). For a shot
   that must not move at all, pass `{ follow: false }` to `zoomTo`.
-- Two or three zooms in 30 seconds is a good rhythm. Constant zooming is tiring.
 
 **Time**
 
-- Hide every wait: `await cast.cut(() => locator.waitFor())` for page loads, kernels, network.
-- Typing runs at about 13 characters per second, so a 150-character cell takes 12 seconds.
-  Long typing is dull: type short text, raise the speed with `typing: { delay: 35 }`, or wrap
-  the call in `cast.speed(2, ...)`.
-- After a click that changes the page, the default pause is enough for small changes. Add
-  `cast.wait(500)` after a large change.
+- No dead time. Do not put `cast.wait` between actions: the built-in pauses after a click or
+  a key are enough. Use `cast.wait` only to hold on a result. A video that feels slow has too
+  many waits.
+- Hide every wait for the app: `await cast.cut(() => locator.waitFor())` for page loads,
+  kernels, network. Pass `{ afterClick: 0 }` to the click before a `cut`, so that no loading
+  state shows.
+- Typing runs at about 16 characters per second. For code, use `typing: { delay: 30 }` (about
+  25 characters per second) and keep cells short; 40 seconds of typing in a one-minute video
+  is too much.
 
 **State**
 
@@ -156,8 +162,8 @@ Read the contact sheet and check:
 - In each zoomed tile, the target is inside the view and its text is large enough to read.
 - The cursor is on the control that the timeline says was clicked.
 - No tile shows a spinner, an empty panel or a half-loaded page (add a `cut` around the wait).
-- The timeline has no long gap without an action (trim the waits) and no burst of actions
-  without a pause (add waits).
+- Add up the `wait` and `hold` times in the timeline. More than about a fifth of the video is
+  too slow: trim them. A result that the viewer cannot read in time needs a longer hold.
 - Total length matches the storyboard.
 
 ## Look and quality

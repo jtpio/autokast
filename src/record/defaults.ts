@@ -19,14 +19,14 @@ export const DEFAULTS = {
   viewport: { width: 1280, height: 720 },
   deviceScaleFactor: 2,
   capture: { mode: 'realtime', fps: 60, clockLead: 600_000, format: 'jpeg', quality: 92 },
-  cursor: { speed: 1, curvature: 0.2, minDuration: 250, maxDuration: 1200 },
-  typing: { delay: 55, variance: 0.35 },
+  cursor: { speed: 1, curvature: 0.2, minDuration: 220, maxDuration: 1000 },
+  typing: { delay: 45, variance: 0.35 },
   pacing: {
-    startDelay: 600,
-    endDelay: 1200,
-    beforeClick: 100,
-    afterClick: 350,
-    afterType: 250,
+    startDelay: 400,
+    endDelay: 900,
+    beforeClick: 60,
+    afterClick: 180,
+    afterType: 120,
     pressDuration: 90,
   },
   scrollBehavior: 'smooth',
@@ -37,12 +37,18 @@ export const DEFAULTS = {
  * Defaults of the Cast calls, in milliseconds.
  */
 export const CAST_DEFAULTS = {
-  hoverHold: 600,
+  hoverHold: 450,
   zoomDuration: 900,
+  /**
+   * By default a camera move blocks only for this part of its duration, at most
+   * `zoomWaitMax` ms: the next action overlaps the rest of the move.
+   */
+  zoomWaitPart: 0.35,
+  zoomWaitMax: 320,
   spotlightDuration: 2000,
   captionBase: 1500,
   captionPerChar: 55,
-  dragHold: 150,
+  dragHold: 110,
   dragSlowdown: 1.6,
   dragMinDuration: 700,
   doubleClickGap: 70,

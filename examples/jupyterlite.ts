@@ -26,6 +26,7 @@ plt.ylabel("Max temperature");`;
 export default defineScreencast({
   name: 'jupyterlite',
   url: `${SITE}/lab/index.html`,
+  typing: { delay: 30 },
   browser: PROXY
     ? { launchOptions: { proxy: { server: PROXY, bypass: 'localhost,127.0.0.1' } } }
     : undefined,
@@ -60,9 +61,8 @@ export default defineScreencast({
     const aside = { position: { x: 0.75, y: 0.5 } };
     const label = { position: { x: 0.5, y: 0.3 } };
 
-    await cast.wait(600);
     await cast.zoomTo(card, { scale: 1.8 });
-    await cast.hover(card, { ...label, hold: 1200 });
+    await cast.hover(card, { ...label, hold: 700 });
     await cast.click(card, label);
     await cast.cut(() => editor(0).waitFor());
     await cast.zoomOut();
@@ -70,7 +70,6 @@ export default defineScreencast({
     // The camera follows the cursor while zoomed, so park it inside the notebook views below.
     // The new notebook already has the focus in cell 1.
     await cast.moveTo(page.locator('.jp-Notebook'), { position: { x: 0.75, y: 0.35 } });
-    await cast.wait(600);
 
     // At scale 1.55 the view is as wide as the notebook panel. `top` starts at the tab bar,
     // `bottom` ends at the bottom of the panel.
@@ -84,31 +83,30 @@ export default defineScreencast({
     await cast.type(PLATFORM);
     await cast.press('Shift+Enter');
     await cast.cut(() => output(0).waitFor(KERNEL));
-    await cast.wait(3000);
+    await cast.wait(1600);
 
     await cast.zoomOut();
     await cast.dblclick(files.filter({ hasText: 'data' }));
     await cast.cut(() => files.filter({ hasText: 'weather.csv' }).waitFor());
-    await cast.wait(2000);
+    await cast.wait(900);
 
     await cast.click(editor(1), aside);
     await cast.zoomTo(top, notebook);
     await cast.type(LOAD);
     await cast.press('Shift+Enter');
     await cast.cut(() => output(1).locator('table').waitFor(KERNEL));
-    await cast.wait(4000);
+    await cast.wait(1600);
 
     await cast.click(editor(2), aside);
     await cast.zoomTo(bottom, notebook);
-    await cast.speed(1.5, () => cast.type(PLOT));
+    await cast.type(PLOT);
     await cast.press('Shift+Enter');
     const plot = output(2).locator('img');
     await cast.cut(() => plot.waitFor(KERNEL));
-    await cast.wait(600);
     await cast.scrollTo(cells.nth(2), { block: 'end' });
     // Point at the sunny, warm days of summer.
-    await cast.hover(plot, { position: { x: 0.8, y: 0.25 }, hold: 4000 });
+    await cast.hover(plot, { position: { x: 0.8, y: 0.25 }, hold: 1800 });
     await cast.zoomOut();
-    await cast.wait(2000);
+    await cast.wait(700);
   },
 });

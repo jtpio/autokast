@@ -41,6 +41,14 @@ export interface ScrollPlan {
    * The target is in a child frame, which the planner does not handle.
    */
   inFrame: boolean;
+  /**
+   * The bounding box of the target now, in viewport CSS pixels.
+   */
+  box: Rect;
+  /**
+   * A running animation or transition on the target or an ancestor can move it.
+   */
+  moving: boolean;
 }
 
 /**
@@ -54,9 +62,19 @@ export function planScroll(element: Element, args: ScrollPlanArgs): ScrollPlan {
   type Axis = 'x' | 'y';
   const doc = element.ownerDocument;
   const win = doc.defaultView;
-  const result = { dx: 0, dy: 0, point: null, level: 0, inView: true, inFrame: false };
+  const rect = element.getBoundingClientRect();
+  const current = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+  const result = {
+    dx: 0,
+    dy: 0,
+    point: null,
+    level: 0,
+    inView: true,
+    inFrame: false,
+    box: current,
+  };
   if (!win || win !== win.top) {
-    return { ...result, inFrame: true };
+    return { ...result, inFrame: true, moving: true };
   }
   const root = doc.scrollingElement ?? doc.documentElement;
   const html = doc.documentElement;
@@ -165,6 +183,11 @@ export function planScroll(element: Element, args: ScrollPlanArgs): ScrollPlan {
     chain.push(root);
   }
 
+  let moving = false;
+  for (let el: Element | null = element; el && !moving; el = parentOf(el)) {
+    moving = el.getAnimations().some((a) => a.playState === 'running' || a.pending);
+  }
+
   const target: Box = args.rect
     ? {
         left: args.rect.x,
@@ -205,7 +228,7 @@ export function planScroll(element: Element, args: ScrollPlanArgs): ScrollPlan {
   });
   const index = steps.findLastIndex((step) => Math.abs(step.dx) >= 1 || Math.abs(step.dy) >= 1);
   if (index < 0) {
-    return { ...result, inView };
+    return { ...result, inView, moving };
   }
   const step = steps[index];
   const axis: Axis = Math.abs(step.dy) >= 1 ? 'y' : 'x';
@@ -244,7 +267,43 @@ export function planScroll(element: Element, args: ScrollPlanArgs): ScrollPlan {
     point: usable ? (candidates.find(reaches) ?? null) : null,
     level: chain.length - 1 - index,
     inView,
+    moving,
   };
+}
+
+/**
+ * In-page: whether a click at `point` reaches `element` now: the deepest element there is
+ * the element or inside it, and the element is not disabled. Also gives its current box.
+ * Self-contained, like `planScroll`.
+ */
+export function hitCheck(
+  element: Element,
+  point: Point,
+): { box: Rect; receives: boolean; inFrame: boolean } {
+  const rect = element.getBoundingClientRect();
+  const box = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+  const win = element.ownerDocument.defaultView;
+  if (!win || win !== win.top) {
+    return { box, receives: false, inFrame: true };
+  }
+  let hit = element.ownerDocument.elementFromPoint(point.x, point.y);
+  while (hit?.shadowRoot) {
+    const inner = hit.shadowRoot.elementFromPoint(point.x, point.y);
+    if (!inner || inner === hit) {
+      break;
+    }
+    hit = inner;
+  }
+  let inside = false;
+  for (let node: Element | null = hit; node && !inside;) {
+    inside = node === element;
+    node = node.parentElement ?? ((node.getRootNode() as ShadowRoot).host || null);
+  }
+  const disabled =
+    (element as HTMLButtonElement).disabled === true ||
+    element.closest('fieldset[disabled]') !== null ||
+    element.getAttribute('aria-disabled') === 'true';
+  return { box, receives: inside && !disabled, inFrame: false };
 }
 
 /**
@@ -252,21 +311,24 @@ export function planScroll(element: Element, args: ScrollPlanArgs): ScrollPlan {
  * or after about 1.5 s.
  */
 export async function scrollIdle(element: Element): Promise<void> {
+  // Wheel scrolling applies each delta at once: no change over one frame means idle.
   const parentOf = (node: Element): Element | null =>
     node.assignedSlot ?? node.parentElement ?? ((node.getRootNode() as ShadowRoot).host || null);
   const ancestors: Element[] = [];
   for (let node = parentOf(element); node; node = parentOf(node)) {
     ancestors.push(node);
   }
-  let last = '';
-  let same = 0;
-  for (let i = 0; i < 90 && same < 3; i++) {
+  const offsets = () => ancestors.map((el) => `${el.scrollLeft},${el.scrollTop}`).join(';');
+  let last = offsets();
+  for (let i = 0; i < 90; i++) {
     await new Promise((resolve) => {
       requestAnimationFrame(resolve);
       setTimeout(resolve, 50);
     });
-    const now = ancestors.map((el) => `${el.scrollLeft},${el.scrollTop}`).join(';');
-    same = now === last ? same + 1 : 0;
+    const now = offsets();
+    if (now === last) {
+      return;
+    }
     last = now;
   }
 }

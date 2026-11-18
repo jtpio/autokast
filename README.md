@@ -139,8 +139,8 @@ export default defineScreencast({
   colorScheme: 'dark',
   capture: { mode: 'realtime' }, // or 'frame-perfect' for final recordings
   cursor: { speed: 1, curvature: 0.2 },
-  typing: { delay: 55, variance: 0.35 },
-  pacing: { startDelay: 600, endDelay: 1200, afterClick: 350 },
+  typing: { delay: 45, variance: 0.35 },
+  pacing: { startDelay: 400, endDelay: 900, afterClick: 180 },
 
   render: {
     size: { width: 1920, height: 1080 },

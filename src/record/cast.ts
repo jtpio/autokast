@@ -32,7 +32,7 @@ import {
 } from './motion.ts';
 import type { Pace } from './pace.ts';
 import { createRandom, type Random } from './random.ts';
-import { planScroll, scrollIdle, type Block } from './scroll.ts';
+import { hitCheck, planScroll, scrollIdle, type Block, type ScrollPlan } from './scroll.ts';
 import type { Timeline } from './timeline.ts';
 
 const MOVE_TICK = 8;
@@ -103,6 +103,21 @@ function intersect(a: Rect, b: Rect): Rect | undefined {
 
 function withoutUndefined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
+}
+
+/**
+ * How long a zoom call blocks: the whole camera move for `wait: true`, none for `false`,
+ * else the given milliseconds or, by default, the first part of the move.
+ */
+function zoomWait(options: ZoomToOptions): number {
+  const duration = options.duration ?? CAST_DEFAULTS.zoomDuration;
+  if (typeof options.wait === 'number') {
+    return options.wait;
+  }
+  if (options.wait !== undefined) {
+    return options.wait ? duration : 0;
+  }
+  return Math.min(duration * CAST_DEFAULTS.zoomWaitPart, CAST_DEFAULTS.zoomWaitMax);
 }
 
 function shorten(text: string, max: number): string {
@@ -334,9 +349,7 @@ export class Director implements Cast {
       const { scale, padding, duration, easing, follow } = options;
       const t = this.timeline.now();
       this.push({ type: 'zoom', t, focus, scale, padding, duration, easing, follow });
-      if (options.wait !== false) {
-        await this.pace.sleep(duration ?? CAST_DEFAULTS.zoomDuration);
-      }
+      await this.pace.sleep(zoomWait(options));
     });
   }
 
@@ -344,9 +357,7 @@ export class Director implements Cast {
     return this.step('zoomOut()', async () => {
       const { duration, easing, follow } = options;
       this.push({ type: 'zoom', t: this.timeline.now(), focus: null, duration, easing, follow });
-      if (options.wait !== false) {
-        await this.pace.sleep(duration ?? CAST_DEFAULTS.zoomDuration);
-      }
+      await this.pace.sleep(zoomWait(options));
     });
   }
 
@@ -506,12 +517,17 @@ export class Director implements Cast {
    */
   private async stableBox(locator: Locator, timeout = this.timeout): Promise<Rect> {
     await locator.waitFor({ state: 'visible', timeout });
-    await this.bringIntoView(locator, {
+    const plan = await this.bringIntoView(locator, {
       block: 'center',
       ifNeeded: true,
       timeout,
       smooth: this.options.scrollBehavior === 'smooth',
     });
+    // Without an animation that can move it, the box from the scroll plan is final: no
+    // need to compare two boxes a frame apart.
+    if (plan && !plan.inFrame && !plan.moving) {
+      return plan.box;
+    }
     // The time limit is for the page, so the scroll animation does not count.
     const deadline = Date.now() + timeout;
     const remaining = () => Math.max(1, deadline - Date.now());
@@ -535,25 +551,60 @@ export class Director implements Cast {
   private async clickTarget(target: Target, options: ClickOptions): Promise<void> {
     const resolved = await this.resolve(target, options);
     await this.moveCursor(resolved.point, options.duration);
-    await this.pace.sleep(this.options.pacing.beforeClick);
+    let ready: Promise<void> | undefined;
     if (resolved.locator && resolved.box) {
-      const box = await this.followTarget(resolved.locator, resolved.box, options.timeout);
       // Outside the target, the click lands on whatever is at that point, like a real
       // click: a check that the target receives it would always fail.
-      if (!options.force && !isOutside(options.position)) {
-        await this.checkActionable(resolved.locator, box, options.timeout);
-      }
+      const check = !options.force && !isOutside(options.position);
+      // The check runs during the pause before the press, so that it adds no time.
+      ready = this.prepareClick(resolved.locator, resolved.box, check, options.timeout);
+      ready.catch(() => {});
     }
+    await this.pace.sleep(this.options.pacing.beforeClick);
+    await ready;
     await this.pressButton(options.button ?? 'left', options.clickCount ?? 1, options.modifiers);
     await this.pace.sleep(options.afterClick ?? this.options.pacing.afterClick);
+  }
+
+  /**
+   * Before the press: moves the cursor again when the element moved after the cursor
+   * arrived, then makes sure that the click reaches it. One in-page check covers the usual
+   * case; Playwright's trial click, with its waits and error messages, runs only when that
+   * check fails, and for elements in a child frame.
+   */
+  private async prepareClick(
+    locator: Locator,
+    box: Rect,
+    check: boolean,
+    timeout?: number,
+  ): Promise<void> {
+    const state = await locator.evaluate(hitCheck, this.position, {
+      timeout: timeout ?? this.timeout,
+    });
+    let current = box;
+    if (state.inFrame) {
+      current = await this.followTarget(locator, box, timeout);
+    } else if (!sameBox(state.box, box)) {
+      current = await this.followTarget(locator, box, timeout, state.box);
+    } else if (state.receives || !check) {
+      return;
+    }
+    if (check) {
+      await this.checkActionable(locator, current, timeout);
+    }
   }
 
   /**
    * Moves the cursor again when the element moved after the cursor arrived.
    * Keeps the same relative position inside the element. Returns the current box.
    */
-  private async followTarget(locator: Locator, box: Rect, timeout?: number): Promise<Rect> {
-    const now = await locator.boundingBox({ timeout: timeout ?? this.timeout });
+  private async followTarget(
+    locator: Locator,
+    box: Rect,
+    timeout?: number,
+    moved?: Rect,
+  ): Promise<Rect> {
+    const now = moved ?? (await locator.boundingBox({ timeout: timeout ?? this.timeout }));
     if (now && sameBox(now, box)) {
       return now;
     }
@@ -679,12 +730,13 @@ export class Director implements Cast {
   /**
    * Brings an element into view. Smooth: wheel steps over each scroll container, outer
    * to inner, with the cursor moved over the container first. Falls back to an instant
-   * scroll when the wheel does not reach the element.
+   * scroll when the wheel does not reach the element. Returns the last plan when the
+   * element is in view after a smooth scroll: it holds the element box.
    */
   private async bringIntoView(
     locator: Locator,
     view: { block: Block; ifNeeded: boolean; timeout: number; smooth: boolean; duration?: number },
-  ): Promise<void> {
+  ): Promise<ScrollPlan | undefined> {
     const { timeout } = view;
     if (view.smooth) {
       let last = { level: -1, distance: Infinity };
@@ -696,7 +748,7 @@ export class Director implements Cast {
         );
         const distance = Math.hypot(plan.dx, plan.dy);
         if (distance < 1 && plan.inView) {
-          return;
+          return plan;
         }
         const stuck = plan.level === last.level && distance >= last.distance - 1;
         if (plan.inFrame || distance < 1 || !plan.point || stuck) {
@@ -709,6 +761,7 @@ export class Director implements Cast {
       }
     }
     await locator.scrollIntoViewIfNeeded({ timeout });
+    return undefined;
   }
 
   /**

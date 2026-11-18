@@ -431,9 +431,11 @@ export interface ZoomToOptions {
   duration?: number;
   easing?: EasingName;
   /**
-   * Waits for the camera move to end before the next action. Default: true.
+   * How long the call waits before the next action: `true` for the whole camera move,
+   * `false` for no wait, or a number of milliseconds. Default: about a third of the move,
+   * so the next action overlaps the camera move.
    */
-  wait?: boolean;
+  wait?: boolean | number;
 }
 
 export interface CaptionOptions {

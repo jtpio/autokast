@@ -215,6 +215,19 @@ describe('frame-perfect capture', () => {
     }
   });
 
+  it('adds no dead time around a click', () => {
+    const click = ofType(session, 'action').find((action) => action.call === 'click("#go")')!;
+    const [down] = buttons(session, 'mouseDown');
+    const move = session.cursor.filter((s) => s.t > click.t && s.t < down.t);
+    const startsAfter = move[0].t - click.t;
+    const pressAfter = down.t - move.at(-1)!.t;
+    assert.ok(startsAfter <= 2 * FRAME + 0.1, `the move starts ${startsAfter} ms after the call`);
+    assert.ok(
+      pressAfter <= 60 + 2 * FRAME + 0.1,
+      `the press comes ${pressAfter} ms after the move`,
+    );
+  });
+
   it('shows a 1 s transition in exactly 60 frames', () => {
     const up = buttons(session, 'mouseUp')[0];
     const after = frames.filter((frame) => frame.t >= up.t && frame.x.magenta >= 0);
@@ -304,6 +317,32 @@ describe('frame-perfect failures and limits', () => {
     const partial = await loadSession(dir);
     assert.ok(partial.frames.length > 0 && partial.frames.every((frame) => onGrid(frame.t)));
     assert.equal(buttons(partial, 'mouseDown').length, 1);
+  });
+
+  it('blocks a zoom call for part of the camera move by default', async () => {
+    const rect = { x: 100, y: 100, width: 300, height: 200 };
+    const { session } = await record(
+      {
+        url: server.url,
+        sessionDir: dir,
+        capture: FRAME_PERFECT,
+        pacing: { startDelay: 0, endDelay: 0 },
+      },
+      async (cast) => {
+        await cast.zoomTo(rect);
+        await cast.zoomTo(rect, { wait: true });
+        await cast.zoomOut({ wait: false });
+        await cast.zoomTo(rect, { duration: 600, wait: 100 });
+        await cast.zoomOut({ duration: 300 });
+      },
+    );
+    const blocked = ofType(session, 'action').map((action) => +(action.end - action.t).toFixed(1));
+    // 35% of 900 ms is 315 ms: 19 frames. 35% of 300 ms is 105 ms: 6 frames.
+    assert.deepEqual(blocked, [316.7, 900, 0, 100, 100]);
+    assert.deepEqual(
+      ofType(session, 'zoom').map((zoom) => zoom.duration),
+      [undefined, undefined, undefined, 600, 300],
+    );
   });
 
   it('refuses a headed browser and other channels', async () => {

@@ -27,49 +27,47 @@ export default defineScreencast({
     const heading = (name: string) =>
       page.locator('#table-of-contents').getByText(name, { exact: true });
 
-    await cast.wait(1500);
+    await cast.wait(500);
     await cast.dblclick(file('weather-report.ipynb'), { afterClick: 0 });
     await cast.cut(() =>
       page.locator('.jp-Notebook-ExecutionIndicator[data-status="idle"]').waitFor(),
     );
-    await cast.wait(2500);
+    await cast.wait(1000);
     await cast.scroll({ y: 600 }, { at: page.locator('.jp-NotebookPanel-notebook') });
-    await cast.wait(2000);
+    await cast.wait(800);
 
     await cast.click(sidebarTab('table-of-contents'));
     await cast.zoomTo({ x: 0, y: 28, width: 720, height: 405 }, { scale: 1.6 });
     await cast.click(heading('Rain and sunshine'));
-    await cast.wait(3000);
+    await cast.wait(1300);
     await cast.click(heading('Temperature'));
-    await cast.wait(3000);
+    await cast.wait(1300);
     await cast.zoomOut();
-    await cast.wait(1000);
 
     await cast.click(sidebarTab('filebrowser'));
     await cast.dblclick(file('data'));
     await cast.dblclick(file('weather.csv'), { afterClick: 0 });
     await cast.cut(() => page.locator('.jp-CSVViewer').waitFor());
     const csvTab = page.locator('.lm-DockPanel-tabBar .lm-TabBar-tab', { hasText: 'weather.csv' });
-    await cast.moveTo(csvTab);
-    await cast.wait(2000);
+    await cast.wait(700);
     await cast.drag(csvTab, '#jp-main-dock-panel', { toPosition: { x: 0.85, y: 0.5 } });
-    await cast.wait(3500);
+    await cast.wait(1400);
 
     await cast.click(sidebarTab('filebrowser'));
-    await cast.wait(2000);
+    await cast.wait(800);
     const handle = page
       .locator('#jp-main-dock-panel > .lm-DockPanel-handle')
       .filter({ visible: true });
     const { y, height } = (await handle.boundingBox())!;
     await cast.drag(handle, { x: 790, y: y + height / 2 });
-    await cast.wait(3000);
+    await cast.wait(1200);
 
     await cast.press('Control+Shift+C');
     // The zoomed camera follows the cursor, so bring the cursor into the shot first.
     await cast.moveTo(page.locator('#modal-command-palette .lm-CommandPalette-search'));
     await cast.zoomTo({ x: 320, y: 28, width: 640, height: 360 }, { scale: 1.8 });
     await cast.type('jupyterlab dark');
-    await cast.wait(1500);
+    await cast.wait(500);
     await cast.click(
       page.getByRole('menuitemcheckbox', { name: 'Use Theme: JupyterLab Dark', exact: true }),
     );
@@ -83,6 +81,6 @@ export default defineScreencast({
     await cast.zoomOut({ wait: false });
     // Leaving the toolbar button repaints the page, so the capture gets a frame without the splash.
     await cast.moveTo({ x: 120, y: 560 });
-    await cast.wait(4500);
+    await cast.wait(1800);
   },
 });
