@@ -75,7 +75,9 @@ export default defineScreencast({
 });
 ```
 
-Scripts are TypeScript or `.mjs`, and Node runs them directly.
+Scripts are TypeScript or `.mjs`, and Node runs them directly. In a project whose
+`package.json` has no `"type": "module"`, name the script `.mts`: with `.ts`, Node prints a
+module warning (it does no harm).
 
 ## Cast calls
 
@@ -152,6 +154,24 @@ moment has motion or something new to read.
 - Typing runs at about 16 characters per second. For code, use `typing: { delay: 30 }` (about
   25 characters per second) and keep cells short; 40 seconds of typing in a one-minute video
   is too much.
+- To show another URL, navigate inside a cut:
+  `await cast.cut(async () => { await page.goto(url); await locator.waitFor(); })`. For a
+  click that reloads the page, start `const loaded = page.waitForEvent('load')` before the
+  click and `await loaded` inside the cut. A camera move continues across a cut, so go to the
+  full view first with `cast.zoomOut({ wait: true })`.
+
+**Captions**
+
+- Use captions for a tour of several features: one caption for each feature, with a `label`
+  such as `01`. A new caption replaces the one on screen, so give each caption a `duration`
+  longer than its part, and let the last one stay until the end.
+- A viewer needs about 3 s to read a caption and see the action. Make each part at least
+  that long; the limit of one fifth for holds does not apply to a captioned tour.
+- While a caption shows, the window is smaller and the view above the caption is wider than
+  the video: about 15:7 for a 16:9 video. A `zoomTo` without `scale` or `level` keeps the
+  whole target in that view, so a 16:9 target shows more of the page at its sides. Give the
+  target the shape of the view, for example `{ x: 0, y: 28, width: 960, height: 448 }` with
+  `padding: 0`, or use a `level`.
 
 **State**
 
@@ -210,6 +230,10 @@ the app's own colors, and check it with `autokast frame <session> --at 1 --backg
 
 The capture scale is `deviceScaleFactor: 2` by default. For deep zooms or 4K output, record
 with `deviceScaleFactor: 3`.
+
+Camera moves across a page with much text make most of the file size. When a file must be
+below an upload limit (GitHub accepts 10 MB), render with a higher `encode.crf`:
+`--set encode.crf=23` gives about half the size of `standard`, and text stays sharp.
 
 To change a camera move without a new recording, edit the `zoom` events in
 `.autokast/<name>/session.json` (`focus` rectangle, `scale`, `t` in milliseconds) and render
