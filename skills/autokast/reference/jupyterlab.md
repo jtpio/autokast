@@ -95,6 +95,10 @@ recording. `examples/jupyterlab/serve.sh` in the autokast repository does all of
 - Side by side: drag a document tab to the right third of the main area, at mid-height:
   `cast.drag(tab, '#jp-main-dock-panel', { toPosition: { x: 0.85, y: 0.5 } })`.
 - Collapse a sidebar: click its active tab again.
+- A notebook that is scrolled down and then hidden behind another tab can be empty when it
+  shows again in a split view. Scroll it to the top first, for example with a click on the
+  first entry of the table of contents.
+- A document that opens can show a spinner: cut until `.jp-Spinner` is detached.
 - Resize a split: drag the split handle.
 
 ## Themes and settings

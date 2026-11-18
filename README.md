@@ -4,7 +4,7 @@ Automated, polished screencasts of web apps. Built for agents.
 
 <!-- Demo video: upload the README demo to GitHub and put its link on the next line. -->
 
-![A web app in a framed window on a soft backdrop, with a large cursor](docs/images/window.jpg)
+![JupyterLab in a framed window on a soft backdrop, with a large cursor and a caption](docs/images/jupyterlab.jpg)
 
 You write a short script that says what happens on the page and where the camera looks.
 `autokast` records the page with Playwright and renders the video: a smooth cursor, click
@@ -146,7 +146,8 @@ Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill 
 ## Examples
 
 The [`examples`](examples) directory has scripts for JupyterLab, JupyterLite and a demo app.
-Each script names the command that starts its server.
+Each script names the command that starts its server. The video at the top of this page is
+[`examples/jupyterlab-demo.ts`](examples/jupyterlab-demo.ts).
 
 ## Development
 
