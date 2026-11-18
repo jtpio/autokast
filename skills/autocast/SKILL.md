@@ -83,22 +83,23 @@ A target is a Playwright locator, a selector string, a point `{ x, y }` or a rec
 `{ x, y, width, height }` (viewport pixels). Locators are strict: a locator that matches two
 elements fails, so narrow it.
 
-| Call                                                                | Use                                                                                                                                                                                 |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                                           |
-| `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.                       |
-| `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                                   |
-| `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                  |
-| `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                     |
-| `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                                             |
-| `cast.zoomTo(target, { scale, padding })`                           | Camera move. With `scale` the camera centers on the target; without it the target plus `padding` fills the view. The next action overlaps the move; `wait: true` waits for its end. |
-| `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                                              |
-| `cast.wait(ms)`                                                     | Hold the shot.                                                                                                                                                                      |
-| `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                       |
-| `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                    |
-| `cast.spotlight(target, { duration })`                              | Dim everything except the target.                                                                                                                                                   |
-| `cast.caption(text, { label, duration })`                           | Optional caption on the backdrop below the window. Use only when asked for text in the video.                                                                                       |
-| `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                           |
+| Call                                                                | Use                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                                                                                                                       |
+| `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.                                                                                                   |
+| `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                                                                                                               |
+| `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                                                                                              |
+| `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                                                                                                 |
+| `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                                                                                                                         |
+| `cast.zoomTo(target, { level, scale, padding, follow })`            | Frames a target. `level` is a named zoom level (`wide`, `medium`, `close`), `scale` a number; with neither, the target plus `padding` fills the view. `follow` is `off`, `edge` or `cursor`. The next action overlaps the move; `wait: true` waits for its end. |
+| `cast.zoom(level)`                                                  | Zooms on the cursor, to a level name or a number, and the camera then travels with the cursor. Use it to guide the eye across the interface without a fixed target.                                                                                             |
+| `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                                                                                                                          |
+| `cast.wait(ms)`                                                     | Hold the shot.                                                                                                                                                                                                                                                  |
+| `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                                                                                                   |
+| `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                                                                                                |
+| `cast.spotlight(target, { duration })`                              | Dim everything except the target.                                                                                                                                                                                                                               |
+| `cast.caption(text, { label, duration })`                           | Optional caption on the backdrop below the window. Use only when asked for text in the video.                                                                                                                                                                   |
+| `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                                                                                                       |
 
 `cast.page` is the Playwright page. Use it to wait and to read state
 (`await cast.cut(() => page.getByText('Done').waitFor())`). Never click, type or scroll through
@@ -132,9 +133,13 @@ moment has motion or something new to read.
 - Go from one zoomed shot to the next with one `zoomTo`: the camera pans and rescales in one
   move, and a target below the fold scrolls into view by itself. Do not zoom out between two
   shots unless the next action needs the full layout.
-- While zoomed, the camera pans a little to keep the cursor in view and returns to your
-  framing when the cursor is back inside it (`zoom.followCursor`, on by default). For a shot
-  that must not move at all, pass `{ follow: false }` to `zoomTo`.
+- Choose how the camera reacts to the cursor for each shot, with `follow`:
+  `edge` (default for `zoomTo`) keeps your framing and pans only when the cursor comes near
+  the edge; `cursor` (default for `cast.zoom`) travels with the cursor; `off` never moves.
+  Use `off` for a shot that must stay still, and `cursor` when the action crosses the page.
+- Use the named levels so that shots of the same kind have the same size: `wide` (1.3) for a
+  panel, `medium` (1.6) for a group of controls, `close` (2.2) for one control or a few
+  lines. A render can change these values with `zoom.levels`.
 
 **Time**
 
@@ -185,13 +190,15 @@ autocast render .autocast/demo --preview -o quick.mp4
 | `background`                                          | `paper`, `fog`, `sage`, `dune`, `clay`, `dusk` (default), `harbor`, `graphite`, `ink`, `ember`, a CSS color, or `{ type: 'gradient' \| 'image', ... }`. |
 | `frame.padding`, `frame.radius`, `frame.shadow`       | Space around the window, corner radius, shadow.                                                                                                         |
 | `frame.chrome`                                        | `none` or `window` (title bar; set `frame.title`).                                                                                                      |
-| `cursor.size`, `cursor.smoothing`, `cursor.hideAfter` | Cursor size (default 1.6), path smoothing, hide when idle (ms).                                                                                         |
+| `cursor.size`, `cursor.smoothing`, `cursor.hideAfter` | Cursor size (default 1.9), path smoothing, hide when idle (ms).                                                                                         |
 | `cursor.click.type`                                   | `ripple`, `ring`, `none`.                                                                                                                               |
 | `zoom.mode`                                           | `camera` (the window grows past the edges) or `crop` (zoom inside a fixed window).                                                                      |
 | `zoom.easing`, `zoom.duration`, `zoom.maxScale`       | Camera feel.                                                                                                                                            |
+| `zoom.follow`, `zoom.followSpeed`                     | Follow mode for shots that do not set one (`off`, `edge`, `cursor`), and how fast the camera catches up (default 1).                                    |
+| `zoom.levels`                                         | Scale of each named level, for example `--set 'zoom.levels={"close":2.6}'`.                                                                             |
 | `zoom.auto`                                           | `true` adds zooms on clicks and typing when the script has none.                                                                                        |
 | `zoom.edges`                                          | `fill` (default: a zoomed shot is all page) or `keep` (the window edge and backdrop stay in view).                                                      |
-| `zoom.motionBlur`, `cursor.motionBlur`                | 0 to 1.                                                                                                                                                 |
+| `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                |
 | `keystrokes.show`                                     | `none` (default) or `shortcuts`: shows key combinations from `cast.press` as keycaps.                                                                   |
 | `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                        |
 

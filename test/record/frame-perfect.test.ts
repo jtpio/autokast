@@ -345,6 +345,50 @@ describe('frame-perfect failures and limits', () => {
     );
   });
 
+  it('writes cursor zooms and target zooms with levels and follow modes', async () => {
+    const rect = { x: 100, y: 100, width: 300, height: 200 };
+    const { session } = await record(
+      {
+        url: server.url,
+        sessionDir: dir,
+        capture: FRAME_PERFECT,
+        pacing: { startDelay: 0, endDelay: 0 },
+      },
+      async (cast) => {
+        await cast.moveTo({ x: 300, y: 200 });
+        await cast.zoom('close');
+        await cast.zoom(1.8, { follow: 'edge', duration: 600, wait: false });
+        await cast.zoomTo(rect, { level: 'medium', follow: 'cursor' });
+        await cast.zoomTo(rect, { scale: 2, level: 'close', follow: false });
+        await cast.zoomOut();
+      },
+    );
+    const zooms = ofType(session, 'zoom').map(({ t, ...zoom }) => zoom);
+    const cursor = { x: 300, y: 200, width: 0, height: 0 };
+    assert.deepEqual(zooms, [
+      { type: 'zoom', focus: cursor, level: 'close', follow: 'cursor', anchor: 'cursor' },
+      {
+        type: 'zoom',
+        focus: cursor,
+        scale: 1.8,
+        duration: 600,
+        follow: 'edge',
+        anchor: 'cursor',
+      },
+      { type: 'zoom', focus: rect, level: 'medium', follow: 'cursor' },
+      { type: 'zoom', focus: rect, scale: 2, level: 'close', follow: false },
+      { type: 'zoom', focus: null },
+    ]);
+    const actions = ofType(session, 'action').filter((action) => action.call.startsWith('zoom('));
+    assert.deepEqual(
+      actions.map((action) => [action.call, +(action.end - action.t).toFixed(1)]),
+      [
+        ['zoom("close")', 316.7],
+        ['zoom(1.8)', 0],
+      ],
+    );
+  });
+
   it('refuses a headed browser and other channels', async () => {
     for (const browser of [{ headless: false }, { channel: 'chrome' }]) {
       await assert.rejects(

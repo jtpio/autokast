@@ -158,7 +158,7 @@ test('every transition from rest is one pivot zoom, in fill, keep and crop mode'
     for (const [name, focus] of Object.entries(TARGETS)) {
       for (const scale of [1.5, 2]) {
         const scene = buildScene(session([zoom(300, focus, scale)]), {
-          zoom: { ...mode, followCursor: false },
+          zoom: { ...mode, follow: 'off' },
         });
         assertPivot(scene, 300, 1200, `${JSON.stringify(mode)} ${name} ${scale}`);
       }
@@ -166,10 +166,26 @@ test('every transition from rest is one pivot zoom, in fill, keep and crop mode'
   }
 });
 
+test('transitions stay one pivot zoom in every follow mode, with a moving cursor', () => {
+  for (const follow of ['off', 'edge', 'cursor'] as const) {
+    for (const [name, focus] of Object.entries(TARGETS)) {
+      const moving: Session = {
+        ...session([zoom(300, focus, 2)]),
+        cursor: [
+          { t: 0, x: focus.x + 30, y: focus.y + 20 },
+          { t: 1500, x: focus.x + 160, y: focus.y + 60 },
+        ],
+      };
+      const scene = buildScene(moving, { zoom: { follow } });
+      assertPivot(scene, 300, 1200, `${follow} ${name}`);
+    }
+  }
+});
+
 test('a transition between two zoomed states is one pivot zoom', () => {
   const scene = buildScene(
     session([zoom(300, TARGETS.corner, 1.5), zoom(2000, { x: 900, y: 500 }, 2.5)]),
-    { zoom: { followCursor: false } },
+    { zoom: { follow: 'off' } },
   );
   assertPivot(scene, 2000, 2900, 'zoomed to zoomed');
 });
@@ -177,7 +193,7 @@ test('a transition between two zoomed states is one pivot zoom', () => {
 test('an interrupted transition blends into the new one without a velocity jump', () => {
   const scene = buildScene(
     session([zoom(300, { x: 600, y: 340 }, 2), zoom(750, { x: 700, y: 380 }, 2.6)]),
-    { zoom: { followCursor: false } },
+    { zoom: { follow: 'off' } },
   );
   assert.ok(jerkRatio(scene) < 0.12, `velocity jump ${jerkRatio(scene)}`);
   const last = scene.times.length - 1;

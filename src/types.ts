@@ -98,21 +98,40 @@ export interface KeyEvent {
 }
 
 /**
+ * How the camera reacts to the cursor during a zoomed shot.
+ * `off`: the camera stays on its framing.
+ * `edge`: the camera pans only when the cursor comes near the edge of the view.
+ * `cursor`: the camera travels with the cursor and keeps it near the middle of the view.
+ */
+export type FollowMode = 'off' | 'edge' | 'cursor';
+
+/**
  * A camera directive. `focus: null` returns to the full view.
- * Without `scale`, the renderer fits `focus` plus `padding` into the view.
+ * The magnification is `scale`, or the named `level`, or else the scale that fits
+ * `focus` plus `padding` into the view.
  */
 export interface ZoomEvent {
   type: 'zoom';
   t: number;
   focus: Rect | null;
   scale?: number;
+  /**
+   * Name of a zoom level from the `zoom.levels` render option.
+   */
+  level?: string;
   padding?: number;
   duration?: number;
   easing?: EasingName;
   /**
-   * Overrides `zoom.followCursor` until the next zoom directive.
+   * Follow mode until the next zoom directive. Default: the `zoom.follow` render option.
+   * `true` means `edge` and `false` means `off`.
    */
-  follow?: boolean;
+  follow?: FollowMode | boolean;
+  /**
+   * `cursor` marks a zoom on the cursor position with no target: the camera has no
+   * framing to return to.
+   */
+  anchor?: 'target' | 'cursor';
 }
 
 /**
@@ -419,15 +438,20 @@ export interface ScrollToOptions {
 export interface ZoomToOptions {
   /**
    * Magnification of the page relative to the full view: 2 shows the page twice as large.
-   * Without it, the camera fits the target plus `padding` in the output.
+   * Without `scale` and `level`, the camera fits the target plus `padding` in the output.
    */
   scale?: number;
+  /**
+   * A named zoom level: `wide`, `medium`, `close`, or a name from the `zoom.levels` render
+   * option. A render can change what each level means without a new recording.
+   */
+  level?: string;
   padding?: number;
   /**
-   * Whether the camera pans to keep the cursor in view during this shot.
-   * Default: the `zoom.followCursor` render option.
+   * How the camera reacts to the cursor during this shot: `off`, `edge` or `cursor`
+   * (`true` is `edge`, `false` is `off`). Default: the `zoom.follow` render option.
    */
-  follow?: boolean;
+  follow?: FollowMode | boolean;
   duration?: number;
   easing?: EasingName;
   /**
@@ -484,7 +508,15 @@ export interface Cast {
   press(keys: string, options?: { hold?: number }): Promise<void>;
 
   zoomTo(target: Target, options?: ZoomToOptions): Promise<void>;
-  zoomOut(options?: Omit<ZoomToOptions, 'scale' | 'padding'>): Promise<void>;
+  /**
+   * Zooms on the cursor position, to a named level or a scale, and lets the camera travel
+   * with the cursor (`follow: 'cursor'` unless the options say otherwise).
+   */
+  zoom(
+    level: string | number,
+    options?: Omit<ZoomToOptions, 'scale' | 'level' | 'padding'>,
+  ): Promise<void>;
+  zoomOut(options?: Omit<ZoomToOptions, 'scale' | 'level' | 'padding' | 'follow'>): Promise<void>;
 
   wait(ms: number): Promise<void>;
   /**
@@ -560,6 +592,9 @@ export interface CursorRenderOptions {
    * Hides the cursor after this many milliseconds without a move. 0 keeps it visible.
    */
   hideAfter?: number;
+  /**
+   * Motion blur of the cursor during fast moves, 0 (off) to 1 (a full frame of blur).
+   */
   motionBlur?: number;
   click?: ClickEffectOptions;
 }
@@ -594,9 +629,18 @@ export interface ZoomRenderOptions {
   duration?: number;
   easing?: EasingName;
   /**
-   * Pans the camera to keep the cursor in view while zoomed.
+   * How the camera reacts to the cursor while zoomed, for shots that do not set it.
+   * Default: `edge`.
    */
-  followCursor?: boolean;
+  follow?: FollowMode;
+  /**
+   * How fast the camera catches up with the cursor. 1 is the default; 2 is twice as fast.
+   */
+  followSpeed?: number;
+  /**
+   * Named zoom levels. Defaults: `wide` 1.3, `medium` 1.6, `close` 2.2.
+   */
+  levels?: Record<string, number>;
   motionBlur?: number;
 }
 

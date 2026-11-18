@@ -215,3 +215,26 @@ test('a fit zoom fills the whole output in camera mode and the frame box in crop
   const explicit = buildScene({ ...session, events: [{ ...zoom, scale: 2 }] });
   assert.equal(explicit.camera.scale[settled(explicit)], 2);
 });
+
+test('zoom levels merge over the defaults and resolve at render time', () => {
+  const level = (name: string, levels?: Record<string, number>) => {
+    const scene = buildScene(
+      {
+        ...session,
+        events: [
+          { type: 'zoom', t: 100, focus: { x: 600, y: 340, width: 80, height: 40 }, level: name },
+        ],
+      },
+      { zoom: { levels, follow: 'off' } },
+    );
+    return scene.camera.scale[scene.camera.scale.length - 1];
+  };
+  assert.equal(level('medium'), 1.6);
+  assert.equal(level('close', { close: 2.5 }), 2.5);
+  assert.equal(level('medium', { close: 2.5 }), 1.6);
+  assert.equal(level('hero', { hero: 1.9 }), 1.9);
+  assert.throws(
+    () => level('nope'),
+    /Unknown zoom level "nope". Known levels: wide, medium, close/,
+  );
+});

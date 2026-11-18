@@ -346,17 +346,43 @@ export class Director implements Cast {
   zoomTo(target: Target, options: ZoomToOptions = {}): Promise<void> {
     return this.step(`zoomTo(${describeTarget(target)})`, async () => {
       const focus = await this.resolveRect(target);
-      const { scale, padding, duration, easing, follow } = options;
+      const { scale, level, padding, duration, easing, follow } = options;
       const t = this.timeline.now();
-      this.push({ type: 'zoom', t, focus, scale, padding, duration, easing, follow });
+      this.push({ type: 'zoom', t, focus, scale, level, padding, duration, easing, follow });
       await this.pace.sleep(zoomWait(options));
     });
   }
 
-  zoomOut(options: Omit<ZoomToOptions, 'scale' | 'padding'> = {}): Promise<void> {
+  zoom(
+    level: string | number,
+    options: Omit<ZoomToOptions, 'scale' | 'level' | 'padding'> = {},
+  ): Promise<void> {
+    return this.step(`zoom(${JSON.stringify(level)})`, async () => {
+      if (typeof level === 'number' && !(level > 0 && Number.isFinite(level))) {
+        throw new Error(`cast.zoom(level) needs a level name or a scale above 0, got ${level}.`);
+      }
+      const { x, y } = this.position;
+      const { duration, easing } = options;
+      this.push({
+        type: 'zoom',
+        t: this.timeline.now(),
+        focus: { x, y, width: 0, height: 0 },
+        ...(typeof level === 'number' ? { scale: level } : { level }),
+        duration,
+        easing,
+        follow: options.follow ?? 'cursor',
+        anchor: 'cursor',
+      });
+      await this.pace.sleep(zoomWait(options));
+    });
+  }
+
+  zoomOut(
+    options: Omit<ZoomToOptions, 'scale' | 'level' | 'padding' | 'follow'> = {},
+  ): Promise<void> {
     return this.step('zoomOut()', async () => {
-      const { duration, easing, follow } = options;
-      this.push({ type: 'zoom', t: this.timeline.now(), focus: null, duration, easing, follow });
+      const { duration, easing } = options;
+      this.push({ type: 'zoom', t: this.timeline.now(), focus: null, duration, easing });
       await this.pace.sleep(zoomWait(options));
     });
   }

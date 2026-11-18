@@ -3,6 +3,7 @@ import type {
   BackgroundOptions,
   EasingName,
   EncodeOptions,
+  FollowMode,
   RenderOptions,
   Session,
   Size,
@@ -58,7 +59,9 @@ export interface ResolvedOptions {
     maxScale: number;
     duration: number;
     easing: EasingName;
-    followCursor: boolean;
+    follow: FollowMode;
+    followSpeed: number;
+    levels: Record<string, number>;
     motionBlur: number;
   };
   captions: { position: 'bottom' | 'top'; fontSize: number; fontFamily: string };
@@ -92,11 +95,11 @@ const DEFAULTS = {
   },
   cursor: {
     visible: true,
-    size: 1.6,
+    size: 1.9,
     smoothing: 0.3,
     pressScale: 0.82,
     hideAfter: 0,
-    motionBlur: 0,
+    motionBlur: 0.5,
     click: { type: 'ripple', color: 'auto', size: 26, duration: 520 },
   },
   zoom: {
@@ -106,7 +109,9 @@ const DEFAULTS = {
     maxScale: 3,
     duration: 900,
     easing: 'smooth',
-    followCursor: true,
+    follow: 'edge',
+    followSpeed: 1,
+    levels: { wide: 1.3, medium: 1.6, close: 2.2 } as Record<string, number>,
     motionBlur: 0,
   },
   captions: { position: 'bottom', fontSize: 40, fontFamily: 'Inter Display' },
@@ -198,6 +203,7 @@ export function resolveOptions(
       ...(merged.zoom as ResolvedOptions['zoom']),
       auto: auto === true ? DEFAULT_AUTO_ZOOM : auto ? { ...DEFAULT_AUTO_ZOOM, ...auto } : false,
       maxScale: Math.max(1, merged.zoom.maxScale),
+      followSpeed: Math.max(0.05, merged.zoom.followSpeed),
     },
     captions: merged.captions as ResolvedOptions['captions'],
     keystrokes: merged.keystrokes as ResolvedOptions['keystrokes'],

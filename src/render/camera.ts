@@ -1,4 +1,4 @@
-import type { MouseButtonEvent, KeyEvent, Size, ZoomEvent } from '../types.ts';
+import type { FollowMode, MouseButtonEvent, KeyEvent, Size, ZoomEvent } from '../types.ts';
 import { clamp, easing, type EasingFunction } from './easing.ts';
 import { springStep } from './spring.ts';
 import type { ResolvedAutoZoom } from './defaults.ts';
@@ -24,7 +24,18 @@ export interface CameraOptions {
   maxScale: number;
   duration: number;
   easing: ZoomEvent['easing'];
-  followCursor: boolean;
+  /**
+   * Follow mode for shots that do not set one.
+   */
+  follow: FollowMode;
+  /**
+   * Multiplies the follow spring frequency.
+   */
+  followSpeed?: number;
+  /**
+   * Named zoom levels for events with `level`.
+   */
+  levels?: Record<string, number>;
   /**
    * Size of the region a fit zoom fills, relative to the rest frame, at an output time:
    * larger than 1 in camera mode, where the page may use the whole output.
@@ -56,6 +67,39 @@ export const FOLLOW_MARGIN = 0.06;
  * Angular frequency of the follow spring, in 1/s (settles in about 0.7 s).
  */
 export const FOLLOW_OMEGA = 6;
+/**
+ * Follow mode 'cursor': the cursor may move freely inside this central fraction of the
+ * visible size; the camera travels when it pushes past, on a calmer spring.
+ */
+export const DEAD_ZONE = 0.3;
+export const CURSOR_OMEGA = 5;
+
+/**
+ * The follow mode of a shot: its own `follow` (true is 'edge', false is 'off'), or the
+ * render option.
+ */
+export function followMode(event: Pick<ZoomEvent, 'follow'> | undefined, fallback: FollowMode) {
+  const f = event?.follow;
+  return f === true ? 'edge' : f === false ? 'off' : (f ?? fallback);
+}
+
+/**
+ * The scale a zoom event asks for: `scale`, else its named `level`, else undefined (fit).
+ */
+export function zoomScale(
+  event: Pick<ZoomEvent, 'scale' | 'level'>,
+  levels: Record<string, number>,
+): number | undefined {
+  if (event.scale !== undefined) return event.scale;
+  if (event.level === undefined) return undefined;
+  const scale = levels[event.level];
+  if (scale === undefined) {
+    throw new Error(
+      `Unknown zoom level "${event.level}". Known levels: ${Object.keys(levels).join(', ')}.`,
+    );
+  }
+  return scale;
+}
 
 /**
  * Moves the center so that the visible rectangle stays inside the viewport.
@@ -131,6 +175,7 @@ type Trajectory =
       vy: number;
       t0: number;
       constrain: Constrain;
+      omega: number;
     }
   | TransitionTrajectory;
 
@@ -140,7 +185,7 @@ type Trajectory =
 function evaluate(tr: Trajectory, t: number): CameraState {
   if (tr.kind === 'static') return tr.state;
   if (tr.kind === 'coast') {
-    const k = (1 - Math.exp((-FOLLOW_OMEGA * (t - tr.t0)) / 1000)) / FOLLOW_OMEGA;
+    const k = (1 - Math.exp((-tr.omega * (t - tr.t0)) / 1000)) / tr.omega;
     const s = tr.state;
     return tr.constrain({ scale: s.scale, cx: s.cx + tr.vx * k, cy: s.cy + tr.vy * k }, t);
   }
@@ -162,6 +207,8 @@ interface Transition {
   t0: number;
   end: number;
   event: TimedEvent<ZoomEvent>;
+  mode: FollowMode;
+  omega: number;
   /**
    * The directed framing, constrained at the end time.
    */
@@ -173,12 +220,16 @@ interface Transition {
 }
 
 /**
- * Follow targets. The zoom directive is the home view; the target is that view moved by
- * the smallest offset that keeps the cursor `FOLLOW_MARGIN` inside it (plus room for the
- * cursor body below and right of the hotspot), so the offset is 0 whenever the cursor is
- * well inside. After each directive the follow waits until the cursor has been inside the
- * home view: a cursor left outside when the zoom started does not pull the camera.
- * A directive's `follow` overrides `enabled` until the next directive. NaN during
+ * Follow targets, by the follow mode of each shot:
+ * - 'off': the directed framing (home).
+ * - 'edge': home moved by the smallest offset that keeps the cursor `FOLLOW_MARGIN` inside
+ *   the view (plus room for the cursor body below and right of the hotspot); the offset
+ *   is 0 again when the cursor is well inside. A cursor-anchored shot has no framing to
+ *   return to: the view stays where the cursor pushed it.
+ * - 'cursor': the view travels with the cursor, which may move freely in a central dead
+ *   zone; the view never returns home.
+ * After each directive the follow waits until the cursor has been inside the home view:
+ * a cursor left outside when the zoom started does not pull the camera. NaN during
  * transitions.
  */
 function followTargets(
@@ -187,7 +238,7 @@ function followTargets(
   transitions: Transition[],
   cursor: CursorInput | null,
   viewport: Size,
-  enabled: boolean,
+  fallback: FollowMode,
   constrain: Constrain,
 ): [Float64Array, Float64Array] {
   const n = times.length;
@@ -196,14 +247,18 @@ function followTargets(
   const rest: CameraState = { scale: 1, cx: viewport.width / 2, cy: viewport.height / 2 };
   let segment = -2;
   let engaged = false;
+  let ax = rest.cx;
+  let ay = rest.cy;
   for (let i = 0; i < n; i++) {
     const tr = active[i] >= 0 ? transitions[active[i]] : null;
+    const home = tr ? tr.home : rest;
     if (active[i] !== segment) {
       segment = active[i];
       engaged = false;
+      ax = home.cx;
+      ay = home.cy;
     }
-    const home = tr ? tr.home : rest;
-    const follow = tr?.event.follow ?? enabled;
+    const mode = tr ? tr.mode : fallback;
     const s = home.scale;
     const hw = viewport.width / (2 * s);
     const hh = viewport.height / (2 * s);
@@ -213,17 +268,30 @@ function followTargets(
     if (tr && times[i] < tr.end) continue;
     let cx = home.cx;
     let cy = home.cy;
-    if (follow && cursor && engaged && s > 1.001) {
+    if (mode !== 'off' && cursor && engaged && s > 1.001) {
       const mx = (FOLLOW_MARGIN * viewport.width) / s;
       const my = (FOLLOW_MARGIN * viewport.height) / s;
       const ext = Math.min(cursor.extent, hw - mx);
-      if (x < home.cx - hw + mx) cx = x + hw - mx;
-      else if (x > home.cx + hw - mx - ext) cx = x - hw + mx + ext;
-      if (y < home.cy - hh + my) cy = y + hh - my;
-      else if (y > home.cy + hh - my - ext) cy = y - hh + my + ext;
+      let left = hw - mx;
+      let right = hw - mx - ext;
+      let up = hh - my;
+      let down = hh - my - ext;
+      if (mode === 'cursor') {
+        left = right = (DEAD_ZONE / 2) * 2 * hw;
+        up = down = (DEAD_ZONE / 2) * 2 * hh;
+      }
+      const accumulate = mode === 'cursor' || tr?.event.anchor === 'cursor';
+      const bx = accumulate ? ax : home.cx;
+      const by = accumulate ? ay : home.cy;
+      cx = x < bx - left ? x + left : x > bx + right ? x - right : bx;
+      cy = y < by - up ? y + up : y > by + down ? y - down : by;
       const c = constrain({ scale: s, cx, cy }, times[i]);
       cx = c.cx;
       cy = c.cy;
+      if (accumulate) {
+        ax = cx;
+        ay = cy;
+      }
     }
     fx[i] = cx;
     fy[i] = cy;
@@ -253,13 +321,35 @@ export function computeCamera(
     cy: new Float64Array(n),
   };
   const constrain: Constrain = options.constrain ?? ((state) => clampCamera(state, viewport));
+  const speed = options.followSpeed ?? 1;
+  const levels = options.levels ?? {};
+  const cursorAt = (t: number) => {
+    let i = 0;
+    while (i < n - 1 && times[i + 1] <= t) i++;
+    return cursor ? { x: cursor.x[i], y: cursor.y[i] } : null;
+  };
   const transitions: Transition[] = [...zooms]
     .sort((a, b) => a.out - b.out)
     .map((event) => {
       const end = event.out + Math.max(0, event.duration ?? options.duration);
-      const target = zoomTarget(event, viewport, options.maxScale, options.fit?.(end));
+      let focus = event.focus;
+      if (event.anchor === 'cursor') {
+        const at = focus
+          ? { x: focus.x + focus.width / 2, y: focus.y + focus.height / 2 }
+          : cursorAt(event.out);
+        focus = at && { x: at.x, y: at.y, width: 0, height: 0 };
+      }
+      const scale = zoomScale(event, levels);
+      const target = zoomTarget(
+        { focus, scale, padding: event.padding },
+        viewport,
+        options.maxScale,
+        options.fit?.(end),
+      );
       const home = constrain(target, end);
-      return { t0: event.out, end, event, home, land: home };
+      const mode = followMode(event, options.follow);
+      const omega = (mode === 'cursor' ? CURSOR_OMEGA : FOLLOW_OMEGA) * speed;
+      return { t0: event.out, end, event, mode, omega, home, land: home };
     });
   const active = new Int32Array(n).fill(-1);
   for (let i = 0, j = -1; i < n; i++) {
@@ -272,12 +362,14 @@ export function computeCamera(
     transitions,
     cursor,
     viewport,
-    options.followCursor,
+    options.follow,
     constrain,
   );
-  const lead = 2000 / FOLLOW_OMEGA;
+  const omegaAt = (i: number) =>
+    active[i] >= 0 ? transitions[active[i]].omega : FOLLOW_OMEGA * speed;
   const lookAhead = (from: number) => {
     let a = from;
+    const lead = 2000 / omegaAt(from);
     while (
       a + 1 < n &&
       times[a + 1] <= times[from] + lead &&
@@ -310,7 +402,7 @@ export function computeCamera(
       let from: Trajectory;
       if (traj && tr.t0 < traj.t0 + traj.duration) from = traj;
       else if (Math.hypot(vx, vy) > 1) {
-        from = { kind: 'coast', state, vx, vy, t0: prevT, constrain };
+        from = { kind: 'coast', state, vx, vy, t0: prevT, constrain, omega: omegaAt(i - 1) };
       } else from = { kind: 'static', state };
       traj = {
         kind: 'transition',
@@ -336,10 +428,11 @@ export function computeCamera(
         vx = 0;
         vy = 0;
       }
+      const omega = omegaAt(i);
       if (ahead < i) ahead = i;
       while (
         ahead + 1 < n &&
-        times[ahead + 1] <= t + lead &&
+        times[ahead + 1] <= t + 2000 / omega &&
         active[ahead + 1] === active[i] &&
         !Number.isNaN(fx[ahead + 1])
       ) {
@@ -349,8 +442,8 @@ export function computeCamera(
       const ty = Number.isNaN(fy[ahead]) ? state.cy : fy[ahead];
       let cx: number;
       let cy: number;
-      [cx, vx] = springStep(state.cx, vx, tx, FOLLOW_OMEGA, dt);
-      [cy, vy] = springStep(state.cy, vy, ty, FOLLOW_OMEGA, dt);
+      [cx, vx] = springStep(state.cx, vx, tx, omega, dt);
+      [cy, vy] = springStep(state.cy, vy, ty, omega, dt);
       const held = constrain({ scale: state.scale, cx, cy }, t);
       if (held.cx !== cx) vx = 0;
       if (held.cy !== cy) vy = 0;

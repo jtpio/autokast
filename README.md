@@ -129,23 +129,24 @@ autocast inspect .autocast/first-notebook --from 10 --to 14 --every 0.25 -o zoom
 timeline. A target is a Playwright locator, a selector string, a point `{ x, y }` or a rectangle
 `{ x, y, width, height }` in viewport pixels.
 
-| Call                                           | Effect                                                    |
-| ---------------------------------------------- | --------------------------------------------------------- |
-| `click(target)`, `dblclick`, `rightClick`      | Moves the cursor along a natural path, then presses.      |
-| `moveTo(target)`, `hover(target, { hold })`    | Moves the cursor.                                         |
-| `drag(from, to)`                               | Presses on `from`, moves to `to`, releases.               |
-| `scroll({ y }, { at })`, `scrollTo(target)`    | Smooth wheel scroll.                                      |
-| `type(text, { into, delay })`                  | Types with a human rhythm. Keeps the indentation of code. |
-| `press('Shift+Enter')`                         | Presses a key combination.                                |
-| `zoomTo(target, { scale, padding, duration })` | Moves the camera to a target.                             |
-| `zoomOut()`                                    | Returns to the full view.                                 |
-| `wait(ms)`                                     | Holds the shot.                                           |
-| `cut(fn)`                                      | Runs `fn` and removes that time from the video.           |
-| `speed(rate, fn)`                              | Runs `fn` and plays that time faster.                     |
-| `spotlight(target, { duration })`              | Dims everything except the target.                        |
-| `caption(text, { label, duration })`           | Shows a caption below the stage.                          |
-| `marker(label)`                                | Names a point in time.                                    |
-| `page`                                         | The Playwright page, for waits and assertions.            |
+| Call                                                | Effect                                                    |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| `click(target)`, `dblclick`, `rightClick`           | Moves the cursor along a natural path, then presses.      |
+| `moveTo(target)`, `hover(target, { hold })`         | Moves the cursor.                                         |
+| `drag(from, to)`                                    | Presses on `from`, moves to `to`, releases.               |
+| `scroll({ y }, { at })`, `scrollTo(target)`         | Smooth wheel scroll.                                      |
+| `type(text, { into, delay })`                       | Types with a human rhythm. Keeps the indentation of code. |
+| `press('Shift+Enter')`                              | Presses a key combination.                                |
+| `zoomTo(target, { level, scale, padding, follow })` | Frames a target at a named level, a scale, or a fit.      |
+| `zoom(level)`                                       | Zooms on the cursor; the camera then travels with it.     |
+| `zoomOut()`                                         | Returns to the full view.                                 |
+| `wait(ms)`                                          | Holds the shot.                                           |
+| `cut(fn)`                                           | Runs `fn` and removes that time from the video.           |
+| `speed(rate, fn)`                                   | Runs `fn` and plays that time faster.                     |
+| `spotlight(target, { duration })`                   | Dims everything except the target.                        |
+| `caption(text, { label, duration })`                | Shows a caption below the stage.                          |
+| `marker(label)`                                     | Names a point in time.                                    |
+| `page`                                              | The Playwright page, for waits and assertions.            |
 
 Use `cast.page` to wait and to read state. Do not use it to click or to type: the cursor in the
 video would not follow.
@@ -172,8 +173,8 @@ export default defineScreencast({
     fps: 60,
     background: 'dusk', // paper, fog, sage, dune, clay, dusk, harbor, graphite, ink, ember
     frame: { padding: 0.07, radius: 16, chrome: 'none' },
-    cursor: { size: 1.6, smoothing: 0.3, click: { type: 'ripple' } },
-    zoom: { mode: 'camera', easing: 'smooth', duration: 900, followCursor: true, auto: false },
+    cursor: { size: 1.9, smoothing: 0.3, motionBlur: 0.5, click: { type: 'ripple' } },
+    zoom: { mode: 'camera', easing: 'smooth', duration: 900, follow: 'edge', auto: false },
     encode: { quality: 'standard' }, // draft, standard, high, max
   },
 
@@ -193,7 +194,13 @@ Notes on the options that change the look most:
   camera that moves closer. `crop` zooms inside a fixed window.
 - **`render.zoom.auto`** adds zooms on clicks and typing when the script has none.
 - **`render.frame.chrome: 'window'`** adds a title bar.
-- **`render.cursor.motionBlur`** and **`render.zoom.motionBlur`** (0 to 1) add motion blur.
+- **`render.zoom.follow`** sets how the camera reacts to the cursor while zoomed: `off` (fixed
+  shot), `edge` (pan only when the cursor comes near the edge) or `cursor` (travel with the
+  cursor). Each `zoomTo` or `zoom` call can set its own `follow`.
+- **`render.zoom.levels`** gives the scale of the named zoom levels (`wide` 1.3, `medium` 1.6,
+  `close` 2.2), so a render can retune every shot of one level.
+- **`render.cursor.motionBlur`** (0 to 1, on by default) blurs the cursor during fast moves.
+  **`render.zoom.motionBlur`** does the same for camera moves and is off by default.
 - Pixel values are for a 1080-pixel output and scale with the output size, so a preview looks
   like the final render.
 
@@ -252,3 +259,7 @@ Source files run directly with Node (type stripping). `src/record` holds the rec
 - The default capture is in real time: a page that paints slowly gives fewer distinct frames.
   The `frame-perfect` capture mode removes this limit at the cost of a longer recording.
 - No audio.
+
+## License
+
+BSD 3-Clause. See [LICENSE](LICENSE).

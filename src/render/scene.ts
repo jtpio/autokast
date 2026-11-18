@@ -167,7 +167,7 @@ function fitRegion(
 type Input = Omit<FrameInput, 'image'>;
 
 const CAMERA_SAMPLES = 20;
-const CURSOR_SAMPLES = 24;
+const CURSOR_SAMPLES = 96;
 
 /**
  * Value of a per-frame track `delta` frames away from frame i (|delta| <= 1).
@@ -175,6 +175,20 @@ const CURSOR_SAMPLES = 24;
 function at(track: ArrayLike<number>, i: number, delta: number): number {
   const j = delta < 0 ? Math.max(0, i - 1) : Math.min(track.length - 1, i + 1);
   return track[i] + (track[j] - track[i]) * Math.abs(delta);
+}
+
+/**
+ * Cursor coordinate `delta` frames from frame i (|delta| <= 1) on a Catmull-Rom curve
+ * through the frame positions, so sub-frame samples follow the real, curved path.
+ */
+function cursorAt(track: ArrayLike<number>, i: number, delta: number): number {
+  const k = delta < 0 ? i - 1 : i;
+  const u = delta < 0 ? 1 + delta : delta;
+  const p = (j: number) => track[Math.min(track.length - 1, Math.max(0, j))];
+  const [p0, p1, p2, p3] = [p(k - 1), p(k), p(k + 1), p(k + 2)];
+  return (
+    p1 + 0.5 * u * (p2 - p0 + u * (2 * p0 - 5 * p1 + 4 * p2 - p3 + u * (3 * (p1 - p2) + p3 - p0)))
+  );
 }
 
 function cameraAt(scene: Scene, i: number, delta: number): CameraState {
@@ -251,17 +265,18 @@ export function frameInputs(scene: Scene, i: number): Input[] {
   }
   const cursorBlur = Math.min(1, Math.max(0, scene.options.cursor.motionBlur));
   if (cursorBlur > 0 && base.cursor) {
-    const h = cursorBlur / 2;
     const c = scene.cursor;
-    const travel =
-      Math.hypot(at(c.x, i, h) - at(c.x, i, -h), at(c.y, i, h) - at(c.y, i, -h)) *
-      scene.layout.k *
-      base.stage.scale *
-      base.camera.scale;
-    const offsets = shutterOffsets(travel, cursorBlur, 1.5, CURSOR_SAMPLES);
-    if (offsets.length > 1) {
-      base.cursorTrail = offsets.map((delta) => ({ x: at(c.x, i, delta), y: at(c.y, i, delta) }));
+    const px = scene.layout.k * base.stage.scale * base.camera.scale;
+    const point = (delta: number) => ({ x: cursorAt(c.x, i, delta), y: cursorAt(c.y, i, delta) });
+    let travel = 0;
+    let last = point(-cursorBlur / 2);
+    for (let j = 1; j <= 8; j++) {
+      const next = point(cursorBlur * (j / 8 - 0.5));
+      travel += Math.hypot(next.x - last.x, next.y - last.y) * px;
+      last = next;
     }
+    const offsets = shutterOffsets(travel, cursorBlur, 1, CURSOR_SAMPLES);
+    if (offsets.length > 1) base.cursorTrail = offsets.map(point);
   }
   return [base];
 }

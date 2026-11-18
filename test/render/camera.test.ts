@@ -4,6 +4,7 @@ import {
   autoZoomEvents,
   clampCamera,
   computeCamera,
+  DEAD_ZONE,
   FOLLOW_MARGIN,
   interpolateCamera,
   zoomTarget,
@@ -13,7 +14,7 @@ import { frameTimes, type TimedEvent } from '../../src/render/timeline.ts';
 import type { ZoomEvent } from '../../src/types.ts';
 
 const VP = { width: 1280, height: 720 };
-const OPTIONS = { maxScale: 3, duration: 900, easing: 'smooth' as const, followCursor: true };
+const OPTIONS = { maxScale: 3, duration: 900, easing: 'smooth' as const, follow: 'edge' as const };
 
 const zoom = (out: number, z: Partial<ZoomEvent>): TimedEvent<ZoomEvent> => ({
   type: 'zoom',
@@ -206,7 +207,7 @@ test('follow keeps a cursor that leaves far in view', () => {
   visibleInside(track);
 });
 
-test('a directive with follow overrides followCursor until the next directive', () => {
+test('a directive with follow overrides zoom.follow until the next directive', () => {
   const times = frameTimes(9000, 60);
   const cursor = cursorPathOf(times, [
     [0, 640, 360],
@@ -232,10 +233,168 @@ test('a directive with follow overrides followCursor until the next directive', 
     [zoom(200, { focus, scale: 2, follow: true }), zoom(4000, { focus, scale: 2 })],
     cursor,
     VP,
-    { ...OPTIONS, followCursor: false },
+    { ...OPTIONS, follow: 'off' },
   );
   assert.ok(on.cx[at(times, 2600)] > home.cx + 100);
   assert.equal(on.cx[at(times, 6800)], home.cx);
+  const travel = computeCamera(
+    times,
+    [zoom(200, { focus, scale: 2, follow: 'cursor' }), zoom(4000, { focus, scale: 2 })],
+    cursor,
+    VP,
+    { ...OPTIONS, follow: 'off' },
+  );
+  assert.ok(travel.cx[at(times, 2000)] > home.cx + 20, 'cursor mode moves early');
+  assert.equal(travel.cx[at(times, 6800)], home.cx);
+});
+
+const ACROSS: [number, number, number][] = [
+  [0, 640, 360],
+  [1500, 640, 360],
+  [3500, 900, 450],
+];
+const CENTER = { x: 600, y: 340, width: 80, height: 40 };
+
+test("follow 'off' keeps the directed framing while the cursor crosses the page", () => {
+  const times = frameTimes(6000, 60);
+  const cursor = cursorPathOf(times, ACROSS);
+  const track = computeCamera(times, [zoom(200, { focus: CENTER, scale: 2 })], cursor, VP, {
+    ...OPTIONS,
+    follow: 'off',
+  });
+  const home = zoomTarget({ focus: CENTER, scale: 2 }, VP, 3);
+  for (let i = at(times, 1100); i < times.length; i++) {
+    assert.equal(track.cx[i], home.cx);
+    assert.equal(track.cy[i], home.cy);
+  }
+});
+
+test("follow 'edge' pans only when the cursor nears the edge", () => {
+  const times = frameTimes(6000, 60);
+  const cursor = cursorPathOf(times, [...ACROSS.slice(0, 2), [3500, 1000, 450]]);
+  const track = computeCamera(times, [zoom(200, { focus: CENTER, scale: 2 })], cursor, VP, OPTIONS);
+  const home = zoomTarget({ focus: CENTER, scale: 2 }, VP, 3);
+  const hw = VP.width / 4;
+  const limit = home.cx + hw - (FOLLOW_MARGIN * VP.width) / 2 - 30;
+  const lead = 2000 / 6;
+  for (let i = at(times, 1100); i < times.length; i++) {
+    const ahead = times.findIndex((t) => t >= times[i] + lead);
+    const later = ahead < 0 ? times.length - 1 : ahead;
+    if (Math.max(...Array.from(cursor.x.slice(i, later + 1))) < limit) {
+      assert.equal(track.cx[i], home.cx, `moved early at ${times[i]}`);
+    }
+    assert.ok(cursor.x[i] < track.cx[i] + hw, 'cursor visible');
+  }
+  assert.ok(track.cx[times.length - 1] > home.cx + 10);
+});
+
+test("follow 'cursor' travels with the cursor, calmly, and never returns home", () => {
+  const times = frameTimes(7000, 60);
+  const cursor = cursorPathOf(times, ACROSS);
+  const track = computeCamera(times, [zoom(200, { focus: CENTER, scale: 2 })], cursor, VP, {
+    ...OPTIONS,
+    follow: 'cursor',
+  });
+  const hw = VP.width / 4;
+  const hh = VP.height / 4;
+  const dead = DEAD_ZONE * hw;
+  for (let i = at(times, 1100); i < times.length; i++) {
+    assert.ok(Math.abs(cursor.x[i] - track.cx[i]) <= dead + 0.1 * hw, `x out at ${times[i]}`);
+    assert.ok(Math.abs(cursor.y[i] - track.cy[i]) <= DEAD_ZONE * hh + 0.1 * hh, `y out`);
+  }
+  let peak = 0;
+  let jump = 0;
+  for (let i = 2; i < times.length; i++) {
+    const v = track.cx[i] - track.cx[i - 1];
+    peak = Math.max(peak, Math.abs(v));
+    jump = Math.max(jump, Math.abs(v - (track.cx[i - 1] - track.cx[i - 2])));
+  }
+  assert.ok(jump < 0.12 * peak, `velocity jump ${jump} vs ${peak}`);
+  for (let i = at(times, 3500) + 1; i < times.length; i++) {
+    assert.ok(track.cx[i] - track.cx[i - 1] >= -1e-9, `oscillation at ${times[i]}`);
+  }
+  const last = times.length - 1;
+  assert.ok(Math.abs(track.cx[last] - track.cx[last - 1]) < 1e-3, 'settled');
+  assert.ok(Math.abs(900 - track.cx[last]) <= dead + 1e-6);
+  assert.ok(track.cx[last] > 700, 'stays with the cursor');
+});
+
+test('small cursor wiggles inside the dead zone do not move the camera', () => {
+  const times = frameTimes(5000, 60);
+  const keys: [number, number, number][] = [[0, 640, 360]];
+  for (let t = 1500; t < 4500; t += 250) keys.push([t, 640 + (keys.length % 2 ? 40 : -40), 370]);
+  const cursor = cursorPathOf(times, keys);
+  const home = zoomTarget({ focus: CENTER, scale: 2 }, VP, 3);
+  for (const follow of ['edge', 'cursor'] as const) {
+    const track = computeCamera(times, [zoom(200, { focus: CENTER, scale: 2 })], cursor, VP, {
+      ...OPTIONS,
+      follow,
+    });
+    for (let i = at(times, 1100); i < times.length; i++) {
+      assert.equal(track.cx[i], home.cx, `${follow} moved at ${times[i]}`);
+    }
+  }
+});
+
+test("follow 'edge' on a cursor-anchored zoom stays where the cursor pushed it", () => {
+  const times = frameTimes(7000, 60);
+  const cursor = cursorPathOf(times, [
+    [0, 640, 360],
+    [1500, 640, 360],
+    [2500, 1100, 360],
+    [3500, 1100, 360],
+    [4500, 800, 360],
+  ]);
+  const point = { x: 640, y: 360, width: 0, height: 0 };
+  const anchored = computeCamera(
+    times,
+    [zoom(200, { focus: point, scale: 2, anchor: 'cursor' })],
+    cursor,
+    VP,
+    OPTIONS,
+  );
+  const target = computeCamera(times, [zoom(200, { focus: point, scale: 2 })], cursor, VP, OPTIONS);
+  const last = times.length - 1;
+  assert.ok(anchored.cx[last] > 800, `anchored ${anchored.cx[last]}`);
+  assert.ok(Math.abs(target.cx[last] - 640) < 0.5, `target ${target.cx[last]}`);
+});
+
+test('followSpeed multiplies the follow spring', () => {
+  const times = frameTimes(6000, 60);
+  const cursor = cursorPathOf(times, [
+    [0, 640, 360],
+    [1500, 640, 360],
+    [1700, 900, 360],
+  ]);
+  const settle = (followSpeed: number) => {
+    const track = computeCamera(times, [zoom(200, { focus: CENTER, scale: 2 })], cursor, VP, {
+      ...OPTIONS,
+      follow: 'cursor',
+      followSpeed,
+    });
+    const final = track.cx[times.length - 1];
+    const start = track.cx[at(times, 1100)];
+    return times[track.cx.findIndex((x) => x >= start + 0.9 * (final - start))];
+  };
+  const slow = settle(1) - 1100;
+  const fast = settle(2) - 1100;
+  assert.ok(fast < slow * 0.8, `speed 2 settles at ${fast}, speed 1 at ${slow}`);
+});
+
+test('zoom levels give the scale; scale wins; unknown levels name the known ones', () => {
+  const times = frameTimes(2000, 60);
+  const levels = { wide: 1.3, medium: 1.6, close: 2.2, hero: 2.8 };
+  const final = (z: Partial<ZoomEvent>, maxScale = 3) =>
+    computeCamera(times, [zoom(100, { focus: CENTER, ...z })], null, VP, {
+      ...OPTIONS,
+      maxScale,
+      levels,
+    }).scale[times.length - 1];
+  assert.equal(final({ level: 'close' }), 2.2);
+  assert.equal(final({ level: 'hero' }), 2.8);
+  assert.equal(final({ level: 'hero' }, 2), 2);
+  assert.equal(final({ level: 'close', scale: 1.5 }), 1.5);
+  assert.throws(() => final({ level: 'nope' }), /Known levels: wide, medium, close, hero/);
 });
 
 test('auto zoom zooms in before the first click, pans to far clicks, and zooms out after', () => {

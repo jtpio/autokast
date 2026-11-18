@@ -214,6 +214,7 @@ export class Compositor {
   private accumulator: Canvas | null = null;
   private cursorLayer: Canvas | null = null;
   private sprite: Canvas | null = null;
+  private spriteKey = '';
   private readonly band: BandLayout | null;
   private moving: Canvas | null = null;
   private movingKey = '';
@@ -658,8 +659,9 @@ export class Compositor {
   }
 
   /**
-   * Averages the cursor over its positions across the shutter: the cursor is drawn once
-   * into a sprite, which is added at each position into a float16 layer.
+   * Cursor motion blur: the average of the cursor at its positions across the shutter.
+   * The cursor (fill, outline, shadow) is drawn once into a sprite, which is added with
+   * premultiplied weights 1/N into a float16 layer, so the smear keeps its brightness.
    */
   private drawCursorTrail(
     ctx: SKRSContext2D,
@@ -669,13 +671,15 @@ export class Compositor {
   ): void {
     const { width, height } = this.layout.size;
     const m = Math.ceil(30 * scale);
+    const key = [cur.style, cur.previousStyle, cur.styleMix, cur.press, cur.opacity, scale].join();
     if (!this.sprite || this.sprite.width < 2 * m) this.sprite = createCanvas(2 * m, 2 * m);
-    const sprite = this.sprite.getContext('2d');
-    sprite.setTransform(1, 0, 0, 1, 0, 0);
-    sprite.clearRect(0, 0, this.sprite.width, this.sprite.height);
-    drawCursorFrame(sprite, cur, m, m, scale, 1);
-    this.cursorLayer ??= floatCanvas(width, height);
-    const layer = this.cursorLayer.getContext('2d');
+    if (key !== this.spriteKey) {
+      const sprite = this.sprite.getContext('2d');
+      sprite.setTransform(1, 0, 0, 1, 0, 0);
+      sprite.clearRect(0, 0, this.sprite.width, this.sprite.height);
+      drawCursorFrame(sprite, cur, m, m, scale, 1);
+      this.spriteKey = key;
+    }
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
     const x0 = Math.max(0, Math.floor(Math.min(...xs) - m));
@@ -683,16 +687,27 @@ export class Compositor {
     const x1 = Math.min(width, Math.ceil(Math.max(...xs) + m));
     const y1 = Math.min(height, Math.ceil(Math.max(...ys) + m));
     if (x1 <= x0 || y1 <= y0) return;
+    const w = x1 - x0;
+    const h = y1 - y0;
+    if (!this.cursorLayer || this.cursorLayer.width < w || this.cursorLayer.height < h) {
+      this.cursorLayer = floatCanvas(
+        Math.max(w, this.cursorLayer?.width ?? 0),
+        Math.max(h, this.cursorLayer?.height ?? 0),
+      );
+    }
+    const layer = this.cursorLayer.getContext('2d');
+    layer.imageSmoothingEnabled = true;
+    layer.imageSmoothingQuality = 'low';
     layer.setTransform(1, 0, 0, 1, 0, 0);
-    layer.clearRect(x0, y0, x1 - x0, y1 - y0);
+    layer.clearRect(0, 0, w, h);
     layer.globalCompositeOperation = 'lighter';
     layer.globalAlpha = 1 / points.length;
-    for (const p of points) layer.drawImage(this.sprite, p.x - m, p.y - m);
+    for (const p of points) layer.drawImage(this.sprite, p.x - m - x0, p.y - m - y0);
     layer.globalAlpha = 1;
     layer.globalCompositeOperation = 'source-over';
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(this.cursorLayer, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    ctx.drawImage(this.cursorLayer, 0, 0, w, h, x0, y0, w, h);
     ctx.restore();
   }
 
