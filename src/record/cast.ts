@@ -249,6 +249,20 @@ export class Director implements Cast {
     });
   }
 
+  select(
+    target: Locator | string,
+    values: string | string[],
+    options: ClickOptions = {},
+  ): Promise<void> {
+    return this.step(`select(${describeTarget(target)}, ${JSON.stringify(values)})`, async () => {
+      await this.clickTarget(target, { ...options, afterClick: 0 });
+      await this.locatorOf(target).selectOption(values, {
+        timeout: options.timeout ?? this.timeout,
+      });
+      await this.pace.sleep(options.afterClick ?? this.options.pacing.afterClick);
+    });
+  }
+
   scroll(delta: { x?: number; y?: number }, options: ScrollOptions = {}): Promise<void> {
     return this.step(`scroll(${JSON.stringify(delta)})`, async () => {
       if (options.at !== undefined) {

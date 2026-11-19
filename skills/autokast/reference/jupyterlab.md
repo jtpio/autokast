@@ -39,14 +39,18 @@ jupyter lab --no-browser --port 8888 --IdentityProvider.token='' --ServerApp.roo
   });
   ```
 
-- `examples/jupyterlab/serve.sh` and `examples/jupyterlab/reset.ts` in the autokast repository
-  do all of this; copy them.
+- [`examples/jupyterlab`](https://github.com/jtpio/autokast/tree/main/examples/jupyterlab)
+  in the autokast repository has `serve.sh` and `reset.ts`, which do all of this. The npm
+  package does not include them.
 - The same server serves Notebook at `/tree`. A notebook opens at `/notebooks/<path>`.
 
 ## Known problems
 
 - **Kernel start.** After a new notebook opens, cut until the kernel is ready:
   `await cast.cut(() => page.locator('.jp-Notebook-ExecutionIndicator[data-status="idle"]').waitFor())`.
+- **Kernel time.** In frame-perfect mode, the kernel runs in real time, but the page clock
+  runs 3 to 4 times slower. A cell that takes 2 s finishes after about half a second of
+  video. To show a running cell, make it run longer, and cut the wait for its end.
 - **Cell output.** After `Shift+Enter`, cut until the output exists, for example
   `page.locator('.jp-OutputArea-output img').waitFor()`. The idle indicator can still show
   the earlier idle state for a moment.
@@ -80,8 +84,9 @@ jupyter lab --no-browser --port 8888 --IdentityProvider.token='' --ServerApp.roo
 - Build and serve a site: `jupyter lite build --contents <dir> --output-dir <site>`, then serve
   `<site>` with any static server and open `/lab/index.html`. The build writes a cache file
   into the current directory, so run it in a temporary directory. `--contents` needs
-  `jupyter-server` in the same environment. `examples/jupyterlite/serve.sh` in the autokast
-  repository does this.
+  `jupyter-server` in the same environment.
+  [`examples/jupyterlite/serve.sh`](https://github.com/jtpio/autokast/blob/main/examples/jupyterlite/serve.sh)
+  in the autokast repository does this.
 - The kernel indicator shows `idle` before the kernel exists. Wait for the output, not for
   the indicator.
 - The first kernel start loads Pyodide, and each first import loads its package: several

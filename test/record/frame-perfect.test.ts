@@ -298,7 +298,11 @@ describe('frame-perfect failures and limits', () => {
   let dir: string;
 
   before(async () => {
-    server = await serve({ '/': '<!doctype html><button id="go">Go</button>' });
+    server = await serve({
+      '/': '<!doctype html><button id="go">Go</button>',
+      '/form': `<!doctype html><button id="go">Go</button>
+<select id="pick"><option value="1">One</option><option value="2">Two</option></select>`,
+    });
     dir = await mkdtemp(path.join(os.tmpdir(), 'autokast-fp-fail-'));
   });
 
@@ -325,6 +329,29 @@ describe('frame-perfect failures and limits', () => {
     const partial = await loadSession(dir);
     assert.ok(partial.frames.length > 0 && partial.frames.every((frame) => onGrid(frame.t)));
     assert.equal(buttons(partial, 'mouseDown').length, 1);
+  });
+
+  it('chooses an option of a native select and runs idle callbacks after a click', async () => {
+    let state = {};
+    await record(
+      {
+        url: `${server.url}/form`,
+        sessionDir: dir,
+        capture: FRAME_PERFECT,
+        pacing: { startDelay: 0, endDelay: 0 },
+      },
+      async (cast) => {
+        await cast.click('#go');
+        // A timer in the page would let Chromium run the idle callback: wait outside.
+        const idle = await Promise.race([
+          cast.page.evaluate(() => new Promise((resolve) => requestIdleCallback(resolve))),
+          cast.wait(1000),
+        ]);
+        await cast.select('#pick', 'Two');
+        state = { value: await cast.page.locator('#pick').inputValue(), idle: !!idle };
+      },
+    );
+    assert.deepEqual(state, { value: '2', idle: true });
   });
 
   it('blocks a zoom call for part of the camera move by default', async () => {

@@ -16,7 +16,7 @@ import { FRAMES_DIR, FrameCapture, type Capture } from './capture.ts';
 import { Director } from './cast.ts';
 import { CursorStyleProbe } from './cursor-style.ts';
 import { mergeOptions, resolveOptions, type ResolvedOptions } from './defaults.ts';
-import { FRAME_PERFECT_ARGS, FramePump } from './frame-pump.ts';
+import { FRAME_PERFECT_ARGS, FramePump, idleCallbacksOnTimers } from './frame-pump.ts';
 import { FramePerfectPace, RealtimePace, type Pace } from './pace.ts';
 import { Clock, Timeline } from './timeline.ts';
 
@@ -33,6 +33,26 @@ async function prepareSessionDir(dir: string): Promise<void> {
     [SESSION_FILE, ERROR_SCREENSHOT, FRAMES_DIR].map((name) =>
       rm(path.join(dir, name), { recursive: true, force: true }),
     ),
+  );
+}
+
+/**
+ * Page script: a press on a native `<select>` focuses it but does not open its list. The
+ * browser draws the list outside the page, so the video cannot show it, and in
+ * frame-perfect mode the open list stops the capture. `cast.select` chooses the options.
+ */
+function noSelectPopups(): void {
+  addEventListener(
+    'mousedown',
+    (event) => {
+      const target = event.composedPath()[0];
+      const select = target instanceof Element ? target.closest('select') : null;
+      if (select && !select.multiple && select.size <= 1) {
+        event.preventDefault();
+        select.focus();
+      }
+    },
+    true,
   );
 }
 
@@ -169,6 +189,10 @@ export async function record(
     const cursorStyle = new CursorStyleProbe();
     cursorStyle.pointer = opts.cursor.start;
     await cursorStyle.install(context);
+    await context.addInitScript(noSelectPopups);
+    if (framePerfect) {
+      await context.addInitScript(idleCallbacksOnTimers);
+    }
     const page = await context.newPage();
     if (framePerfect) {
       const { fps, clockLead, format, quality } = opts.capture;

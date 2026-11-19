@@ -66,6 +66,7 @@ A target is a Playwright locator, a selector, a point or a rectangle.
 | ---------------------------------------------- | ------------------------------------------------ |
 | `click`, `dblclick`, `rightClick`, `hover`     | Moves the cursor along a natural path, then acts |
 | `drag(from, to)`, `scroll`, `scrollTo`         | Drag and smooth scroll                           |
+| `select(target, values)`                       | Chooses options of a native `<select>`           |
 | `type(text)`, `press('Shift+Enter')`           | Human typing and shortcuts                       |
 | `goto(url)`, `showUrl()`                       | Opens a URL; shows the URL in the browser frame  |
 | `zoomTo(target)`, `zoom('close')`, `zoomOut()` | Camera moves                                     |

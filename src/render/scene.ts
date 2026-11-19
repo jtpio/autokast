@@ -144,7 +144,10 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
   const keys =
     resolved.keystrokes.show === 'none'
       ? []
-      : planKeys(events.filter((e): e is TimedEvent<KeyEvent> => e.type === 'key'));
+      : planKeys(
+          events.filter((e): e is TimedEvent<KeyEvent> => e.type === 'key'),
+          resolved.keystrokes.labels,
+        );
   return {
     session,
     options: resolved,

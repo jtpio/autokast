@@ -68,7 +68,11 @@ export interface ResolvedOptions {
     motionBlur: number;
   };
   captions: { position: 'bottom' | 'top'; fontSize: number; fontFamily: string };
-  keystrokes: { show: 'none' | 'shortcuts' | 'all'; position: 'bottom' | 'top' };
+  keystrokes: {
+    show: 'none' | 'shortcuts' | 'all';
+    position: 'bottom' | 'top';
+    labels: 'mac' | 'pc';
+  };
   encode: Required<Omit<EncodeOptions, 'ffmpegPath' | 'crf' | 'preset'>> & EncodeOptions;
   range: { start: number; end: number };
   onProgress?: (done: number, total: number) => void;
@@ -121,7 +125,11 @@ const DEFAULTS = {
     motionBlur: 0,
   },
   captions: { position: 'bottom', fontSize: 40, fontFamily: 'Inter Display' },
-  keystrokes: { show: 'none', position: 'bottom' },
+  keystrokes: {
+    show: 'none',
+    position: 'bottom',
+    labels: process.platform === 'darwin' ? 'mac' : 'pc',
+  },
   encode: { quality: 'standard', pixelFormat: 'yuv420p' },
 };
 

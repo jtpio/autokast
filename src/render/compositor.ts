@@ -564,7 +564,7 @@ export class Compositor {
   private keysBox(cue: KeyCue, open: number) {
     const L = this.layout;
     const u = L.unit;
-    const caps = capLayouts(cue.keys, u);
+    const caps = capLayouts(cue.keys, u, this.options.keystrokes.labels);
     const width = capsWidth(caps, u);
     const h = 40 * u;
     const top = this.options.keystrokes.position === 'top';

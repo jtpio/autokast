@@ -181,6 +181,9 @@ test('shortcuts split into caps with glyphs and names', () => {
   assert.deepEqual(keyLabel('Meta'), { glyph: '⌘', name: 'Cmd' });
   assert.deepEqual(keyLabel('k'), { glyph: 'K' });
   assert.deepEqual(keyLabel('F5'), { name: 'F5' });
+  assert.deepEqual(parseShortcut('ControlOrMeta+k', 'pc'), ['Control', 'k']);
+  assert.deepEqual(keyLabel('Alt', 'pc'), { name: 'Alt' });
+  assert.deepEqual(keyLabel('Shift', 'pc'), { glyph: '⇧', name: 'Shift' });
 });
 
 test('repeated shortcuts press the same caps and a new one replaces them', () => {

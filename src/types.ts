@@ -524,6 +524,15 @@ export interface Cast {
   rightClick(target: Target, options?: ClickOptions): Promise<void>;
   hover(target: Target, options?: MoveOptions & { hold?: number }): Promise<void>;
   drag(from: Target, to: Target, options?: DragOptions): Promise<void>;
+  /**
+   * Clicks a native `<select>` and chooses options by value or label. The list does not
+   * open: the browser draws it outside the page, so the video could not show it.
+   */
+  select(
+    target: Locator | string,
+    values: string | string[],
+    options?: ClickOptions,
+  ): Promise<void>;
   scroll(delta: { x?: number; y?: number }, options?: ScrollOptions): Promise<void>;
   /**
    * Scrolls smoothly until the target is in view.
@@ -705,6 +714,11 @@ export interface ZoomRenderOptions {
 export interface KeystrokeOptions {
   show?: 'none' | 'shortcuts' | 'all';
   position?: 'bottom' | 'top';
+  /**
+   * Key names on the caps: `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when
+   * the render runs on macOS, else `pc`.
+   */
+  labels?: 'mac' | 'pc';
 }
 
 export interface CaptionRenderOptions {

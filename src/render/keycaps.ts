@@ -24,8 +24,12 @@ export interface KeyCue {
   fadeDuration: number;
 }
 
+/**
+ * Key names on the caps: macOS (⌘ Cmd, ⌥ Opt) or Windows and Linux (Ctrl, Alt).
+ */
+export type KeyLabels = 'mac' | 'pc';
+
 const ALIASES: Record<string, string> = {
-  ControlOrMeta: 'Meta',
   Command: 'Meta',
   Cmd: 'Meta',
   Ctrl: 'Control',
@@ -38,7 +42,7 @@ const ALIASES: Record<string, string> = {
 /**
  * Splits a combination such as `Control+Shift+C` into keys; `Control++` ends with `+`.
  */
-export function parseShortcut(combo: string): string[] {
+export function parseShortcut(combo: string, labels: KeyLabels = 'mac'): string[] {
   const keys: string[] = [];
   let rest = combo;
   while (rest.length) {
@@ -50,7 +54,10 @@ export function parseShortcut(combo: string): string[] {
     keys.push(rest.slice(0, i));
     rest = rest.slice(i + 1);
   }
-  return keys.filter(Boolean).map((k) => ALIASES[k] ?? k);
+  const controlOrMeta = labels === 'mac' ? 'Meta' : 'Control';
+  return keys
+    .filter(Boolean)
+    .map((k) => (k === 'ControlOrMeta' ? controlOrMeta : (ALIASES[k] ?? k)));
 }
 
 const LABELS: Record<string, { glyph?: string; name?: string }> = {
@@ -74,11 +81,22 @@ const LABELS: Record<string, { glyph?: string; name?: string }> = {
   End: { name: 'End' },
 };
 
+const PC_LABELS: Record<string, { glyph?: string; name?: string }> = {
+  Meta: { name: 'Win' },
+  Control: { name: 'Ctrl' },
+  Alt: { name: 'Alt' },
+  Escape: { name: 'Esc' },
+};
+
 /**
  * What a cap shows: a glyph, a name, or both. Single characters show in upper case.
  */
-export function keyLabel(key: string): { glyph?: string; name?: string } {
-  if (LABELS[key]) return LABELS[key];
+export function keyLabel(
+  key: string,
+  labels: KeyLabels = 'mac',
+): { glyph?: string; name?: string } {
+  const known = (labels === 'pc' ? PC_LABELS[key] : undefined) ?? LABELS[key];
+  if (known) return known;
   if (key.length === 1) return { glyph: key.toUpperCase() };
   if (/^Key[A-Z]$/.test(key)) return { glyph: key.slice(3) };
   if (/^Digit[0-9]$/.test(key)) return { glyph: key.slice(5) };
@@ -89,11 +107,11 @@ export function keyLabel(key: string): { glyph?: string; name?: string } {
  * Plans keycap cues for shortcut events. The same combination pressed again while shown
  * presses the same caps; a new combination replaces the old one with a quick fade.
  */
-export function planKeys(events: TimedEvent<KeyEvent>[]): KeyCue[] {
+export function planKeys(events: TimedEvent<KeyEvent>[], labels: KeyLabels = 'mac'): KeyCue[] {
   const cues: KeyCue[] = [];
   const sorted = events.filter((e) => e.kind === 'shortcut').sort((a, b) => a.out - b.out);
   for (const e of sorted) {
-    const keys = parseShortcut(e.key);
+    const keys = parseShortcut(e.key, labels);
     if (!keys.length) continue;
     const last = cues[cues.length - 1];
     if (last && last.keys.join('+') === keys.join('+') && e.out <= last.fadeOut) {
@@ -176,10 +194,10 @@ export interface CapLayout {
 /**
  * Widths of the caps of a cue at a resolution unit.
  */
-export function capLayouts(keys: string[], unit: number): CapLayout[] {
+export function capLayouts(keys: string[], unit: number, labels: KeyLabels = 'mac'): CapLayout[] {
   const h = 40 * unit;
   return keys.map((key) => {
-    const label = keyLabel(key);
+    const label = keyLabel(key, labels);
     let content = 0;
     if (label.glyph) {
       measurer.font = glyphFont(label, unit);

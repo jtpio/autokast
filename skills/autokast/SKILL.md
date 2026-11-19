@@ -21,6 +21,10 @@ npx playwright install chromium                # skip when Chromium is already i
 ffmpeg -version                                # must be on the PATH
 ```
 
+Each Playwright version needs its own Chromium build. When you cannot run
+`playwright install`, use the Playwright version that installed the browser, or pass
+`browser: { executablePath }` in the script.
+
 Run the commands as `npx autokast <command>`. Scripts import from `autokast`. In a clone
 of the autokast repository, `node src/cli.ts <command>` runs from source.
 
@@ -89,6 +93,7 @@ elements fails, so narrow it.
 | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                                                                                                                       |
 | `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.                                                                                                   |
+| `cast.select(target, values)`                                       | Clicks a native `<select>` and chooses options by value or label. The list does not open: the browser draws it outside the page, where the video cannot show it.                                                                                                |
 | `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                                                                                                               |
 | `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                                                                                              |
 | `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                                                                                                 |
@@ -174,9 +179,10 @@ moment has motion or something new to read.
   These words keep the full tone and the other words are dimmed.
 - A new caption replaces the one on screen, so give each caption a `duration` longer than its
   part, and let the last one stay until the end.
-- A caption shows one line: write one short sentence of about 60 characters, with no
-  number. For more text, use several captions. Text that is too long for one line shows as
-  several lines, one at a time, and the lines share the `duration`.
+- A caption shows one line: write one short sentence of about 60 characters. Do not number
+  the captions ("1.", "Step 2"). For more text, use several captions. Text that is too
+  long for one line shows as several lines, one at a time, and the lines share the
+  `duration`.
 - A viewer needs about 3 s to read a caption and see the action. Make each part at least
   that long; the limit of one fifth for holds does not apply to a captioned tour.
 - While a caption shows, the view above the caption is wider than the video: about 2:1 for
@@ -234,7 +240,8 @@ autokast render .autokast/demo --preview -o quick.mp4
 | `zoom.edges`                                          | `fill` (default: a zoomed shot is all page) or `keep` (the window edge and backdrop stay in view).                                                      |
 | `cursor.tilt`                                         | How much the cursor leans into its travel (default 1; 0 turns it off).                                                                                  |
 | `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                |
-| `keystrokes.show`                                     | `none` (default) or `shortcuts`: shows key combinations from `cast.press` as keycaps.                                                                   |
+| `keystrokes.show`                                     | `none` (default), `shortcuts` (key combinations from `cast.press` as keycaps) or `all`.                                                                 |
+| `keystrokes.labels`                                   | `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when the render runs on macOS.                                                                 |
 | `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                        |
 
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`
@@ -269,6 +276,8 @@ Rules for `frame-perfect`:
 
 - It needs the default headless Chromium: no `--headed`, no `browser.channel`.
 - Only the recorded page gets frames. Do not open a second tab in `setup` or `run`.
+- A native popup, such as a date or color picker, stops the capture: the recording fails
+  after 30 s. For a `<select>`, use `cast.select`.
 - `cast.wait` and all Cast pauses are page time. `page.waitForTimeout` is real time.
 - Waits inside `cast.cut` cost little: no frames are captured there.
 - Answers from a server arrive early in page time, so a loading state can be very short.
@@ -288,4 +297,4 @@ Rules for `frame-perfect`:
 
 - [reference/jupyterlab.md](reference/jupyterlab.md): server setup and known problems of
   JupyterLab, Notebook and JupyterLite. Read it only for these apps.
-- `src/types.ts` in the autokast package: every option with its type.
+- `dist/types.d.ts` in the autokast package: every option with its type.

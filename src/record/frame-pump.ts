@@ -20,6 +20,20 @@ export const FRAME_PERFECT_ARGS = [
 ];
 
 /**
+ * Page script for frame-perfect capture. Under the page clock, Chromium can hold idle
+ * callbacks after input until the end of the recording: run them on timers, which follow
+ * the page clock. The JupyterLab cell toolbar, for example, shows from an idle callback.
+ */
+export function idleCallbacksOnTimers(): void {
+  window.requestIdleCallback = (callback) =>
+    window.setTimeout(() => {
+      const end = performance.now() + 16;
+      callback({ didTimeout: false, timeRemaining: () => Math.max(0, end - performance.now()) });
+    }, 1);
+  window.cancelIdleCallback = (id) => window.clearTimeout(id);
+}
+
+/**
  * Real-time waits of the pump, in milliseconds.
  */
 const WAIT = {
@@ -41,6 +55,10 @@ const WAIT = {
    * For virtual time to advance at all.
    */
   advance: 30_000,
+  /**
+   * For one frame to finish.
+   */
+  frame: 30_000,
 };
 
 /**
@@ -331,11 +349,20 @@ export class FramePump implements Capture {
       () => (done = true),
       () => (done = true),
     );
+    const deadline = performance.now() + WAIT.frame;
     while (!done) {
       await Promise.race([pending, sleep(WAIT.watchdog)]);
-      if (!done) {
-        await this.advance(KICK);
+      if (done) {
+        break;
       }
+      if (performance.now() > deadline) {
+        throw new Error(
+          `The page did not paint a frame within ${WAIT.frame / 1000} s. A native popup, ` +
+            `such as a date or color picker, stops frame-perfect capture: avoid it, or ` +
+            `record with capture.mode "realtime".`,
+        );
+      }
+      await this.advance(KICK);
     }
     return pending;
   }
