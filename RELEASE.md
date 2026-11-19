@@ -5,12 +5,17 @@ The package, the command, the skill and the repository are named `autokast`. The
 
 ## One-time setup
 
-1. **Trusted publisher.** On npmjs.com, open the package, then Settings, then Trusted
-   publisher, and add GitHub Actions with owner `jtpio`, repository `autokast` and workflow
-   `release.yml`. After this, the workflow publishes without a token.
-2. **Publishing access.** In the same settings, select "Require two-factor authentication and
+1. **Environment.** On GitHub, open Settings, then Environments, and make the environment
+   `release`. Limit its deployment branches to `main`. Add required reviewers if each release
+   must get an approval. The Release workflow runs in this environment.
+2. **Trusted publisher.** On npmjs.com, open the package, then Settings, then Trusted
+   publisher, and add GitHub Actions with owner `jtpio`, repository `autokast`, workflow
+   `release.yml` and environment `release`. In the allowed actions, enable `npm publish`.
+   After this, the workflow publishes without a token. The configuration expires if it makes
+   no publication in 2 days.
+3. **Publishing access.** In the same settings, select "Require two-factor authentication and
    disallow tokens". Then only the workflow can publish.
-3. **Public repository.** npm adds provenance only for a public repository, and
+4. **Public repository.** npm adds provenance only for a public repository, and
    `npx skills add jtpio/autokast` needs one too.
 
 ## Make a release
@@ -46,6 +51,7 @@ is also part of the npm package.
 - **npm refuses the version.** A version can be published only once. Run the workflow again
   with a new version.
 - **The publish step has no permission.** Check the trusted publisher settings on npmjs.com:
-  the workflow file name must be `release.yml`.
+  the workflow file name must be `release.yml`, the environment must be `release`, and
+  `npm publish` must be an allowed action.
 - **The push is refused.** The branch got a new commit during the release, or the tag exists.
   The workflow checks this immediately before the publication, so nothing was published.
