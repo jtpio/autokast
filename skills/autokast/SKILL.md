@@ -1,6 +1,6 @@
 ---
 name: autokast
-description: Record polished, Screen Studio-style screencasts of web apps with the autokast library (smooth cursor, click effects, eased zooms, framed window). Use when asked to record a screencast, demo video, GIF or feature showcase of a web UI such as JupyterLab, JupyterLite or any site that opens in a browser.
+description: Record polished, Screen Studio-style screencasts of web apps with the autokast library (smooth cursor, click effects, eased zooms, framed window). Use when asked to record a screencast, demo video, GIF or feature showcase of a web app or any site that opens in a browser.
 ---
 
 # autokast
@@ -256,8 +256,8 @@ again.
 ## Capture modes
 
 - `realtime` (default): the recording takes as long as the video. The page is captured as fast
-  as it paints. On a machine without a GPU, a heavy page such as JupyterLab paints only 20 to
-  25 frames per second while it scrolls or animates.
+  as it paints. On a machine without a GPU, a heavy page paints only 20 to 25 frames per
+  second while it scrolls or animates.
 - `frame-perfect`: the library controls the page clock and captures one frame for each 1/60 s
   of page time. Scrolls, drags and animations are exact at 60 fps on any machine, and the
   result does not change with the machine load. The recording takes 3 to 4 times longer.
@@ -286,6 +286,6 @@ Rules for `frame-perfect`:
 
 ## More
 
-- [reference/jupyterlab.md](reference/jupyterlab.md): server setup, locators and waits for
-  JupyterLab, Notebook and JupyterLite.
+- [reference/jupyterlab.md](reference/jupyterlab.md): server setup and known problems of
+  JupyterLab, Notebook and JupyterLite. Read it only for these apps.
 - `src/types.ts` in the autokast package: every option with its type.
