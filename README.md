@@ -4,7 +4,7 @@ Automated, polished screencasts of web apps. Built for agents.
 
 <!-- Demo video: upload the README demo to GitHub and put its link on the next line. -->
 
-![JupyterLab in a framed window on a soft backdrop, with a large cursor and a caption](docs/images/jupyterlab.jpg)
+https://github.com/user-attachments/assets/086be325-b794-4391-9ec5-87e619862c43
 
 You write a short script that says what happens on the page and where the camera looks.
 `autokast` records the page with Playwright and renders the video: a smooth cursor, click
