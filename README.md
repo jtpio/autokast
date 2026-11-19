@@ -4,7 +4,7 @@ Automated, polished screencasts of web apps. Built for agents.
 
 <!-- Demo video: upload the README demo to GitHub and put its link on the next line. -->
 
-![A web app in a framed window on a soft backdrop, with a large cursor](docs/images/window.jpg)
+https://github.com/user-attachments/assets/086be325-b794-4391-9ec5-87e619862c43
 
 You write a short script that says what happens on the page and where the camera looks.
 `autokast` records the page with Playwright and renders the video: a smooth cursor, click
@@ -67,6 +67,7 @@ A target is a Playwright locator, a selector, a point or a rectangle.
 | `click`, `dblclick`, `rightClick`, `hover`     | Moves the cursor along a natural path, then acts |
 | `drag(from, to)`, `scroll`, `scrollTo`         | Drag and smooth scroll                           |
 | `type(text)`, `press('Shift+Enter')`           | Human typing and shortcuts                       |
+| `goto(url)`, `showUrl()`                       | Opens a URL; shows the URL in the browser frame  |
 | `zoomTo(target)`, `zoom('close')`, `zoomOut()` | Camera moves                                     |
 | `wait(ms)`, `cut(fn)`, `speed(rate, fn)`       | Hold a shot, remove a wait, play a part faster   |
 | `caption(text)`, `spotlight(target)`           | Optional overlays                                |
@@ -85,7 +86,8 @@ waits and for reading state.
   effects, motion blur, and a slight tilt when it travels.
 - **Camera.** `zoomTo` frames an element; `zoom` zooms on the cursor. Each shot has a follow
   mode: `off`, `edge` or `cursor`.
-- **Look.** Ten backdrops, padding, rounded corners, shadow, and an optional title bar.
+- **Look.** Ten backdrops, padding, rounded corners, shadow, and an optional title bar or
+  browser frame with an address bar that follows the page URL.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
   page motion is exact at 60 fps on any machine. Use it for the final recording.
@@ -128,7 +130,7 @@ export default defineScreencast({
     size: { width: 1920, height: 1080 },
     fps: 60,
     background: 'dusk', // paper, fog, sage, dune, clay, dusk, harbor, graphite, ink, ember
-    frame: { padding: 0.07, radius: 16, chrome: 'none' },
+    frame: { padding: 0.07, radius: 16, chrome: 'none' }, // none, window, browser
     cursor: { size: 1.9, motionBlur: 0.5, tilt: 1 },
     zoom: { follow: 'edge', levels: { wide: 1.3, medium: 1.6, close: 2.2 } },
     encode: { quality: 'standard' }, // draft, standard, high, max
@@ -144,7 +146,8 @@ Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill 
 ## Examples
 
 The [`examples`](examples) directory has scripts for JupyterLab, JupyterLite and a demo app.
-Each script names the command that starts its server.
+Each script names the command that starts its server. The video at the top of this page is
+[`examples/jupyterlab-demo.ts`](examples/jupyterlab-demo.ts).
 
 ## Development
 

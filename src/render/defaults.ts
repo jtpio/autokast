@@ -39,9 +39,11 @@ export interface ResolvedOptions {
     padding: number;
     radius: number;
     shadow: ResolvedShadow | false;
-    chrome: 'none' | 'window';
+    chrome: 'none' | 'window' | 'browser';
     title: string;
     chromeTheme: 'light' | 'dark';
+    address: boolean | string;
+    origin: string;
   };
   cursor: {
     visible: boolean;
@@ -93,6 +95,8 @@ const DEFAULTS = {
     chrome: 'none',
     title: '',
     chromeTheme: 'light',
+    address: true,
+    origin: '',
   },
   cursor: {
     visible: true,

@@ -34,6 +34,7 @@ import {
 } from './keycaps.ts';
 import { contentMap, IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
 import type { TimedEvent } from './timeline.ts';
+import { BROWSER_BAR, drawAddressLens, drawBrowserBar, type Address } from './browser.ts';
 
 /**
  * Placement of the frame at rest, in output pixels.
@@ -72,7 +73,8 @@ export function computeLayout(options: ResolvedOptions, viewport: Size): Layout 
   const unit = options.unit;
   const p = options.frame.padding;
   const pad = p < 1 ? p * Math.min(w, h) : p * unit;
-  const bar = options.frame.chrome === 'window' ? BAR_HEIGHT * unit : 0;
+  const chrome = options.frame.chrome;
+  const bar = (chrome === 'browser' ? BROWSER_BAR : chrome === 'window' ? BAR_HEIGHT : 0) * unit;
   const aspect = viewport.width / viewport.height;
   let cw = Math.max(16, Math.min(w - 2 * pad, (h - 2 * pad - bar) * aspect));
   const vw = Math.round(viewport.width);
@@ -131,6 +133,10 @@ export interface FrameInput {
   spotlights: { event: TimedEvent<SpotlightEvent>; amount: number }[];
   captions: CaptionCue[];
   keys: KeyCue[];
+  /**
+   * Text of the address bar, for the browser frame.
+   */
+  address?: Address;
 }
 
 /**
@@ -363,7 +369,7 @@ export class Compositor {
     this.drawBase(ctx, fa, fe, ff);
 
     ctx.setTransform(fa, 0, 0, fa, fe, ff);
-    if (L.bar > 0) this.drawChrome(ctx);
+    if (L.bar > 0) this.drawChrome(ctx, input.address);
 
     ctx.save();
     const c = L.content;
@@ -403,6 +409,13 @@ export class Compositor {
 
     ctx.setTransform(fa, 0, 0, fa, fe, ff);
     this.drawEdges(ctx);
+    if (input.address && this.options.frame.chrome === 'browser') {
+      const dark = this.options.frame.chromeTheme === 'dark';
+      ctx.setTransform(fa, 0, 0, fa, fe, ff);
+      drawAddressLens(ctx, L.window, L.bar, L.unit, dark, this.barLeft(), input.address);
+    }
+    // The band cover, the captions and the keycaps are in output pixels.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     if (input.band > 0 && this.band) this.drawBandCover(ctx, input.band, fa, ff, H);
     for (const cue of input.captions) this.drawCaptionCue(ctx, cue, input.t);
@@ -713,11 +726,19 @@ export class Compositor {
     ctx.restore();
   }
 
-  private drawChrome(ctx: SKRSContext2D): void {
+  /**
+   * First free x on the bar after the window buttons.
+   */
+  private barLeft(): number {
+    return this.layout.window.x + 67.6 * this.layout.unit;
+  }
+
+  private drawChrome(ctx: SKRSContext2D, address?: Address): void {
     const L = this.layout;
     const u = L.unit;
     const w = L.window;
-    const theme = CHROME[this.options.frame.chromeTheme === 'dark' ? 'dark' : 'light'];
+    const dark = this.options.frame.chromeTheme === 'dark';
+    const theme = CHROME[dark ? 'dark' : 'light'];
     const g = ctx.createLinearGradient(0, w.y, 0, w.y + L.bar);
     g.addColorStop(0, theme.bar);
     g.addColorStop(1, theme.barShade);
@@ -738,6 +759,11 @@ export class Compositor {
       ctx.strokeStyle = theme.dotBorder;
       ctx.stroke();
     });
+    if (this.options.frame.chrome === 'browser') {
+      const none = { host: '', path: '', focus: 0 };
+      drawBrowserBar(ctx, w, L.bar, u, dark, this.barLeft(), address ?? none);
+      return;
+    }
     const title = this.options.frame.title;
     if (title) {
       ctx.font = `500 ${14 * u}px Inter, sans-serif`;

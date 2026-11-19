@@ -299,6 +299,7 @@ export function drawCaption(
   const shift = (1 - easeOutQuart(p) - easeOutCubic(exit)) * SETTLE * size;
   const baseline = top + size * 0.93 + shift;
   ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.font = captionFont(style, size);

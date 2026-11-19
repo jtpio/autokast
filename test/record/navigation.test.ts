@@ -77,4 +77,50 @@ it('keeps capturing frames and cursor styles across navigations', async () => {
     (event) => event.type === 'cursorStyle' && event.style === 'pointer' && event.t > marks.cross,
   );
   assert.ok(pointerAfterCross, 'the cursor probe runs on the new site');
+  const urls = session.events.filter((event) => event.type === 'url');
+  assert.deepEqual(
+    urls.map((event) => event.url),
+    [`${first.url}/`, `${first.url}/two`, `${second.url}/`],
+  );
+  assert.equal(urls[0].t, 0);
+  assert.ok(urls[1].t <= marks.same && urls[2].t <= marks.cross);
+});
+
+it('goto opens a URL in a cut, and types it for the browser frame', async () => {
+  const run = (chrome: 'none' | 'browser') =>
+    record(
+      {
+        url: first.url,
+        sessionDir: dir,
+        render: { frame: { chrome } },
+        pacing: { startDelay: 100, endDelay: 100 },
+      },
+      async (cast) => {
+        await cast.goto('/two');
+        await cast.showUrl({ duration: 300 });
+        await cast.cut(() => cast.goto(`${first.url}/`));
+      },
+    );
+  const typed = (await run('browser')).session.events;
+  const urls = typed.filter((event) => event.type === 'url');
+  // The typed address, then the address of the page that opened.
+  assert.deepEqual(
+    urls.map((event) => [event.url, Boolean(event.typing), event.show]),
+    [
+      [`${first.url}/`, false, undefined],
+      [`${first.url}/two`, true, undefined],
+      [`${first.url}/two`, false, undefined],
+      [`${first.url}/two`, false, 300],
+      [`${first.url}/`, false, undefined],
+    ],
+  );
+  const two = urls[1];
+  assert.ok(two.typing! > 300, `typing ${two.typing}`);
+  const cuts = typed.filter((event) => event.type === 'cut');
+  assert.equal(cuts.length, 2);
+  assert.ok(cuts[0].t >= two.t + two.typing!, 'the page opens after the typing');
+  assert.ok(urls[2].t >= cuts[0].t && urls[2].t <= cuts[0].end);
+  const plain = (await run('none')).session.events;
+  assert.ok(plain.every((event) => event.type !== 'url' || (!event.typing && !event.show)));
+  assert.equal(plain.filter((event) => event.type === 'cut').length, 2);
 });

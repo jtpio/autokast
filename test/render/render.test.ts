@@ -15,6 +15,7 @@ import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { luminance, parseColor } from '../../src/render/color.ts';
 import { adaptiveClickColor } from '../../src/render/effects.ts';
 import { buildScene } from '../../src/render/scene.ts';
+import { applyStage, stageAt } from '../../src/render/stage.ts';
 import type { Session } from '../../src/types.ts';
 import { createFixture } from './fixture.ts';
 
@@ -209,6 +210,89 @@ test('the caption band has room for one line, and long text shows one line at a 
   assert.equal(two.captions.map((cue) => cue.text).join(' '), long);
   assert.ok(two.captions[1].textIn > two.captions[0].textOut);
   assert.equal(buildScene({ ...session, events: [] }).band, null);
+});
+
+test('the browser frame adds a toolbar in the light or dark theme', async () => {
+  const light = buildScene(session, { frame: { chrome: 'browser' } });
+  const plain = buildScene(session);
+  assert.equal(light.layout.bar, 52);
+  assert.ok(light.layout.content.height < plain.layout.content.height);
+  assert.equal(light.layout.window.height, light.layout.content.height + 52);
+  const bar = async (chromeTheme: 'light' | 'dark') => {
+    const png = await renderFrame(path.join(dir, 'session'), 0, {
+      frame: { chrome: 'browser', chromeTheme },
+    });
+    const image = await loadImage(png);
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    const { window } = light.layout;
+    const [r, g, b] = context.getImageData(window.x + window.width - 40, window.y + 26, 1, 1).data;
+    return luminance({ r, g, b, a: 1 });
+  };
+  assert.ok((await bar('light')) > 0.8);
+  assert.ok((await bar('dark')) < 0.1);
+});
+
+test('a caption is in the middle of the band, also with the browser frame', async () => {
+  for (const chrome of ['none', 'browser'] as const) {
+    const options = { frame: { chrome } };
+    const scene = buildScene(session, options);
+    const band = scene.band!;
+    const image = await loadImage(await renderFrame(path.join(dir, 'session'), 1800, options));
+    const canvas = createCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    // Light pixels of the text in one row, over the first part of the caption.
+    const light = (y: number) => {
+      const row = context.getImageData(band.window.x, y, 420, 1).data;
+      let count = 0;
+      for (let i = 0; i < row.length; i += 4)
+        if (Math.min(row[i], row[i + 1], row[i + 2]) > 200) count++;
+      return count;
+    };
+    const bottom = band.window.y + band.window.height;
+    assert.ok(light(Math.round(band.center)) > 15, `${chrome}: text in the middle of the band`);
+    assert.equal(light(Math.round(bottom + 14)), 0, `${chrome}: no text at the window edge`);
+  }
+});
+
+test('the larger address field follows the frame and stays clear of the buttons', async () => {
+  const typed = path.join(dir, 'typed');
+  await mkdir(typed, { recursive: true });
+  await symlink(path.join(dir, 'session', 'frames'), path.join(typed, 'frames'));
+  const events = [
+    ...session.events,
+    {
+      type: 'url' as const,
+      t: 400,
+      url: 'http://localhost:8000/notebooks/index.html',
+      typing: 600,
+    },
+  ];
+  await writeFile(path.join(typed, 'session.json'), JSON.stringify({ ...session, events }));
+  const options = { frame: { chrome: 'browser' as const } };
+  const scene = buildScene({ ...session, events }, options);
+  // At 1200 ms the caption band is open: the window is smaller than at rest.
+  const i = scene.times.findIndex((t) => t >= 1200);
+  const stage = stageAt(scene.band, scene.bandOpen[i]);
+  assert.ok(stage.scale < 0.97, `stage scale ${stage.scale}`);
+  const image = await loadImage(await renderFrame(typed, scene.times[i], options));
+  const canvas = createCanvas(image.width, image.height);
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  const { window, bar } = scene.layout;
+  const at = (x: number) => {
+    const point = applyStage(stage, {
+      x: window.x + x,
+      y: window.y + bar / 2,
+      width: 0,
+      height: 0,
+    });
+    return [...context.getImageData(point.x, point.y, 1, 1).data.slice(0, 3)];
+  };
+  assert.deepEqual(at(window.width / 2 + 300), [255, 255, 255], 'the field is in the middle');
+  assert.ok(at(165)[0] < 250, 'the bar shows next to the reload button');
 });
 
 test('a fit zoom fills the whole output in camera mode and the frame box in crop mode', () => {

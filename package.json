@@ -18,8 +18,7 @@
     "playwright",
     "video",
     "demo",
-    "agent",
-    "jupyterlab"
+    "agent"
   ],
   "type": "module",
   "bin": {

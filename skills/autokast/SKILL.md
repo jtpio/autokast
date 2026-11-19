@@ -1,6 +1,6 @@
 ---
 name: autokast
-description: Record polished, Screen Studio-style screencasts of web apps with the autokast library (smooth cursor, click effects, eased zooms, framed window). Use when asked to record a screencast, demo video, GIF or feature showcase of a web UI such as JupyterLab, JupyterLite or any site that opens in a browser.
+description: Record polished, Screen Studio-style screencasts of web apps with the autokast library (smooth cursor, click effects, eased zooms, framed window). Use when asked to record a screencast, demo video, GIF or feature showcase of a web app or any site that opens in a browser.
 ---
 
 # autokast
@@ -93,6 +93,8 @@ elements fails, so narrow it.
 | `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                                                                                              |
 | `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                                                                                                 |
 | `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                                                                                                                         |
+| `cast.goto(url)`                                                    | Opens a URL and removes the load from the video. With the browser frame, the address bar first shows the URL as typed text.                                                                                                                                     |
+| `cast.showUrl({ duration })`                                        | Browser frame only: makes the address bar larger for a moment (default 2 s), so that the viewer can read the URL.                                                                                                                                               |
 | `cast.zoomTo(target, { level, scale, padding, follow })`            | Frames a target. `level` is a named zoom level (`wide`, `medium`, `close`), `scale` a number; with neither, the target plus `padding` fills the view. `follow` is `off`, `edge` or `cursor`. The next action overlaps the move; `wait: true` waits for its end. |
 | `cast.zoom(level)`                                                  | Zooms on the cursor, to a level name or a number, and the camera then travels with the cursor. Use it to guide the eye across the interface without a fixed target.                                                                                             |
 | `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                                                                                                                          |
@@ -154,11 +156,16 @@ moment has motion or something new to read.
 - Typing runs at about 16 characters per second. For code, use `typing: { delay: 30 }` (about
   25 characters per second) and keep cells short; 40 seconds of typing in a one-minute video
   is too much.
-- To show another URL, navigate inside a cut:
-  `await cast.cut(async () => { await page.goto(url); await locator.waitFor(); })`. For a
-  click that reloads the page, start `const loaded = page.waitForEvent('load')` before the
-  click and `await loaded` inside the cut. A camera move continues across a cut, so go to the
-  full view first with `cast.zoomOut({ wait: true })`.
+- To show another URL, call `cast.goto(url)`: it opens the page and removes the load from
+  the video. Then cut the wait for the content: `await cast.cut(() => locator.waitFor())`.
+  For a click that reloads the page, start `const loaded = page.waitForEvent('load')` before
+  the click and `await loaded` inside the cut. A camera move continues across a cut, so go to
+  the full view first with `cast.zoomOut({ wait: true })`.
+- When the URL is part of the story, set `render: { frame: { chrome: 'browser' } }`. The
+  address bar follows the page, and `cast.goto` shows the URL as typed text, in a larger
+  field, before the page opens. When the page changes its own URL (a redirect, a new query),
+  call `cast.showUrl()` to make the address bar larger for a moment. A zoomed shot hides the
+  toolbar, so stay in the full view while the viewer must read the URL.
 
 **Captions**
 
@@ -214,7 +221,9 @@ autokast render .autokast/demo --preview -o quick.mp4
 | `encode.quality`                                      | `draft`, `standard` (default), `high`, `max`. Also `encode.crf`, `encode.preset`.                                                                       |
 | `background`                                          | `paper`, `fog`, `sage`, `dune`, `clay`, `dusk` (default), `harbor`, `graphite`, `ink`, `ember`, a CSS color, or `{ type: 'gradient' \| 'image', ... }`. |
 | `frame.padding`, `frame.radius`, `frame.shadow`       | Space around the window, corner radius, shadow.                                                                                                         |
-| `frame.chrome`                                        | `none` or `window` (title bar; set `frame.title`).                                                                                                      |
+| `frame.chrome`                                        | `none`, `window` (title bar; set `frame.title`) or `browser` (toolbar with an address bar that follows the page URL).                                   |
+| `frame.chromeTheme`                                   | `light` (default) or `dark`, for the title bar and the browser toolbar.                                                                                 |
+| `frame.address`, `frame.origin`                       | Browser frame: a fixed text for the address bar (`false` for none), and a text that replaces the origin of the page URL.                                |
 | `cursor.size`, `cursor.smoothing`, `cursor.hideAfter` | Cursor size (default 1.9), path smoothing, hide when idle (ms).                                                                                         |
 | `cursor.click.type`                                   | `ripple`, `ring`, `none`.                                                                                                                               |
 | `zoom.mode`                                           | `camera` (the window grows past the edges) or `crop` (zoom inside a fixed window).                                                                      |
@@ -247,8 +256,8 @@ again.
 ## Capture modes
 
 - `realtime` (default): the recording takes as long as the video. The page is captured as fast
-  as it paints. On a machine without a GPU, a heavy page such as JupyterLab paints only 20 to
-  25 frames per second while it scrolls or animates.
+  as it paints. On a machine without a GPU, a heavy page paints only 20 to 25 frames per
+  second while it scrolls or animates.
 - `frame-perfect`: the library controls the page clock and captures one frame for each 1/60 s
   of page time. Scrolls, drags and animations are exact at 60 fps on any machine, and the
   result does not change with the machine load. The recording takes 3 to 4 times longer.
@@ -277,6 +286,6 @@ Rules for `frame-perfect`:
 
 ## More
 
-- [reference/jupyterlab.md](reference/jupyterlab.md): server setup, locators and waits for
-  JupyterLab, Notebook and JupyterLite.
+- [reference/jupyterlab.md](reference/jupyterlab.md): server setup and known problems of
+  JupyterLab, Notebook and JupyterLite. Read it only for these apps.
 - `src/types.ts` in the autokast package: every option with its type.
