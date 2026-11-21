@@ -96,8 +96,7 @@ waits and for reading state.
   page URL.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
-  page motion is exact at 60 fps on any machine. It also captures at a higher scale when the
-  video size needs it, so text stays sharp in a zoom. Use it for the final recording.
+  page motion is exact at 60 fps on any machine. Use it for the final recording.
 - **Made for agents.** `autokast inspect` prints the timeline and writes a contact sheet, so an
   agent can check a video that it cannot watch.
 
@@ -150,7 +149,7 @@ Options are fields of the script, and render options go under `render`.
 ```ts
 export default defineScreencast({
   viewport: { width: 1280, height: 720 },
-  deviceScaleFactor: 3, // default: 2; frame-perfect picks 3 when render.size needs it
+  deviceScaleFactor: 3, // default: 2; 3 keeps text sharp in deep zooms
   capture: { mode: 'realtime' }, // or 'frame-perfect'
   typing: { delay: 45 },
 

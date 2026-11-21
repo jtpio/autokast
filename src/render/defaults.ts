@@ -206,7 +206,7 @@ function evenSize(size: Size, pixelFormat: string): Size {
  * applies at its own level, under the other options of that level.
  */
 export function resolveOptions(
-  session: Pick<Session, 'name' | 'render'>,
+  session: Session,
   options: RenderOptions | undefined,
   presets: readonly string[],
   outputDuration: number,

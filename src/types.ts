@@ -339,9 +339,8 @@ export interface RecordOptions {
   url?: string;
   viewport?: Size;
   /**
-   * Device pixels per CSS pixel of the capture. Default: 2 in realtime mode. In frame-perfect
-   * mode, the smallest whole scale, 2 or 3, that keeps the deepest named zoom level sharp at
-   * `render.size`.
+   * Device pixels per CSS pixel of the capture. Default: 2. Set 3 for sharp text in deep
+   * zooms: the render warns when a zoom needs it.
    */
   deviceScaleFactor?: number;
   colorScheme?: 'light' | 'dark';

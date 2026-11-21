@@ -1,7 +1,3 @@
-import type { CaptureMode, RenderOptions, Size } from '../types.ts';
-import { BACKGROUND_PRESETS } from './background.ts';
-import { computeLayout } from './compositor.ts';
-import { resolveOptions } from './defaults.ts';
 import { contentScale, type Scene } from './scene.ts';
 
 /**
@@ -9,28 +5,6 @@ import { contentScale, type Scene } from './scene.ts';
  * still looks sharp.
  */
 export const SHARP_LIMIT = 1.1;
-
-/**
- * Range of the automatic capture scale. Realtime capture drops frames at a higher scale, so
- * only frame-perfect capture goes above 2.
- */
-const AUTO_SCALE = { min: 2, max: 3, realtime: 2 };
-
-/**
- * Capture scale (`deviceScaleFactor`) for a recording. In frame-perfect mode, the smallest
- * whole scale that keeps the deepest named zoom level sharp at the render size, from 2 to 3.
- * In realtime mode, 2.
- */
-export function captureScale(mode: CaptureMode, viewport: Size, render?: RenderOptions): number {
-  if (mode !== 'frame-perfect') return AUTO_SCALE.realtime;
-  const options = resolveOptions({ name: '', render }, undefined, BACKGROUND_PRESETS, 0);
-  const { enabled, levels, auto, maxScale } = options.zoom;
-  const deepest = enabled
-    ? Math.min(maxScale, Math.max(1, ...Object.values(levels), auto ? auto.scale : 1))
-    : 1;
-  const need = (computeLayout(options, viewport).k * deepest) / SHARP_LIMIT;
-  return Math.min(AUTO_SCALE.max, Math.max(AUTO_SCALE.min, Math.ceil(need - 1e-9)));
-}
 
 export interface Enlargement {
   /**

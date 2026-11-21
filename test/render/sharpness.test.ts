@@ -5,7 +5,6 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { createCanvas, loadImage, type Canvas, type Image } from '@napi-rs/canvas';
 import { describeSession } from '../../src/inspect.ts';
-import { resolveOptions as recordOptions } from '../../src/record/defaults.ts';
 import { createBackground } from '../../src/render/background.ts';
 import {
   Compositor,
@@ -15,14 +14,9 @@ import {
 } from '../../src/render/compositor.ts';
 import { render } from '../../src/render/index.ts';
 import { buildScene, frameInput, restFrameIndices } from '../../src/render/scene.ts';
-import {
-  captureEnlargement,
-  captureScale,
-  SHARP_LIMIT,
-  sharpnessWarning,
-} from '../../src/render/sharpness.ts';
+import { captureEnlargement, SHARP_LIMIT, sharpnessWarning } from '../../src/render/sharpness.ts';
 import { RestFrames } from '../../src/render/source.ts';
-import type { RenderOptions, Session } from '../../src/types.ts';
+import type { Session } from '../../src/types.ts';
 import { createFixture } from './fixture.ts';
 
 let dir: string;
@@ -62,30 +56,6 @@ function difference(a: Uint8ClampedArray, b: Uint8ClampedArray): { mean: number;
   const n = (a.length / 4) * 3;
   return { mean: mean / n, abs: abs / n };
 }
-
-const VIEWPORT = { width: 1280, height: 720 };
-
-test('frame-perfect capture scales up for the deepest zoom level at the render size', () => {
-  const scale = (render?: RenderOptions) => captureScale('frame-perfect', VIEWPORT, render);
-  assert.equal(scale(), 3);
-  assert.equal(scale({ size: { width: 1280, height: 720 } }), 2);
-  assert.equal(scale({ zoom: { levels: { close: 1.6 } } }), 2);
-  assert.equal(scale({ zoom: { levels: { close: 1.6 }, auto: true } }), 3);
-  // At most 3 and at least 2: a warning at render time covers deeper zooms.
-  assert.equal(scale({ size: { width: 3840, height: 2160 } }), 3);
-  assert.equal(scale({ size: { width: 640, height: 360 } }), 2);
-  // Presets change the layout and can turn zooms off.
-  assert.equal(scale({ preset: 'focus' }), 3);
-  assert.equal(scale({ preset: 'plain' }), 2);
-  assert.equal(scale({ zoom: { enabled: false } }), 2);
-});
-
-test('realtime capture stays at scale 2, where it drops fewer frames', () => {
-  assert.equal(captureScale('realtime', VIEWPORT), 2);
-  assert.equal(captureScale('realtime', VIEWPORT, { size: { width: 3840, height: 2160 } }), 2);
-  assert.equal(recordOptions({}).deviceScaleFactor, 2);
-  assert.equal(recordOptions({ capture: { mode: 'frame-perfect' } }).deviceScaleFactor, 3);
-});
 
 test('a zoom that enlarges the captured page gives a warning with the scale to record at', () => {
   const enlargement = captureEnlargement(buildScene(session))!;

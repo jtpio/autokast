@@ -261,10 +261,10 @@ Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted
 `graphite` (dark gray), `ink` (blue-black), `ember` (dark brown). Pick one that does not fight
 the app's own colors, and check it with `autokast frame <session> --at 1 --background <name>`.
 
-The capture scale (`deviceScaleFactor`) is 2 in realtime mode, because a higher scale makes
-realtime capture drop frames. In frame-perfect mode it is 3 for a 1920x1080 video and 2 for a
-smaller one, so zooms up to the `close` level stay sharp. When a zoom needs a higher scale than
-the recording has, `render` and `inspect` print a warning with the scale to record at.
+The capture scale (`deviceScaleFactor`) is 2 by default. When a zoom needs a higher scale,
+`render` and `inspect` print a warning with the scale to record at, such as 3 for the `close`
+level in a 1920x1080 video. A higher scale makes realtime capture drop frames, so record it in
+frame-perfect mode, which drops none but takes longer.
 
 Camera moves across a page with much text make most of the file size. When a file must be
 below an upload limit (GitHub accepts 10 MB), render with a higher `encode.crf`:
