@@ -75,15 +75,6 @@ export const DEAD_ZONE = 0.3;
 export const CURSOR_OMEGA = 5;
 
 /**
- * The follow mode of a shot: its own `follow` (true is 'edge', false is 'off'), or the
- * render option.
- */
-export function followMode(event: Pick<ZoomEvent, 'follow'> | undefined, fallback: FollowMode) {
-  const f = event?.follow;
-  return f === true ? 'edge' : f === false ? 'off' : (f ?? fallback);
-}
-
-/**
  * The scale a zoom event asks for: `scale`, else its named `level`, else undefined (fit).
  */
 export function zoomScale(
@@ -347,7 +338,7 @@ export function computeCamera(
         options.fit?.(end),
       );
       const home = constrain(target, end);
-      const mode = followMode(event, options.follow);
+      const mode = event.follow ?? options.follow;
       const omega = (mode === 'cursor' ? CURSOR_OMEGA : FOLLOW_OMEGA) * speed;
       return { t0: event.out, end, event, mode, omega, home, land: home };
     });

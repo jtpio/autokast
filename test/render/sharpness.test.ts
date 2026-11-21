@@ -6,9 +6,15 @@ import { after, before, test } from 'node:test';
 import { createCanvas, loadImage, type Canvas, type Image } from '@napi-rs/canvas';
 import { describeSession } from '../../src/inspect.ts';
 import { resolveOptions as recordOptions } from '../../src/record/defaults.ts';
-import { computeLayout, restImageSize, useRestImage } from '../../src/render/compositor.ts';
-import { render, renderFrame } from '../../src/render/index.ts';
-import { buildScene, restFrameIndices } from '../../src/render/scene.ts';
+import { createBackground } from '../../src/render/background.ts';
+import {
+  Compositor,
+  computeLayout,
+  restImageSize,
+  useRestImage,
+} from '../../src/render/compositor.ts';
+import { render } from '../../src/render/index.ts';
+import { buildScene, frameInput, restFrameIndices } from '../../src/render/scene.ts';
 import {
   captureEnlargement,
   captureScale,
@@ -60,7 +66,7 @@ function difference(a: Uint8ClampedArray, b: Uint8ClampedArray): { mean: number;
 const VIEWPORT = { width: 1280, height: 720 };
 
 test('frame-perfect capture scales up for the deepest zoom level at the render size', () => {
-  const scale = (render?: RenderOptions) => captureScale(VIEWPORT, render, 'frame-perfect');
+  const scale = (render?: RenderOptions) => captureScale('frame-perfect', VIEWPORT, render);
   assert.equal(scale(), 3);
   assert.equal(scale({ size: { width: 1280, height: 720 } }), 2);
   assert.equal(scale({ zoom: { levels: { close: 1.6 } } }), 2);
@@ -75,8 +81,8 @@ test('frame-perfect capture scales up for the deepest zoom level at the render s
 });
 
 test('realtime capture stays at scale 2, where it drops fewer frames', () => {
-  assert.equal(captureScale(VIEWPORT), 2);
-  assert.equal(captureScale(VIEWPORT, { size: { width: 3840, height: 2160 } }, 'realtime'), 2);
+  assert.equal(captureScale('realtime', VIEWPORT), 2);
+  assert.equal(captureScale('realtime', VIEWPORT, { size: { width: 3840, height: 2160 } }), 2);
   assert.equal(recordOptions({}).deviceScaleFactor, 2);
   assert.equal(recordOptions({ capture: { mode: 'frame-perfect' } }).deviceScaleFactor, 3);
 });
@@ -90,17 +96,15 @@ test('a zoom that enlarges the captured page gives a warning with the scale to r
   assert.ok(Math.abs(scale - layout.k * 2.4) < 0.01);
   assert.equal(enlargement.neededScale, Math.ceil(scale / SHARP_LIMIT));
   assert.match(
-    sharpnessWarning(enlargement)!,
-    /2\.40x zoom at \d+\.\ds .* Record with deviceScaleFactor: 3, or use a smaller zoom\./,
+    sharpnessWarning(buildScene(session))!,
+    /2\.40x zoom at \d+\.\ds .* Record with deviceScaleFactor: 3, or use a smaller zoom\.$/,
   );
   assert.match(describeSession(session), /Warning: Soft text/);
-  assert.doesNotMatch(sharpnessWarning(enlargement, 'frame-perfect')!, /Realtime/);
   assert.match(
-    sharpnessWarning(enlargement, 'realtime')!,
+    sharpnessWarning(buildScene({ ...session, captureMode: 'realtime' }))!,
     /Realtime capture can drop frames at a higher scale: use capture.mode "frame-perfect"\.$/,
   );
-
-  const small = captureEnlargement(buildScene(session, { size: { width: 960, height: 540 } }));
+  const small = buildScene(session, { size: { width: 960, height: 540 } });
   assert.equal(sharpnessWarning(small), undefined);
 });
 
@@ -129,12 +133,21 @@ test('the rest view draws the Lanczos reduction, aligned with the captured frame
   // Deep in the 2.4x zoom the captured frame is enlarged: the rest image does not apply.
   assert.ok(!useRestImage(scene.layout, session.frameSize.width, scene.layout.k * 2.4));
 
-  const lanczos = await loadImage(await renderFrame(sessionDir, 300));
-  const missing = path.join(dir, 'no-such-ffmpeg');
-  const bilinear = await loadImage(
-    await renderFrame(sessionDir, 300, { encode: { ffmpegPath: missing } }),
-  );
-  const { mean, abs } = difference(pixels(lanczos), pixels(bilinear));
+  const i = scene.times.indexOf(300);
+  const index = scene.frameIndex[i];
+  const size = restImageSize(scene.layout, session.frameSize);
+  const rest = new RestFrames(sessionDir, session.frames, [index], size, 'ffmpeg');
+  const reduced = await rest.get(index);
+  rest.close();
+  const { options, layout, band } = scene;
+  const background = await createBackground(options.background, options.size, options.unit);
+  const compositor = new Compositor(options, layout, background, band);
+  const image = await loadImage(path.join(sessionDir, session.frames[index].file));
+  const input = { ...frameInput(scene, i), image };
+  compositor.draw(input);
+  const captured = pixels(compositor.canvas);
+  compositor.draw({ ...input, rest: reduced });
+  const { mean, abs } = difference(pixels(compositor.canvas), captured);
   // Different filters, same place: a shift of one pixel gives a much larger difference.
   assert.ok(abs > 0, 'the rest view uses the rest image');
   assert.ok(abs < 1.5, `mean absolute difference ${abs}`);
@@ -166,5 +179,5 @@ test('rest frames come from ffmpeg in order, with the colors of the decoded fram
   }
 
   const missing = new RestFrames(sessionDir, session.frames, [0], size, path.join(dir, 'none'));
-  assert.equal(await missing.get(0), null);
+  await assert.rejects(missing.get(0), /Cannot run ffmpeg/);
 });

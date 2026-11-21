@@ -132,7 +132,7 @@ describe('record() end to end', () => {
         await cast.click('#name');
         await cast.type('Ada Lovelace', { delay: 40 });
         await cast.press('Shift+Enter');
-        await cast.zoomTo('#name', { scale: 2, duration: 400, follow: true });
+        await cast.zoomTo('#name', { scale: 2, duration: 400, follow: 'edge' });
         await cast.click(cast.page.getByRole('button', { name: 'Save' }));
         await cast.zoomOut({ duration: 400 });
         await cast.scroll({ y: 300 }, { at: '#list' });
@@ -282,7 +282,7 @@ describe('record() end to end', () => {
     assert.equal(zooms.length, 2);
     assert.equal(zooms[0].scale, 2);
     assert.ok(zooms[0].focus && Math.abs(zooms[0].focus.x - page.nameBox!.x) < 1);
-    assert.equal(zooms[0].follow, true);
+    assert.equal(zooms[0].follow, 'edge');
     assert.equal(zooms[1].focus, null);
     assert.equal('follow' in zooms[1], false);
     const [cut] = ofType(session, 'cut');

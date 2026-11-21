@@ -1,4 +1,4 @@
-import type { CaptureOptions, RenderOptions, Size } from '../types.ts';
+import type { CaptureMode, RenderOptions, Size } from '../types.ts';
 import { BACKGROUND_PRESETS } from './background.ts';
 import { computeLayout } from './compositor.ts';
 import { resolveOptions } from './defaults.ts';
@@ -21,11 +21,7 @@ const AUTO_SCALE = { min: 2, max: 3, realtime: 2 };
  * whole scale that keeps the deepest named zoom level sharp at the render size, from 2 to 3.
  * In realtime mode, 2.
  */
-export function captureScale(
-  viewport: Size,
-  render?: RenderOptions,
-  mode: CaptureOptions['mode'] = 'realtime',
-): number {
+export function captureScale(mode: CaptureMode, viewport: Size, render?: RenderOptions): number {
   if (mode !== 'frame-perfect') return AUTO_SCALE.realtime;
   const options = resolveOptions({ name: '', render }, undefined, BACKGROUND_PRESETS, 0);
   const { enabled, levels, auto, maxScale } = options.zoom;
@@ -83,19 +79,22 @@ export function captureEnlargement(
 }
 
 /**
- * A warning when the video enlarges the captured frame so much that text looks soft.
+ * A warning when output frames `from` to `to` enlarge the captured frame so much that text
+ * looks soft.
  */
 export function sharpnessWarning(
-  enlargement: Enlargement | null,
-  captureMode?: CaptureOptions['mode'],
+  scene: Scene,
+  from = 0,
+  to = scene.times.length,
 ): string | undefined {
+  const enlargement = captureEnlargement(scene, from, to);
   if (!enlargement || enlargement.ratio <= SHARP_LIMIT) return undefined;
   const { ratio, t, zoom, neededScale } = enlargement;
   const where =
     zoom > 1.001 ? `the ${zoom.toFixed(2)}x zoom at ${(t / 1000).toFixed(1)}s` : 'the video';
   const instead = zoom > 1.001 ? ', or use a smaller zoom' : ', or render a smaller video';
   const realtime =
-    captureMode === 'realtime'
+    scene.session.captureMode === 'realtime'
       ? ' Realtime capture can drop frames at a higher scale: use capture.mode "frame-perfect".'
       : '';
   return (

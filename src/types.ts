@@ -124,9 +124,8 @@ export interface ZoomEvent {
   easing?: EasingName;
   /**
    * Follow mode until the next zoom directive. Default: the `zoom.follow` render option.
-   * `true` means `edge` and `false` means `off`.
    */
-  follow?: FollowMode | boolean;
+  follow?: FollowMode;
   /**
    * `cursor` marks a zoom on the cursor position with no target: the camera has no
    * framing to return to.
@@ -231,10 +230,7 @@ export interface Session {
   url?: string;
   viewport: Size;
   deviceScaleFactor: number;
-  /**
-   * How the frames were captured. Sessions from older versions do not have it.
-   */
-  captureMode?: CaptureOptions['mode'];
+  captureMode: CaptureMode;
   /**
    * Pixel size of the captured frames (viewport times device scale factor).
    */
@@ -253,13 +249,15 @@ export interface Session {
  * Record options.
  */
 
+export type CaptureMode = 'realtime' | 'frame-perfect';
+
 export interface CaptureOptions {
   /**
    * `realtime` captures the page as it paints. `frame-perfect` controls the page clock and
    * captures one frame for each step of page time: the recording takes longer than real
    * time, but page motion is exact on any machine. Needs the headless shell of Chromium.
    */
-  mode?: 'realtime' | 'frame-perfect';
+  mode?: CaptureMode;
   /**
    * Frames per second of page time in `frame-perfect` mode. Default: 60.
    */
@@ -468,10 +466,10 @@ export interface ZoomToOptions {
   level?: string;
   padding?: number;
   /**
-   * How the camera reacts to the cursor during this shot: `off`, `edge` or `cursor`
-   * (`true` is `edge`, `false` is `off`). Default: the `zoom.follow` render option.
+   * How the camera reacts to the cursor during this shot: `off`, `edge` or `cursor`.
+   * Default: the `zoom.follow` render option.
    */
-  follow?: FollowMode | boolean;
+  follow?: FollowMode;
   duration?: number;
   easing?: EasingName;
   /**

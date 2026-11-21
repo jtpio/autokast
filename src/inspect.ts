@@ -5,9 +5,9 @@ import { promisify } from 'node:util';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { outputDuration, renderFrame, toOutputTime } from './render/index.ts';
 import { buildScene } from './render/scene.ts';
-import { captureEnlargement, sharpnessWarning } from './render/sharpness.ts';
+import { sharpnessWarning } from './render/sharpness.ts';
 import { loadSession } from './session.ts';
-import type { RenderOptions, Session, TimelineEvent } from './types.ts';
+import type { RenderOptions, Session } from './types.ts';
 
 const exec = promisify(execFile);
 const MAX_TILES = 64;
@@ -35,41 +35,6 @@ function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function isCut(session: Session, t: number): boolean {
-  return session.events.some((event) => event.type === 'cut' && t >= event.t && t < event.end);
-}
-
-function describeEvent(event: TimelineEvent): string | undefined {
-  switch (event.type) {
-    case 'mouseDown':
-      return `${event.button === 'left' ? 'click' : `${event.button} click`} at (${Math.round(event.x)}, ${Math.round(event.y)})`;
-    case 'zoom': {
-      if (!event.focus) {
-        return 'zoom out';
-      }
-      const { x, y, width, height } = event.focus;
-      const scale = event.scale ? ` scale ${event.scale}` : '';
-      return `zoom to (${Math.round(x)}, ${Math.round(y)}, ${Math.round(width)}x${Math.round(height)})${scale}`;
-    }
-    case 'cut':
-      return `cut ${seconds(event.end - event.t)}`;
-    case 'speed':
-      return `speed x${event.rate} for ${seconds(event.end - event.t)} of record time`;
-    case 'caption':
-      return `caption "${event.text}" for ${seconds(event.duration)}`;
-    case 'spotlight':
-      return `spotlight for ${seconds(event.duration)}`;
-    case 'marker':
-      return `marker "${event.label}"`;
-    case 'url':
-      return `${event.typing ? 'type address' : event.show ? 'show address' : 'address'} ${event.url}`;
-    case 'key':
-      return event.kind === 'shortcut' ? `press ${event.key}` : undefined;
-    default:
-      return undefined;
-  }
-}
-
 /**
  * Returns a text summary of a session: sizes, capture rate and the timeline in output time.
  */
@@ -81,49 +46,23 @@ export function describeSession(session: Session, options?: RenderOptions): stri
     `Session "${session.name}": ${seconds(duration)} recorded, ${seconds(output)} output`,
     `Viewport ${viewport.width}x${viewport.height} @${session.deviceScaleFactor}x, ${frames.length} frames (${fps.toFixed(0)} per second; a frame that does not change is stored once)`,
   ];
-  const enlargement = captureEnlargement(buildScene(session, options));
-  const warning = sharpnessWarning(enlargement, session.captureMode);
+  const warning = sharpnessWarning(buildScene(session, options));
   if (warning) lines.push(`Warning: ${warning}`);
   lines.push('Timeline (output time):');
   const at = (t: number) => seconds(toOutputTime(session, t)).padStart(7);
-  const hasActions = session.events.some((event) => event.type === 'action');
-  let typed = '';
-  let typedAt = 0;
-  const flush = () => {
-    if (typed) {
-      lines.push(`  ${seconds(typedAt).padStart(7)}  type ${JSON.stringify(typed)}`);
-      typed = '';
-    }
-  };
   for (const event of session.events) {
-    if (hasActions) {
-      if (event.type === 'action' && !/^(cut|speed)\(/.test(event.call)) {
-        const length = toOutputTime(session, event.end) - toOutputTime(session, event.t);
-        lines.push(`  ${at(event.t)}  ${event.call}  (${seconds(length)})`);
-      } else if (event.type === 'cut' || event.type === 'speed') {
-        lines.push(`  ${at(event.t)}  ${describeEvent(event)}`);
-      } else if (event.type === 'url' && !event.typing && !event.show) {
-        lines.push(`  ${at(event.t)}  ${describeEvent(event)}`);
-      }
-      continue;
-    }
-    if (event.type !== 'cut' && event.type !== 'url' && isCut(session, event.t)) {
-      continue;
-    }
-    if (event.type === 'key' && event.kind === 'text') {
-      if (!typed) {
-        typedAt = toOutputTime(session, event.t);
-      }
-      typed += event.key.length === 1 ? event.key : event.key === 'Enter' ? '\n' : '';
-      continue;
-    }
-    const text = describeEvent(event);
-    if (text) {
-      flush();
-      lines.push(`  ${at(event.t)}  ${text}`);
+    if (event.type === 'action' && !/^(cut|speed)\(/.test(event.call)) {
+      const length = toOutputTime(session, event.end) - toOutputTime(session, event.t);
+      lines.push(`  ${at(event.t)}  ${event.call}  (${seconds(length)})`);
+    } else if (event.type === 'cut') {
+      lines.push(`  ${at(event.t)}  cut ${seconds(event.end - event.t)}`);
+    } else if (event.type === 'speed') {
+      const length = seconds(event.end - event.t);
+      lines.push(`  ${at(event.t)}  speed x${event.rate} for ${length} of record time`);
+    } else if (event.type === 'url' && !event.typing && !event.show) {
+      lines.push(`  ${at(event.t)}  address ${event.url}`);
     }
   }
-  flush();
   if (options?.range) {
     lines.push(
       `Range: ${seconds(options.range.start ?? 0)} to ${seconds(options.range.end ?? output)}`,

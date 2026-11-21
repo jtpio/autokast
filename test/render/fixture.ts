@@ -471,6 +471,7 @@ export async function createFixture(dir: string, options: FixtureOptions = {}): 
     url: 'https://acme.example/projects',
     viewport: VIEWPORT,
     deviceScaleFactor: dsf,
+    captureMode: 'frame-perfect',
     frameSize: { width: VIEWPORT.width * dsf, height: VIEWPORT.height * dsf },
     duration,
     frames,

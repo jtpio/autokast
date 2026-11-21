@@ -16,7 +16,7 @@ import {
 } from './encoder.ts';
 import { RENDER_PRESETS } from './presets.ts';
 import { buildScene, frameInput, frameInputs, restFrameIndices, type Scene } from './scene.ts';
-import { captureEnlargement, sharpnessWarning } from './sharpness.ts';
+import { sharpnessWarning } from './sharpness.ts';
 import { FrameSource, RestFrames, upcomingFrames } from './source.ts';
 import { frameIndexAt, sessionTimeMap } from './timeline.ts';
 
@@ -115,7 +115,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
   while (last < times.length && times[last] < opts.range.end) last++;
   const total = last - first;
 
-  const warning = sharpnessWarning(captureEnlargement(scene, first, last), session.captureMode);
+  const warning = sharpnessWarning(scene, first, last);
   const { compositor, source, rest } = await setup(sessionDir, scene, first, last);
   const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autokast-')) : null;
   const target = temp ? path.join(temp, 'frames.mkv') : opts.output;

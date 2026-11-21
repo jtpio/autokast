@@ -82,9 +82,8 @@ export class RestFrames {
   private readonly reader: AsyncIterator<Buffer> | null = null;
   private readonly ahead: Promise<IteratorResult<Buffer>>[] = [];
   private position = 0;
-  private current?: { index: number; canvas: Promise<Canvas | null> };
+  private current?: { index: number; canvas: Promise<Canvas> };
   private stderr = '';
-  private missing = false;
 
   constructor(dir: string, frames: FrameRef[], indices: number[], size: Size, binary: string) {
     this.size = size;
@@ -99,10 +98,8 @@ export class RestFrames {
     ];
     const child = spawn(binary, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     this.child = child;
-    child.on('error', (error: NodeJS.ErrnoException) => {
-      // Without ffmpeg, stills fall back to the captured frames.
-      if (error.code === 'ENOENT') this.missing = true;
-      else this.stderr ||= error.message;
+    child.on('error', (error) => {
+      this.stderr ||= `Cannot run ffmpeg ("${binary}"): ${error.message}`;
     });
     child.stderr!.on('data', (chunk: Buffer) => {
       this.stderr = (this.stderr + chunk.toString()).slice(-4000);
@@ -145,11 +142,10 @@ export class RestFrames {
     this.child?.kill('SIGKILL');
   }
 
-  private async take(skip: number): Promise<Canvas | null> {
+  private async take(skip: number): Promise<Canvas> {
     for (let i = 0; i < skip; i++) await this.next();
     const result = await this.next();
     if (result.done) {
-      if (this.missing) return null;
       throw new Error(`ffmpeg could not reduce a frame:\n${this.stderr.trim() || '(no output)'}`);
     }
     const { width, height } = this.size;

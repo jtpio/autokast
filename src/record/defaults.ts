@@ -97,7 +97,7 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   const viewport = { ...DEFAULTS.viewport, ...options.viewport };
   const capture = { ...DEFAULTS.capture, ...options.capture };
   const deviceScaleFactor =
-    options.deviceScaleFactor ?? captureScale(viewport, options.render, capture.mode);
+    options.deviceScaleFactor ?? captureScale(capture.mode, viewport, options.render);
   const cursor = {
     start: { x: viewport.width / 2, y: viewport.height / 2 },
     ...DEFAULTS.cursor,
