@@ -19,11 +19,22 @@ export const IDENTITY: StageTransform = { scale: 1, x: 0, y: 0 };
 const BAND = 0.125;
 
 /**
+ * Height of the caption band, in output pixels.
+ */
+export function bandHeight(layout: Layout): number {
+  return BAND * Math.min(layout.size.width, layout.size.height);
+}
+
+/**
  * Where things go when the caption band is fully open.
  */
 export interface BandLayout {
   side: 'bottom' | 'top';
   height: number;
+  /**
+   * True when the band lies over the page, because the window fills the output.
+   */
+  overlay: boolean;
   /**
    * Rest window with the band open.
    */
@@ -33,17 +44,35 @@ export interface BandLayout {
    * Vertical center of the caption text block.
    */
   center: number;
+  /**
+   * Left edge of the caption text and right edge of the keycaps.
+   */
+  left: number;
+  right: number;
 }
 
 /**
  * The band takes the place of the padding on its side and grows it to BAND of the short
  * side; the window (chrome and shadow included) scales down uniformly to fit the rest.
+ * A window that fills the output does not move: the band is a strip over the page.
  */
 export function bandLayout(layout: Layout, side: 'bottom' | 'top'): BandLayout {
   const { width: W, height: H } = layout.size;
   const pad = layout.padding;
-  const height = BAND * Math.min(W, H);
+  const height = bandHeight(layout);
   const w0 = layout.window;
+  if (layout.fullBleed) {
+    return {
+      side,
+      height,
+      overlay: true,
+      window: w0,
+      stage: IDENTITY,
+      center: side === 'bottom' ? H - height / 2 : height / 2,
+      left: height / 2,
+      right: W - height / 2,
+    };
+  }
   const availW = W - 2 * pad;
   const availH = H - height - pad;
   const scale = Math.min(1, availW / w0.width, availH / w0.height);
@@ -54,9 +83,12 @@ export function bandLayout(layout: Layout, side: 'bottom' | 'top'): BandLayout {
   return {
     side,
     height,
+    overlay: false,
     window,
     stage: { scale, x: window.x - scale * w0.x, y: window.y - scale * w0.y },
     center: side === 'bottom' ? window.y + window.height + height / 2 : window.y - height / 2,
+    left: window.x,
+    right: window.x + window.width,
   };
 }
 

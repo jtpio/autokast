@@ -152,8 +152,9 @@ export default defineScreencast({
 `{ type: 'gradient', colors: ['#1e3a5f', '#c98b6b'], angle: 135 }`. `frame.padding` is the space
 between the window and the edges of the video: a fraction of the short side when below 1,
 pixels otherwise. With 0 there is no background: the window fills the video, with square
-corners, when the viewport and the output have the same aspect ratio. `zoom.levels` takes any
-names, for example `{ hero: 2.8 }`, and `cast.zoom('hero')` then uses that level.
+corners, when the viewport and the output have the same aspect ratio. Captions and keycaps are
+then over the page. `zoom.levels` takes any names, for example `{ hero: 2.8 }`, and
+`cast.zoom('hero')` then uses that level.
 
 Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill in
 [`skills/autokast`](skills/autokast/SKILL.md) has the full workflow and the direction rules.
