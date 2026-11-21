@@ -379,7 +379,7 @@ export function frameInput(scene: Scene, i: number): Input {
     keys: scene.keys.filter((k) => keyCueVisible(k, t)),
     address:
       scene.options.frame.chrome === 'browser'
-        ? addressAt(scene.urls, t, scene.options.frame, scene.session.url)
+        ? addressAt(scene.urls, t, scene.options.frame)
         : undefined,
   };
 }

@@ -60,13 +60,13 @@ function noSelectPopups(): void {
  * Frame-perfect capture needs BeginFrame control, which only the headless shell has.
  */
 function checkFramePerfect(options: ResolvedOptions): void {
-  const { headless, channel, args = [], launchOptions = {} } = options.browser;
+  const { headless, channel, args = [] } = options.browser;
   const problem =
-    (headless ?? launchOptions.headless) === false
+    headless === false
       ? 'a headed browser'
-      : (channel ?? launchOptions.channel)
-        ? `the browser channel "${channel ?? launchOptions.channel}"`
-        : [...args, ...(launchOptions.args ?? [])].includes('--site-per-process')
+      : channel
+        ? `the browser channel "${channel}"`
+        : args.includes('--site-per-process')
           ? 'the --site-per-process flag'
           : undefined;
   if (problem) {
@@ -79,18 +79,15 @@ function checkFramePerfect(options: ResolvedOptions): void {
 }
 
 function launch(options: ResolvedOptions): Promise<Browser> {
-  const { headless, channel, executablePath, args = [], launchOptions = {} } = options.browser;
+  const { contextOptions, args = [], ...launchOptions } = options.browser;
   const framePerfect = options.capture.mode === 'frame-perfect';
   return chromium.launch({
+    headless: true,
     ...launchOptions,
-    headless: headless ?? launchOptions.headless ?? true,
-    channel: channel ?? launchOptions.channel,
-    executablePath: executablePath ?? launchOptions.executablePath,
     // Without this flag, the screencast frames have 1x resolution whatever the context scale.
     args: [
       `--force-device-scale-factor=${options.deviceScaleFactor}`,
       ...(framePerfect ? FRAME_PERFECT_ARGS : []),
-      ...(launchOptions.args ?? []),
       ...args,
     ],
   });
@@ -297,7 +294,6 @@ export async function record(
       version: 1,
       name: opts.name,
       createdAt,
-      ...(opts.url ? { url: opts.url } : {}),
       viewport: opts.viewport,
       deviceScaleFactor: opts.deviceScaleFactor,
       captureMode: opts.capture.mode,

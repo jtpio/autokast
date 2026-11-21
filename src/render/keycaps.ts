@@ -29,16 +29,6 @@ export interface KeyCue {
  */
 export type KeyLabels = 'mac' | 'pc';
 
-const ALIASES: Record<string, string> = {
-  Command: 'Meta',
-  Cmd: 'Meta',
-  Ctrl: 'Control',
-  Option: 'Alt',
-  Return: 'Enter',
-  Esc: 'Escape',
-  ' ': 'Space',
-};
-
 /**
  * Splits a combination such as `Control+Shift+C` into keys; `Control++` ends with `+`.
  */
@@ -57,7 +47,7 @@ export function parseShortcut(combo: string, labels: KeyLabels = 'mac'): string[
   const controlOrMeta = labels === 'mac' ? 'Meta' : 'Control';
   return keys
     .filter(Boolean)
-    .map((k) => (k === 'ControlOrMeta' ? controlOrMeta : (ALIASES[k] ?? k)));
+    .map((k) => (k === 'ControlOrMeta' ? controlOrMeta : k === ' ' ? 'Space' : k));
 }
 
 const LABELS: Record<string, { glyph?: string; name?: string }> = {

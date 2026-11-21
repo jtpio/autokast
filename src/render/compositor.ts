@@ -32,7 +32,7 @@ import {
   type CapTheme,
   type KeyCue,
 } from './keycaps.ts';
-import { bandHeight, contentMap, IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
+import { bandHeight, contentMap, type BandLayout, type StageTransform } from './stage.ts';
 import type { TimedEvent } from './timeline.ts';
 import { BROWSER_BAR, drawAddressLens, drawBrowserBar, type Address } from './browser.ts';
 
@@ -403,7 +403,7 @@ export class Compositor {
     const ctx = this.ctx;
     const L = this.layout;
     const H = L.size.height;
-    const st = input.stage ?? IDENTITY;
+    const st = input.stage;
     const s = input.camera.scale;
     const { ks, ex, ey, fa, fe, ff } = this.matrices(input);
 
@@ -479,7 +479,7 @@ export class Compositor {
    */
   private matrices(input: Pick<FrameInput, 'camera' | 'stage'>) {
     const L = this.layout;
-    const st = input.stage ?? IDENTITY;
+    const st = input.stage;
     const { ks, ex, ey } = contentMap(L, st, input.camera);
     const camera = this.options.zoom.mode === 'camera';
     const fa = camera ? st.scale * input.camera.scale : st.scale;

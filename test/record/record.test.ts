@@ -166,7 +166,7 @@ describe('record() end to end', () => {
   it('writes a session that loadSession reads', () => {
     assert.equal(session.version, 1);
     assert.equal(session.name, 'fixture');
-    assert.equal(session.url, server.url);
+    assert.deepEqual(ofType(session, 'url')[0], { type: 'url', t: 0, url: `${server.url}/` });
     assert.deepEqual(session.viewport, { width: 1280, height: 720 });
     assert.equal(session.deviceScaleFactor, 2);
     assert.equal(session.captureMode, 'realtime');

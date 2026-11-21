@@ -130,7 +130,7 @@ export interface ZoomEvent {
    * `cursor` marks a zoom on the cursor position with no target: the camera has no
    * framing to return to.
    */
-  anchor?: 'target' | 'cursor';
+  anchor?: 'cursor';
 }
 
 /**
@@ -227,7 +227,6 @@ export interface Session {
   version: 1;
   name: string;
   createdAt: string;
-  url?: string;
   viewport: Size;
   deviceScaleFactor: number;
   captureMode: CaptureMode;
@@ -275,12 +274,10 @@ export interface CaptureOptions {
   quality?: number;
 }
 
-export interface BrowserOptions {
-  headless?: boolean;
-  channel?: string;
-  executablePath?: string;
-  args?: string[];
-  launchOptions?: LaunchOptions;
+/**
+ * Playwright launch options, plus the options of the browser context.
+ */
+export interface BrowserOptions extends LaunchOptions {
   contextOptions?: BrowserContextOptions;
 }
 
