@@ -190,6 +190,9 @@ moment has motion or something new to read.
   so a 16:9 target shows more of the page at its sides. Give the target the shape of the
   view, for example `{ x: 0, y: 28, width: 960, height: 472 }` with `padding: 0`, or use a
   `level`.
+- With `frame.padding: 0` the window fills the video and does not move for a caption: the
+  caption is over the bottom fifth of the page, on a shade. Keep the subject of a captioned
+  shot above that part.
 
 **State**
 
@@ -222,28 +225,28 @@ autokast render .autokast/demo -o tall.mp4 --size 1080x1920
 autokast render .autokast/demo --preview -o quick.mp4
 ```
 
-| Option                                                | Values                                                                                                                                                                 |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `size`, `fps`                                         | Any size; 24 to 120 fps. Default 1920x1080 at 60.                                                                                                                      |
-| `encode.quality`                                      | `draft`, `standard` (default), `high`, `max`. Also `encode.crf`, `encode.preset`.                                                                                      |
-| `background`                                          | `paper`, `fog`, `sage`, `dune`, `clay`, `dusk` (default), `harbor`, `graphite`, `ink`, `ember`, a CSS color, an image file, or `{ type: 'gradient' \| 'image', ... }`. |
-| `frame.padding`, `frame.radius`, `frame.shadow`       | Space between the window and the edges of the video (below 1: a fraction of the short side; else pixels; 0: no background; also `--padding`), corner radius, shadow.   |
-| `frame.chrome`                                        | `none`, `window` (title bar; set `frame.title`) or `browser` (toolbar with an address bar that follows the page URL).                                                  |
-| `frame.chromeTheme`                                   | `light` (default) or `dark`, for the title bar and the browser toolbar.                                                                                                |
-| `frame.address`, `frame.origin`                       | Browser frame: a fixed text for the address bar (`false` for none), and a text that replaces the origin of the page URL.                                               |
-| `cursor.size`, `cursor.smoothing`, `cursor.hideAfter` | Cursor size (default 1.9), path smoothing, hide when idle (ms).                                                                                                        |
-| `cursor.click.type`                                   | `ripple`, `ring`, `none`.                                                                                                                                              |
-| `zoom.mode`                                           | `camera` (the window grows past the edges) or `crop` (zoom inside a fixed window).                                                                                     |
-| `zoom.easing`, `zoom.duration`, `zoom.maxScale`       | Camera feel.                                                                                                                                                           |
-| `zoom.follow`, `zoom.followSpeed`                     | Follow mode for shots that do not set one (`off`, `edge`, `cursor`), and how fast the camera catches up (default 1).                                                   |
-| `zoom.levels`                                         | Scale of each named level, for example `--set 'zoom.levels={"close":2.6}'`. A new name adds a level for `cast.zoom` and `cast.zoomTo`.                                 |
-| `zoom.auto`                                           | `true` adds zooms on clicks and typing when the script has none.                                                                                                       |
-| `zoom.edges`                                          | `fill` (default: a zoomed shot is all page) or `keep` (the window edge and backdrop stay in view).                                                                     |
-| `cursor.tilt`                                         | How much the cursor leans into its travel (default 1; 0 turns it off).                                                                                                 |
-| `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                               |
-| `keystrokes.show`                                     | `none` (default), `shortcuts` (key combinations from `cast.press` as keycaps) or `all`.                                                                                |
-| `keystrokes.labels`                                   | `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when the render runs on macOS.                                                                                |
-| `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                                       |
+| Option                                                | Values                                                                                                                                                                                                           |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `size`, `fps`                                         | Any size; 24 to 120 fps. Default 1920x1080 at 60.                                                                                                                                                                |
+| `encode.quality`                                      | `draft`, `standard` (default), `high`, `max`. Also `encode.crf`, `encode.preset`.                                                                                                                                |
+| `background`                                          | `paper`, `fog`, `sage`, `dune`, `clay`, `dusk` (default), `harbor`, `graphite`, `ink`, `ember`, a CSS color, an image file, or `{ type: 'gradient' \| 'image', ... }`.                                           |
+| `frame.padding`, `frame.radius`, `frame.shadow`       | Space between the window and the edges of the video (below 1: a fraction of the short side; else pixels; 0: no background, and captions and keycaps are over the page; also `--padding`), corner radius, shadow. |
+| `frame.chrome`                                        | `none`, `window` (title bar; set `frame.title`) or `browser` (toolbar with an address bar that follows the page URL).                                                                                            |
+| `frame.chromeTheme`                                   | `light` (default) or `dark`, for the title bar and the browser toolbar.                                                                                                                                          |
+| `frame.address`, `frame.origin`                       | Browser frame: a fixed text for the address bar (`false` for none), and a text that replaces the origin of the page URL.                                                                                         |
+| `cursor.size`, `cursor.smoothing`, `cursor.hideAfter` | Cursor size (default 1.9), path smoothing, hide when idle (ms).                                                                                                                                                  |
+| `cursor.click.type`                                   | `ripple`, `ring`, `none`.                                                                                                                                                                                        |
+| `zoom.mode`                                           | `camera` (the window grows past the edges) or `crop` (zoom inside a fixed window).                                                                                                                               |
+| `zoom.easing`, `zoom.duration`, `zoom.maxScale`       | Camera feel.                                                                                                                                                                                                     |
+| `zoom.follow`, `zoom.followSpeed`                     | Follow mode for shots that do not set one (`off`, `edge`, `cursor`), and how fast the camera catches up (default 1).                                                                                             |
+| `zoom.levels`                                         | Scale of each named level, for example `--set 'zoom.levels={"close":2.6}'`. A new name adds a level for `cast.zoom` and `cast.zoomTo`.                                                                           |
+| `zoom.auto`                                           | `true` adds zooms on clicks and typing when the script has none.                                                                                                                                                 |
+| `zoom.edges`                                          | `fill` (default: a zoomed shot is all page) or `keep` (the window edge and backdrop stay in view).                                                                                                               |
+| `cursor.tilt`                                         | How much the cursor leans into its travel (default 1; 0 turns it off).                                                                                                                                           |
+| `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                                                                         |
+| `keystrokes.show`                                     | `none` (default), `shortcuts` (key combinations from `cast.press` as keycaps) or `all`.                                                                                                                          |
+| `keystrokes.labels`                                   | `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when the render runs on macOS.                                                                                                                          |
+| `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                                                                                 |
 
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`
 (sand), `clay` (terracotta), `dusk` (slate blue with a warm corner), `harbor` (deep teal),

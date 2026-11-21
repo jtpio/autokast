@@ -32,7 +32,7 @@ import {
   type CapTheme,
   type KeyCue,
 } from './keycaps.ts';
-import { contentMap, IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
+import { bandHeight, contentMap, IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
 import type { TimedEvent } from './timeline.ts';
 import { BROWSER_BAR, drawAddressLens, drawBrowserBar, type Address } from './browser.ts';
 
@@ -52,12 +52,24 @@ export interface Layout {
   radius: number;
   padding: number;
   /**
+   * The window covers the whole output at rest: no background shows.
+   */
+  fullBleed: boolean;
+  /**
    * Output pixels per CSS pixel at rest.
    */
   k: number;
 }
 
 const BAR_HEIGHT = 38;
+
+/**
+ * Shade behind an overlay caption: its height in band heights, its strongest alpha, and
+ * the share of its height where the alpha becomes full.
+ */
+const SCRIM_HEIGHT = 1.7;
+const SCRIM_ALPHA = 0.86;
+const SCRIM_FULL = 0.75;
 
 function gcd(a: number, b: number): number {
   return b ? gcd(b, a % b) : a;
@@ -92,8 +104,11 @@ export function computeLayout(options: ResolvedOptions, viewport: Size): Layout 
     window: { x, y, width: cw, height: ch + bar },
     content: { x, y: y + bar, width: cw, height: ch },
     bar,
-    radius: Math.min(options.frame.radius * unit, cw / 4),
+    // Without padding the window touches the output edges: a round corner would show the
+    // background.
+    radius: pad < 0.5 ? 0 : Math.min(options.frame.radius * unit, cw / 4),
     padding: pad,
+    fullBleed: x < 1 && y < 1 && w - x - cw < 1 && h - y - ch - bar < 1,
     k: cw / viewport.width,
   };
 }
@@ -270,7 +285,7 @@ export class Compositor {
           h: (band.height * 2) / 3,
         }
       : { x: 0, y: H * 0.85, w: W, h: H * 0.15 };
-    const dark = this.backgroundLuminance(textArea) < 0.4;
+    const dark = band?.overlay || this.backgroundLuminance(textArea) < 0.4;
     this.captionStyle = {
       family: options.captions.fontFamily,
       fontSize: options.captions.fontSize * u,
@@ -408,7 +423,9 @@ export class Compositor {
     ctx.restore();
 
     ctx.setTransform(fa, 0, 0, fa, fe, ff);
-    this.drawEdges(ctx);
+    const rest = Math.abs(fa - 1) < 1e-9 && Math.abs(fe) < 1e-6 && Math.abs(ff) < 1e-6;
+    // A window that fills the output has no edge to define.
+    if (!(rest && L.fullBleed)) this.drawEdges(ctx);
     if (input.address && this.options.frame.chrome === 'browser') {
       const dark = this.options.frame.chromeTheme === 'dark';
       ctx.setTransform(fa, 0, 0, fa, fe, ff);
@@ -417,7 +434,10 @@ export class Compositor {
     // The band cover, the captions and the keycaps are in output pixels.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    if (input.band > 0 && this.band) this.drawBandCover(ctx, input.band, fa, ff, H);
+    if (input.band > 0 && this.band) {
+      if (this.band.overlay) this.drawScrim(ctx, input.band);
+      else this.drawBandCover(ctx, input.band, fa, ff, H);
+    }
     for (const cue of input.captions) this.drawCaptionCue(ctx, cue, input.t);
     for (const cue of input.keys) this.drawKeys(ctx, cue, input.band, input.t);
   }
@@ -533,6 +553,24 @@ export class Compositor {
     ctx.restore();
   }
 
+  /**
+   * The shade behind an overlay caption: it keeps the text readable on any page.
+   */
+  private drawScrim(ctx: SKRSContext2D, open: number): void {
+    const band = this.band!;
+    const { width: W, height: H } = this.layout.size;
+    const h = band.height * SCRIM_HEIGHT;
+    const bottom = band.side === 'bottom';
+    const g = ctx.createLinearGradient(0, bottom ? H - h : h, 0, bottom ? H : 0);
+    for (let i = 0; i <= 12; i++) {
+      const v = i / 12;
+      const a = SCRIM_ALPHA * open * smoothstep(0, SCRIM_FULL, v);
+      g.addColorStop(v, `rgba(8, 10, 16, ${a.toFixed(4)})`);
+    }
+    ctx.fillStyle = g;
+    ctx.fillRect(0, bottom ? H - h : 0, W, h);
+  }
+
   private captionLayout(cue: CaptionCue): CaptionLine {
     let line = this.captionLines.get(cue);
     if (!line) {
@@ -554,12 +592,13 @@ export class Compositor {
     if (!band) return;
     const line = this.captionLayout(cue);
     const top = band.center - (line.fontSize * LINE_HEIGHT) / 2;
-    drawCaption(ctx, cue, line, this.captionStyle, band.window.x, top, t);
+    drawCaption(ctx, cue, line, this.captionStyle, band.left, top, t);
   }
 
   /**
    * Keycaps sit centered in the padding at rest; with the caption band open on their side
-   * they move into the band, right-aligned with the frame.
+   * they move into the band, right-aligned with the frame. A window that fills the output
+   * has no padding: the keycaps then sit over the page, where the band would be.
    */
   private keysBox(cue: KeyCue, open: number) {
     const L = this.layout;
@@ -569,15 +608,23 @@ export class Compositor {
     const h = 40 * u;
     const top = this.options.keystrokes.position === 'top';
     let x = (L.size.width - width) / 2;
-    let y = top
-      ? L.window.y - L.padding / 2 - h / 2
-      : L.window.y + L.window.height + L.padding / 2 - h / 2;
+    const gap = L.fullBleed ? -bandHeight(L) : L.padding;
+    let y = top ? L.window.y - gap / 2 - h / 2 : L.window.y + L.window.height + gap / 2 - h / 2;
     const band = this.band;
     if (band && (band.side === 'top') === top && open > 0) {
-      x += (band.window.x + band.window.width - width - x) * open;
+      x += (band.right - width - x) * open;
       y += (band.center - h / 2 - y) * open;
     }
     return { caps, x, y, width, height: h };
+  }
+
+  /**
+   * True when the output row `y` is in the strip of the caption band.
+   */
+  private inBand(y: number): boolean {
+    const band = this.band;
+    if (!band) return false;
+    return band.side === 'bottom' ? y > this.layout.size.height - band.height : y < band.height;
   }
 
   needsKeyTheme(cue: KeyCue): boolean {
@@ -606,8 +653,11 @@ export class Compositor {
       band !== null &&
       input.band > 0.5 &&
       (band.side === 'bottom' ? cy > band.window.y + band.window.height : cy < band.window.y);
+    const shaded = band !== null && band.overlay && input.band > 0.5 && this.inBand(cy);
     let lum: number;
-    if (inside && !covered && input.image) {
+    if (shaded) {
+      lum = 0;
+    } else if (inside && !covered && input.image) {
       const s = input.image.width / L.viewport.width;
       const p = this.probe.getContext('2d');
       p.imageSmoothingEnabled = true;

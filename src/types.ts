@@ -577,7 +577,8 @@ export interface Cast {
   /**
    * Shows a caption on the backdrop, one line at a time: text that is too long for one
    * line shows as several lines in sequence. Words between `**` get the emphasis: they
-   * keep the full tone and the other words are dimmed.
+   * keep the full tone and the other words are dimmed. When the window fills the video
+   * (`frame.padding: 0`), the caption is over the page, on a shade.
    */
   caption(text: string, options?: CaptionOptions): Promise<void>;
   spotlight(target: Target, options?: SpotlightOptions): Promise<void>;
@@ -609,7 +610,9 @@ export interface FrameOptions {
   /**
    * Space between the window and the edges of the video, which is how much of the
    * background shows. Below 1: a fraction of the short side of the output. Otherwise
-   * pixels of a 1080-pixel output. 0 fills the video with the window. Default: 0.07.
+   * pixels of a 1080-pixel output. With 0 and a viewport that has the aspect ratio of the
+   * output, the window fills the video: square corners and no background. Captions and
+   * keycaps are then over the page. Default: 0.07.
    */
   padding?: number;
   radius?: number;

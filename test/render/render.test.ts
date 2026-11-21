@@ -188,14 +188,35 @@ test('a background string is a preset, an image file or a CSS color', async () =
   await assert.rejects(frame(path.join(dir, 'none.png')), /Cannot read the background image/);
 });
 
-test('frame padding is the space between the window and the edges of the video', () => {
-  const window = (padding: number, size = { width: 1920, height: 1080 }) =>
-    buildScene(session, { size, frame: { padding } }).layout.window;
+test('frame padding is the space between the window and the edges of the video', async () => {
+  const layout = (padding: number, size = { width: 1920, height: 1080 }) =>
+    buildScene(session, { size, frame: { padding } }).layout;
+  const window = (padding: number, size?: { width: number; height: number }) =>
+    layout(padding, size).window;
   assert.deepEqual(window(0), { x: 0, y: 0, width: 1920, height: 1080 });
   assert.deepEqual(window(0.1), { x: 192, y: 108, width: 1536, height: 864 });
   assert.equal(window(54).y, 54);
   assert.equal(window(54, { width: 960, height: 540 }).y, 27);
   assert.equal(window(0.1, { width: 1080, height: 1920 }).x, 108);
+
+  assert.equal(layout(0.1).radius, 16);
+  assert.equal(layout(0).radius, 0);
+  const size = { width: 480, height: 270 };
+  const png = await renderFrame(path.join(dir, 'session'), 0, {
+    size,
+    background: '#ff00ff',
+    frame: { padding: 0 },
+    cursor: { visible: false },
+  });
+  const canvas = createCanvas(size.width, size.height);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(await loadImage(png), 0, 0);
+  const full = ctx.getImageData(0, 0, size.width, size.height).data;
+  let magenta = 0;
+  for (let i = 0; i < full.length; i += 4) {
+    if (full[i] > 200 && full[i + 1] < 80 && full[i + 2] > 200) magenta++;
+  }
+  assert.equal(magenta, 0, 'no background shows without padding');
 });
 
 test("zoom edges 'fill' covers the output with the page, 'keep' shows the backdrop", async () => {
@@ -289,6 +310,57 @@ test('a caption is in the middle of the band, also with the browser frame', asyn
     assert.ok(light(Math.round(band.center)) > 15, `${chrome}: text in the middle of the band`);
     assert.equal(light(Math.round(bottom + 14)), 0, `${chrome}: no text at the window edge`);
   }
+});
+
+test('a window that fills the output stays in place: captions and keycaps lie over the page', async () => {
+  const variant = async (name: string, events: Session['events']) => {
+    const target = path.join(dir, name);
+    await mkdir(target, { recursive: true });
+    await symlink(path.join(dir, 'session', 'frames'), path.join(target, 'frames'));
+    await writeFile(path.join(target, 'session.json'), JSON.stringify({ ...session, events }));
+    return target;
+  };
+  const caption = { type: 'caption' as const, t: 100, duration: 4000, text: 'A **new project**' };
+  const key = { type: 'key' as const, t: 1900, kind: 'shortcut' as const, key: 'Meta+K' };
+  const options = { frame: { padding: 0 }, background: '#ff00ff', cursor: { visible: false } };
+  const scene = buildScene({ ...session, events: [caption] }, options);
+  const band = scene.band!;
+  assert.equal(band.overlay, true);
+  assert.deepEqual(stageAt(band, 1), { scale: 1, x: 0, y: 0 });
+  assert.equal(buildScene({ ...session, events: [caption] }).band!.overlay, false);
+
+  const { width: W, height: H } = scene.layout.size;
+  const pixels = async (source: string, extra = {}) => {
+    const image = await loadImage(await renderFrame(source, 2000, { ...options, ...extra }));
+    const context = createCanvas(W, H).getContext('2d');
+    context.drawImage(image, 0, 0);
+    return (x: number, y: number, w: number, h: number) =>
+      Buffer.from(context.getImageData(x, y, w, h).data);
+  };
+  const plain = await pixels(await variant('plain', []));
+  const open = await pixels(await variant('overlay', [caption]));
+  assert.ok(open(0, 0, W, H / 2).equals(plain(0, 0, W, H / 2)), 'the window did not move');
+  const all = open(0, 0, W, H);
+  let magenta = 0;
+  let light = 0;
+  for (let i = 0; i < all.length; i += 4) {
+    if (all[i] > 200 && all[i + 1] < 80 && all[i + 2] > 200) magenta++;
+  }
+  assert.equal(magenta, 0, 'no background shows');
+  const row = open(band.left, Math.round(band.center), 420, 1);
+  for (let i = 0; i < row.length; i += 4) {
+    if (Math.min(row[i], row[i + 1], row[i + 2]) > 200) light++;
+  }
+  assert.ok(light > 15, 'light text in the middle of the strip');
+  const shade = (get: typeof open) => get(W - 60, Math.round(band.center), 1, 1)[1];
+  assert.ok(shade(open) < shade(plain) - 100, 'a shade is behind the caption');
+
+  const keys = await variant('keys', [key]);
+  const shown = await pixels(keys, { keystrokes: { show: 'shortcuts' } });
+  const hidden = await pixels(keys);
+  const strip = Math.round(H - band.height);
+  assert.ok(!shown(0, strip, W, H - strip).equals(hidden(0, strip, W, H - strip)), 'keycaps show');
+  assert.ok(shown(0, H - 8, W, 8).equals(hidden(0, H - 8, W, 8)), 'keycaps are inside the video');
 });
 
 test('the larger address field follows the frame and stays clear of the buttons', async () => {
