@@ -119,7 +119,6 @@ describe('record() end to end', () => {
         name: 'fixture',
         url: server.url,
         sessionDir: dir,
-        deviceScaleFactor: 2,
         seed: 7,
         cursor: { speed: 1.5 },
         pacing: { startDelay: 300, endDelay: 400, afterClick: 200 },
