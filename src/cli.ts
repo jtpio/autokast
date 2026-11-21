@@ -24,7 +24,8 @@ Common options:
       --preview           Fast render: half size, 30 fps, draft quality
       --size <WxH>        Output size, e.g. 1920x1080
       --fps <n>           Output frame rate
-      --background <b>    Background preset name or CSS color
+      --background <b>    Background: a preset name, an image file or a CSS color
+      --padding <n>       Space around the window: below 1 a fraction of the short side, else pixels
       --range <a:b>       Render only this output time range, in seconds
 
 record options:
@@ -100,6 +101,7 @@ function parseFlags(args: string[]) {
       size: { type: 'string' },
       fps: { type: 'string' },
       background: { type: 'string' },
+      padding: { type: 'string' },
       range: { type: 'string' },
       session: { type: 'string' },
       'no-render': { type: 'boolean' },
@@ -131,6 +133,13 @@ async function renderOptions(flags: Flags, sets: string[]): Promise<RenderOption
   }
   if (flags.background) {
     options.background = flags.background;
+  }
+  if (flags.padding !== undefined) {
+    const padding = Number(flags.padding);
+    if (flags.padding === '' || !(padding >= 0 && Number.isFinite(padding))) {
+      throw new Error(`Invalid --padding "${flags.padding}". Use a number, e.g. 0.12 or 96`);
+    }
+    options.frame = { ...options.frame, padding };
   }
   if (flags.range) {
     const [start, end] = flags.range.split(':');

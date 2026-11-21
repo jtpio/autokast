@@ -202,7 +202,10 @@ async function drawImageBackground(
   file: string,
   blur: number,
 ): Promise<void> {
-  const image = await loadImage(path.resolve(file));
+  const resolved = path.resolve(file);
+  const image = await loadImage(resolved).catch(() => {
+    throw new Error(`Cannot read the background image "${resolved}".`);
+  });
   const { width: w, height: h } = size;
   const over = blur * 2;
   const scale = Math.max((w + over * 2) / image.width, (h + over * 2) / image.height);
@@ -213,6 +216,18 @@ async function drawImageBackground(
   if (blur > 0) ctx.filter = `blur(${blur}px)`;
   ctx.drawImage(image, (w - dw) / 2, (h - dh) / 2, dw, dh);
   ctx.filter = 'none';
+}
+
+/**
+ * True when the canvas accepts `value` as a color. The canvas ignores an invalid color
+ * without an error, so the check needs two probe colors.
+ */
+function isCssColor(ctx: SKRSContext2D, value: string): boolean {
+  return ['#010203', '#030201'].some((probe) => {
+    ctx.fillStyle = probe;
+    ctx.fillStyle = value;
+    return ctx.fillStyle !== probe;
+  });
 }
 
 /**
@@ -229,6 +244,11 @@ export async function createBackground(
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, size.width, size.height);
   if (options.type === 'solid') {
+    if (!isCssColor(ctx, options.color)) {
+      throw new Error(
+        `Unknown background "${options.color}". Use a preset (${BACKGROUND_PRESETS.join(', ')}), a CSS color or an image file.`,
+      );
+    }
     ctx.fillStyle = options.color;
     ctx.fillRect(0, 0, size.width, size.height);
   } else if (options.type === 'gradient') {

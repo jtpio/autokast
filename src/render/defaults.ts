@@ -160,17 +160,19 @@ function mergeTwo(base: unknown, layer: unknown): unknown {
   return out;
 }
 
+const IMAGE_FILE = /\.(png|jpe?g|webp|avif|gif|svg)$/i;
+
 /**
- * Turns a background string (preset name or CSS color) into background options.
+ * Turns a background string (preset name, image file or CSS color) into background options.
  */
 export function normalizeBackground(
   value: BackgroundOptions | string,
   presets: readonly string[],
 ): BackgroundOptions {
   if (typeof value !== 'string') return value;
-  return presets.includes(value)
-    ? { type: 'preset', name: value }
-    : { type: 'solid', color: value };
+  if (presets.includes(value)) return { type: 'preset', name: value };
+  if (IMAGE_FILE.test(value)) return { type: 'image', path: value };
+  return { type: 'solid', color: value };
 }
 
 function evenSize(size: Size, pixelFormat: string): Size {

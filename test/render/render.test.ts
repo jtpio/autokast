@@ -164,6 +164,40 @@ async function cornerLuminance(png: Buffer): Promise<number[]> {
   });
 }
 
+test('a background string is a preset, an image file or a CSS color', async () => {
+  const background = (value: string) =>
+    buildScene(session, { background: value }).options.background;
+  assert.deepEqual(background('ink'), { type: 'preset', name: 'ink' });
+  assert.deepEqual(background('art/Wall.JPG'), { type: 'image', path: 'art/Wall.JPG' });
+  assert.deepEqual(background('tomato'), { type: 'solid', color: 'tomato' });
+
+  const image = createCanvas(64, 36);
+  const ctx = image.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 64, 36);
+  const file = path.join(dir, 'white.png');
+  await writeFile(file, image.toBuffer('image/png'));
+  const sessionDir = path.join(dir, 'session');
+  const frame = (value: string) =>
+    renderFrame(sessionDir, 0, { size: { width: 480, height: 270 }, background: value });
+  assert.ok(
+    (await cornerLuminance(await frame(file))).every((l) => l > 0.95),
+    'the image covers the output',
+  );
+  await assert.rejects(frame('harbour'), /Unknown background "harbour"/);
+  await assert.rejects(frame(path.join(dir, 'none.png')), /Cannot read the background image/);
+});
+
+test('frame padding is the space between the window and the edges of the video', () => {
+  const window = (padding: number, size = { width: 1920, height: 1080 }) =>
+    buildScene(session, { size, frame: { padding } }).layout.window;
+  assert.deepEqual(window(0), { x: 0, y: 0, width: 1920, height: 1080 });
+  assert.deepEqual(window(0.1), { x: 192, y: 108, width: 1536, height: 864 });
+  assert.equal(window(54).y, 54);
+  assert.equal(window(54, { width: 960, height: 540 }).y, 27);
+  assert.equal(window(0.1, { width: 1080, height: 1920 }).x, 108);
+});
+
 test("zoom edges 'fill' covers the output with the page, 'keep' shows the backdrop", async () => {
   const corner = path.join(dir, 'corner');
   await mkdir(corner, { recursive: true });
