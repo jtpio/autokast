@@ -28,8 +28,10 @@ export function captureScale(
 ): number {
   if (mode !== 'frame-perfect') return AUTO_SCALE.realtime;
   const options = resolveOptions({ name: '', render }, undefined, BACKGROUND_PRESETS, 0);
-  const { levels, auto, maxScale } = options.zoom;
-  const deepest = Math.min(maxScale, Math.max(1, ...Object.values(levels), auto ? auto.scale : 1));
+  const { enabled, levels, auto, maxScale } = options.zoom;
+  const deepest = enabled
+    ? Math.min(maxScale, Math.max(1, ...Object.values(levels), auto ? auto.scale : 1))
+    : 1;
   const need = (computeLayout(options, viewport).k * deepest) / SHARP_LIMIT;
   return Math.min(AUTO_SCALE.max, Math.max(AUTO_SCALE.min, Math.ceil(need - 1e-9)));
 }

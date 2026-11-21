@@ -68,6 +68,10 @@ test('frame-perfect capture scales up for the deepest zoom level at the render s
   // At most 3 and at least 2: a warning at render time covers deeper zooms.
   assert.equal(scale({ size: { width: 3840, height: 2160 } }), 3);
   assert.equal(scale({ size: { width: 640, height: 360 } }), 2);
+  // Presets change the layout and can turn zooms off.
+  assert.equal(scale({ preset: 'focus' }), 3);
+  assert.equal(scale({ preset: 'plain' }), 2);
+  assert.equal(scale({ zoom: { enabled: false } }), 2);
 });
 
 test('realtime capture stays at scale 2, where it drops fewer frames', () => {
