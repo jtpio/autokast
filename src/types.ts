@@ -609,7 +609,8 @@ export interface FrameOptions {
   /**
    * Space between the window and the edges of the video, which is how much of the
    * background shows. Below 1: a fraction of the short side of the output. Otherwise
-   * pixels of a 1080-pixel output. 0 fills the video with the window. Default: 0.07.
+   * pixels of a 1080-pixel output. With 0 and a viewport that has the aspect ratio of the
+   * output, the window fills the video: square corners and no background. Default: 0.07.
    */
   padding?: number;
   radius?: number;

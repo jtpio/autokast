@@ -92,7 +92,9 @@ export function computeLayout(options: ResolvedOptions, viewport: Size): Layout 
     window: { x, y, width: cw, height: ch + bar },
     content: { x, y: y + bar, width: cw, height: ch },
     bar,
-    radius: Math.min(options.frame.radius * unit, cw / 4),
+    // Without padding the window touches the output edges: a round corner would show the
+    // background.
+    radius: pad < 0.5 ? 0 : Math.min(options.frame.radius * unit, cw / 4),
     padding: pad,
     k: cw / viewport.width,
   };
@@ -226,6 +228,10 @@ export class Compositor {
   private sprite: Canvas | null = null;
   private spriteKey = '';
   private readonly band: BandLayout | null;
+  /**
+   * The window covers the whole output at rest, so it has no edge to draw.
+   */
+  private readonly fullBleed: boolean;
   private moving: Canvas | null = null;
   private movingKey = '';
   private lastKey = '';
@@ -246,6 +252,8 @@ export class Compositor {
     this.background = background;
     this.band = band;
     const { width, height } = layout.size;
+    const w = layout.window;
+    this.fullBleed = w.x <= 0 && w.y <= 0 && w.x + w.width >= width && w.y + w.height >= height;
     this.canvas = createCanvas(width, height);
     this.ctx = this.canvas.getContext('2d');
     this.shadow = options.frame.shadow ? this.renderShadow() : null;
@@ -408,7 +416,8 @@ export class Compositor {
     ctx.restore();
 
     ctx.setTransform(fa, 0, 0, fa, fe, ff);
-    this.drawEdges(ctx);
+    const rest = Math.abs(fa - 1) < 1e-9 && Math.abs(fe) < 1e-6 && Math.abs(ff) < 1e-6;
+    if (!(rest && this.fullBleed)) this.drawEdges(ctx);
     if (input.address && this.options.frame.chrome === 'browser') {
       const dark = this.options.frame.chromeTheme === 'dark';
       ctx.setTransform(fa, 0, 0, fa, fe, ff);
