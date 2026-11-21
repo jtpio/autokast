@@ -588,6 +588,11 @@ export interface Cast {
  * Render options.
  */
 
+/**
+ * What shows behind the window. An image covers the output and keeps its aspect ratio;
+ * `path` is relative to the working directory of the render, and `blur` is in pixels of a
+ * 1080-pixel output. `angle` of a gradient is a CSS angle in degrees (default: 135).
+ */
 export type BackgroundOptions =
   | { type: 'solid'; color: string }
   | { type: 'gradient'; colors: string[]; angle?: number }
@@ -602,7 +607,9 @@ export interface ShadowOptions {
 
 export interface FrameOptions {
   /**
-   * Space around the content. Below 1: a fraction of the output height. Otherwise pixels.
+   * Space between the window and the edges of the video, which is how much of the
+   * background shows. Below 1: a fraction of the short side of the output. Otherwise
+   * pixels of a 1080-pixel output. 0 fills the video with the window. Default: 0.07.
    */
   padding?: number;
   radius?: number;
@@ -748,6 +755,9 @@ export interface RenderOptions {
   output?: string;
   size?: Size;
   fps?: number;
+  /**
+   * A string is a preset name, the path of an image file, or a CSS color.
+   */
   background?: BackgroundOptions | string;
   frame?: FrameOptions;
   cursor?: CursorRenderOptions;

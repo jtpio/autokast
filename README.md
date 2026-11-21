@@ -71,7 +71,8 @@ A target is a Playwright locator, a selector, a point or a rectangle.
 | `goto(url)`, `showUrl()`                       | Opens a URL; shows the URL in the browser frame  |
 | `zoomTo(target)`, `zoom('close')`, `zoomOut()` | Camera moves                                     |
 | `wait(ms)`, `cut(fn)`, `speed(rate, fn)`       | Hold a shot, remove a wait, play a part faster   |
-| `caption(text)`, `spotlight(target)`           | Optional overlays                                |
+| `caption(text)`                                | A caption on the backdrop                        |
+| `spotlight(target)`                            | Dims the page around one element                 |
 
 Use `cast` for every action that the viewer must see. `cast.page` is the Playwright page, for
 waits and for reading state.
@@ -85,10 +86,13 @@ waits and for reading state.
 
 - **Cursor.** A large vector cursor that takes the shape the page asks for, with click
   effects, motion blur, and a slight tilt when it travels.
-- **Camera.** `zoomTo` frames an element; `zoom` zooms on the cursor. Each shot has a follow
-  mode: `off`, `edge` or `cursor`.
-- **Look.** Ten backdrops, padding, rounded corners, shadow, and an optional title bar or
-  browser frame with an address bar that follows the page URL.
+- **Camera.** `zoomTo` frames an element; `zoom` zooms on the cursor. Zoom levels have names
+  (`wide`, `medium`, `close`), and a script can add its own. Each shot has a follow mode:
+  `off`, `edge` or `cursor`.
+- **Spotlight.** `spotlight` dims the page around one element for a moment.
+- **Look.** Ten backdrops, or your own color, gradient or image. Padding, rounded corners,
+  shadow, and an optional title bar or browser frame with an address bar that follows the
+  page URL.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
   page motion is exact at 60 fps on any machine. Use it for the final recording.
@@ -112,6 +116,7 @@ so one recording can give many videos:
 ```sh
 autokast render .autokast/new-task -o tall.mp4 --size 1080x1920 --background ink
 autokast render .autokast/new-task -o big.mp4 --size 3840x2160 --set encode.quality=high
+autokast render .autokast/new-task -o photo.mp4 --background wallpaper.jpg --padding 0.12
 autokast render .autokast/new-task -o plain.mp4 --set cursor.tilt=0 --set zoom.follow=off
 ```
 
@@ -130,7 +135,8 @@ export default defineScreencast({
   render: {
     size: { width: 1920, height: 1080 },
     fps: 60,
-    background: 'dusk', // paper, fog, sage, dune, clay, dusk, harbor, graphite, ink, ember
+    // paper, fog, sage, dune, clay, dusk, harbor, graphite, ink, ember, a CSS color or an image
+    background: 'dusk',
     frame: { padding: 0.07, radius: 16, chrome: 'none' }, // none, window, browser
     cursor: { size: 1.9, motionBlur: 0.5, tilt: 1 },
     zoom: { follow: 'edge', levels: { wide: 1.3, medium: 1.6, close: 2.2 } },
@@ -140,6 +146,13 @@ export default defineScreencast({
   async run(cast) {},
 });
 ```
+
+`background` is a preset name, a CSS color, the path of an image file, or an object:
+`{ type: 'image', path: 'wallpaper.jpg', blur: 12 }` or
+`{ type: 'gradient', colors: ['#1e3a5f', '#c98b6b'], angle: 135 }`. `frame.padding` is the space
+between the window and the edges of the video: a fraction of the short side when below 1,
+pixels otherwise, and 0 for no background at all. `zoom.levels` takes any names, for example
+`{ hero: 2.8 }`, and `cast.zoom('hero')` then uses that level.
 
 Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill in
 [`skills/autokast`](skills/autokast/SKILL.md) has the full workflow and the direction rules.
