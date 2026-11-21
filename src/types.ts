@@ -690,6 +690,11 @@ export interface AutoZoomOptions {
 
 export interface ZoomRenderOptions {
   /**
+   * `false` ignores the zoom directives of the script and the auto zoom: the camera stays
+   * on the full view. Default: true.
+   */
+  enabled?: boolean;
+  /**
    * Generates zooms from clicks and typing when the script gives no zoom directives.
    */
   auto?: boolean | AutoZoomOptions;
@@ -732,10 +737,29 @@ export interface KeystrokeOptions {
 }
 
 export interface CaptionRenderOptions {
+  /**
+   * `false` hides the captions of the script. Default: true.
+   */
+  enabled?: boolean;
   position?: 'bottom' | 'top';
   fontSize?: number;
   fontFamily?: string;
 }
+
+export interface SpotlightRenderOptions {
+  /**
+   * `false` ignores the spotlights of the script. Default: true.
+   */
+  enabled?: boolean;
+}
+
+/**
+ * Names of the built-in render presets.
+ * `plain`: the page fills the video, with no zoom, caption or keycap.
+ * `focus`: `plain` with the zooms of the script.
+ * `showcase`: a backdrop, the browser frame, zooms, captions and shortcut keycaps.
+ */
+export type PresetName = 'plain' | 'focus' | 'showcase';
 
 export interface EncodeOptions {
   /**
@@ -753,6 +777,11 @@ export interface EncodeOptions {
 
 export interface RenderOptions {
   /**
+   * A named set of render options. The other options at the same level (the script's
+   * `render`, or the options of a render call) override it.
+   */
+  preset?: PresetName;
+  /**
    * Output file. The extension selects the format: `.mp4`, `.webm` or `.gif`.
    */
   output?: string;
@@ -767,6 +796,7 @@ export interface RenderOptions {
   zoom?: ZoomRenderOptions;
   keystrokes?: KeystrokeOptions;
   captions?: CaptionRenderOptions;
+  spotlight?: SpotlightRenderOptions;
   encode?: EncodeOptions;
   /**
    * Renders only this output time range, in milliseconds.
