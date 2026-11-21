@@ -32,7 +32,7 @@ import {
   type CapTheme,
   type KeyCue,
 } from './keycaps.ts';
-import { bandHeight, contentMap, IDENTITY, type BandLayout, type StageTransform } from './stage.ts';
+import { bandHeight, contentMap, type BandLayout, type StageTransform } from './stage.ts';
 import type { TimedEvent } from './timeline.ts';
 import { BROWSER_BAR, drawAddressLens, drawBrowserBar, type Address } from './browser.ts';
 
@@ -70,6 +70,31 @@ const BAR_HEIGHT = 38;
 const SCRIM_HEIGHT = 1.7;
 const SCRIM_ALPHA = 0.86;
 const SCRIM_FULL = 0.75;
+
+/**
+ * Content scale, relative to the rest view, up to which the rest image stays in use.
+ * The switch to the captured frame then happens while the camera moves.
+ */
+const REST_REACH = 1.1;
+
+/**
+ * True when a frame looks sharper drawn from the rest image (a Lanczos reduction of the
+ * captured frame to the rest size of the content box) than from the captured frame at
+ * content scale `ks`. The canvas reduces an image to less than half through mipmaps,
+ * which blurs text, and to more than half with plain bilinear sampling.
+ */
+export function useRestImage(layout: Layout, imageWidth: number, ks: number): boolean {
+  const ratio = (layout.viewport.width / imageWidth) * ks;
+  return ratio < 1 && (ks <= layout.k * REST_REACH || ratio < 0.5);
+}
+
+/**
+ * Pixel size of the rest image of a captured frame.
+ */
+export function restImageSize(layout: Layout, frameSize: Size): Size {
+  const width = Math.round(layout.content.width);
+  return { width, height: Math.max(1, Math.round((width * frameSize.height) / frameSize.width)) };
+}
 
 function gcd(a: number, b: number): number {
   return b ? gcd(b, a % b) : a;
@@ -139,6 +164,10 @@ export interface FrameInput {
   stage: StageTransform;
   camera: CameraState;
   image: Image | null;
+  /**
+   * The frame reduced to the rest size of the content box, for `useRestImage`.
+   */
+  rest?: Canvas | null;
   cursor: CursorFrame | null;
   /**
    * Cursor positions across the shutter, for cursor motion blur.
@@ -374,7 +403,7 @@ export class Compositor {
     const ctx = this.ctx;
     const L = this.layout;
     const H = L.size.height;
-    const st = input.stage ?? IDENTITY;
+    const st = input.stage;
     const s = input.camera.scale;
     const { ks, ex, ey, fa, fe, ff } = this.matrices(input);
 
@@ -393,9 +422,10 @@ export class Compositor {
     ctx.roundRect(c.x, c.y, c.width, c.height, L.bar > 0 ? [0, 0, rr, rr] : rr);
     ctx.clip();
     if (input.image) {
-      const k = (L.viewport.width / input.image.width) * ks;
+      const image = input.rest && useRestImage(L, input.image.width, ks) ? input.rest : input.image;
+      const k = (L.viewport.width / image.width) * ks;
       ctx.setTransform(k, 0, 0, k, ex, ey);
-      ctx.drawImage(input.image, 0, 0);
+      ctx.drawImage(image, 0, 0);
     } else {
       ctx.fillStyle = '#ffffff';
       ctx.fill();
@@ -449,7 +479,7 @@ export class Compositor {
    */
   private matrices(input: Pick<FrameInput, 'camera' | 'stage'>) {
     const L = this.layout;
-    const st = input.stage ?? IDENTITY;
+    const st = input.stage;
     const { ks, ex, ey } = contentMap(L, st, input.camera);
     const camera = this.options.zoom.mode === 'camera';
     const fa = camera ? st.scale * input.camera.scale : st.scale;

@@ -394,7 +394,7 @@ describe('frame-perfect failures and limits', () => {
         await cast.zoom('close');
         await cast.zoom(1.8, { follow: 'edge', duration: 600, wait: false });
         await cast.zoomTo(rect, { level: 'medium', follow: 'cursor' });
-        await cast.zoomTo(rect, { scale: 2, level: 'close', follow: false });
+        await cast.zoomTo(rect, { scale: 2, level: 'close', follow: 'off' });
         await cast.zoomOut();
       },
     );
@@ -411,7 +411,7 @@ describe('frame-perfect failures and limits', () => {
         anchor: 'cursor',
       },
       { type: 'zoom', focus: rect, level: 'medium', follow: 'cursor' },
-      { type: 'zoom', focus: rect, scale: 2, level: 'close', follow: false },
+      { type: 'zoom', focus: rect, scale: 2, level: 'close', follow: 'off' },
       { type: 'zoom', focus: null },
     ]);
     const actions = ofType(session, 'action').filter((action) => action.call.startsWith('zoom('));

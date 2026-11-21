@@ -27,9 +27,7 @@ export default defineScreencast({
   name: 'jupyterlite',
   url: `${SITE}/lab/index.html`,
   typing: { delay: 30 },
-  browser: PROXY
-    ? { launchOptions: { proxy: { server: PROXY, bypass: 'localhost,127.0.0.1' } } }
-    : undefined,
+  browser: PROXY ? { proxy: { server: PROXY, bypass: 'localhost,127.0.0.1' } } : undefined,
 
   async setup({ page }) {
     const ready = async () => {

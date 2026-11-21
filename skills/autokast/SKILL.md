@@ -46,7 +46,8 @@ of the autokast repository, `node src/cli.ts <command>` runs from source.
 6. **Adjust and repeat** from step 4 until the sheet is right. Look options (backdrop, cursor
    size, output size) need no new recording: pass them to `render` or `inspect`.
 7. **Final recording and render**: record once more with
-   `--set capture.mode=frame-perfect` (see "Capture modes"), then
+   `--set capture.mode=frame-perfect` (see "Capture modes"), and with the `deviceScaleFactor`
+   of the soft-text warning if `inspect` printed one, then
    `autokast render .autokast/<name> -o demo.mp4`. Run `autokast inspect demo.mp4 -o final.png`
    and read it as the last check.
 
@@ -261,8 +262,10 @@ Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted
 `graphite` (dark gray), `ink` (blue-black), `ember` (dark brown). Pick one that does not fight
 the app's own colors, and check it with `autokast frame <session> --at 1 --background <name>`.
 
-The capture scale is `deviceScaleFactor: 2` by default. For deep zooms or 4K output, record
-with `deviceScaleFactor: 3`.
+The capture scale (`deviceScaleFactor`) is 2 by default. When a zoom needs a higher scale,
+`render` and `inspect` print a warning with the scale to record at, such as 3 for the `close`
+level in a 1920x1080 video. A higher scale makes realtime capture drop frames, so record it in
+frame-perfect mode, which drops none but takes longer.
 
 Camera moves across a page with much text make most of the file size. When a file must be
 below an upload limit (GitHub accepts 10 MB), render with a higher `encode.crf`:
@@ -302,7 +305,7 @@ Rules for `frame-perfect`:
 | `intercepts pointer events`               | Something covers the target (dialog, toast). Close it or wait.                          |
 | Timeout on a Cast call                    | The target is not visible. Look at `error.png`. Wait for it inside `cast.cut`.          |
 | Cursor does not move but the page changes | The script uses `page.click` or `page.keyboard`. Use `cast`.                            |
-| Blurry text when zoomed                   | Lower the zoom scale or record with `deviceScaleFactor: 3`.                             |
+| Blurry text when zoomed                   | Record with the `deviceScaleFactor` that the warning gives, or lower the zoom scale.    |
 | Choppy scroll, drag or page animation     | The page paints slowly on this machine. Record with `--set capture.mode=frame-perfect`. |
 
 ## More

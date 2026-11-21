@@ -69,13 +69,17 @@ it('captures the final state once after each quiet period, after a cut and at th
   }
 
   const quiet = frames.filter((f) => f.t > marks.blue && f.t < marks.blue + 1500);
-  assert.equal(await colorAt(path.join(dir, quiet.at(-1)!.file)), 'blue');
+  const colors = await Promise.all(quiet.map((f) => colorAt(path.join(dir, f.file))));
+  const times = quiet.map((f, i) => `${Math.round(f.t - marks.blue)} ms ${colors[i]}`).join(', ');
+  assert.equal(colors.at(-1), 'blue', times);
   const late = quiet.filter((f) => f.t > marks.blue + 700);
-  assert.equal(late.length, 0, `no frame late in the quiet period: ${late.map((f) => f.t)}`);
-  const refresh = quiet.filter((f) => f.t > quiet[0].t + 150);
+  assert.equal(late.length, 0, `no frame late in the quiet period: ${times}`);
+  // The marker comes before the repaint: the first frames can still show the old color.
+  const change = quiet[colors.indexOf('blue')];
+  const refresh = quiet.filter((f) => f.t > change.t + 150);
   assert.ok(
     refresh.length >= 1 && refresh.length <= 2,
-    `${refresh.length} frames after the change`,
+    `${refresh.length} frames after the change: ${times}`,
   );
 
   const [cut] = session.events.filter((event) => event.type === 'cut');

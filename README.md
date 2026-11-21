@@ -88,7 +88,8 @@ waits and for reading state.
   effects, motion blur, and a slight tilt when it travels.
 - **Camera.** `zoomTo` frames an element; `zoom` zooms on the cursor. Zoom levels have names
   (`wide`, `medium`, `close`), and a script can add its own. Each shot has a follow mode:
-  `off`, `edge` or `cursor`.
+  `off`, `edge` or `cursor`. The render warns when a zoom goes deeper than the capture scale
+  allows.
 - **Spotlight.** `spotlight` dims the page around one element for a moment.
 - **Look.** Ten backdrops, or your own color, gradient or image. Padding, rounded corners,
   shadow, and an optional title bar or browser frame with an address bar that follows the
@@ -148,6 +149,7 @@ Options are fields of the script, and render options go under `render`.
 ```ts
 export default defineScreencast({
   viewport: { width: 1280, height: 720 },
+  deviceScaleFactor: 3, // default: 2; 3 keeps text sharp in deep zooms
   capture: { mode: 'realtime' }, // or 'frame-perfect'
   typing: { delay: 45 },
 

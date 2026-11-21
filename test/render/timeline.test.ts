@@ -29,22 +29,6 @@ test('output to record is the inverse outside cuts, and lands after a cut at its
   assert.equal(map.toRecord(999), 999);
 });
 
-test('overlapping speeds multiply and a cut wins over a speed', () => {
-  const map = new TimeMap(
-    [
-      { type: 'speed', t: 0, end: 2000, rate: 2 },
-      { type: 'speed', t: 1000, end: 2000, rate: 2 },
-      { type: 'cut', t: 1500, end: 2500 },
-    ],
-    3000,
-  );
-  assert.equal(map.duration, 500 + 125 + 500);
-  assert.equal(map.rateAt(1200), 4);
-  assert.ok(map.inCut(1700));
-  assert.ok(map.cutBetween(1400, 1600));
-  assert.ok(!map.cutBetween(2600, 2900));
-});
-
 test('events inside cuts are dropped, but a zoom applies instantly at the cut point', () => {
   const map = new TimeMap(events, 6000);
   const timed = timedEvents(

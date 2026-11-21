@@ -95,6 +95,6 @@ jupyter lab --no-browser --port 8888 --IdentityProvider.token='' --ServerApp.roo
   fast, warm the cache in `setup` on the same page: start a Console from the launcher, run
   the imports the video needs, wait for the output, then load `/lab/index.html?reset` again.
 - Pyodide comes from a CDN. When the browser needs a proxy, pass it in the definition:
-  `browser: { launchOptions: { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' } } }`.
+  `browser: { proxy: { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' } }`.
 - The notebook has no empty space after its last cell, so the last cell cannot scroll to the
   center of the panel.

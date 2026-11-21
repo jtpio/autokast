@@ -325,6 +325,7 @@ export async function createFixture(dir: string, options: FixtureOptions = {}): 
     events.push({ type: 'mouseUp', t: t + hold, button: 'left', ...p });
   };
 
+  events.push({ type: 'url', t: 0, url: 'https://acme.example/projects' });
   const start = { x: 700, y: 430 };
   const pNew = center(RECTS.newButton);
   const pInput = { x: 560, y: 316 };
@@ -468,9 +469,9 @@ export async function createFixture(dir: string, options: FixtureOptions = {}): 
     version: 1,
     name: 'fixture',
     createdAt: new Date(0).toISOString(),
-    url: 'https://acme.example/projects',
     viewport: VIEWPORT,
     deviceScaleFactor: dsf,
+    captureMode: 'frame-perfect',
     frameSize: { width: VIEWPORT.width * dsf, height: VIEWPORT.height * dsf },
     duration,
     frames,
