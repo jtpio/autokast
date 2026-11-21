@@ -46,7 +46,8 @@ of the autokast repository, `node src/cli.ts <command>` runs from source.
 6. **Adjust and repeat** from step 4 until the sheet is right. Look options (backdrop, cursor
    size, output size) need no new recording: pass them to `render` or `inspect`.
 7. **Final recording and render**: record once more with
-   `--set capture.mode=frame-perfect` (see "Capture modes"), then
+   `--set capture.mode=frame-perfect` (see "Capture modes"), and with the `deviceScaleFactor`
+   of the soft-text warning if `inspect` printed one, then
    `autokast render .autokast/<name> -o demo.mp4`. Run `autokast inspect demo.mp4 -o final.png`
    and read it as the last check.
 
