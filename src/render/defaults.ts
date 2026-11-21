@@ -8,6 +8,7 @@ import type {
   Session,
   Size,
 } from '../types.ts';
+import { RENDER_PRESETS } from './presets.ts';
 
 export interface ResolvedShadow {
   color: string;
@@ -56,6 +57,7 @@ export interface ResolvedOptions {
     click: { type: 'ripple' | 'ring' | 'none'; color: string; size: number; duration: number };
   };
   zoom: {
+    enabled: boolean;
     auto: ResolvedAutoZoom | false;
     mode: 'camera' | 'crop';
     edges: 'fill' | 'keep';
@@ -67,7 +69,8 @@ export interface ResolvedOptions {
     levels: Record<string, number>;
     motionBlur: number;
   };
-  captions: { position: 'bottom' | 'top'; fontSize: number; fontFamily: string };
+  captions: { enabled: boolean; position: 'bottom' | 'top'; fontSize: number; fontFamily: string };
+  spotlight: { enabled: boolean };
   keystrokes: {
     show: 'none' | 'shortcuts' | 'all';
     position: 'bottom' | 'top';
@@ -113,6 +116,7 @@ const DEFAULTS = {
     click: { type: 'ripple', color: 'auto', size: 26, duration: 520 },
   },
   zoom: {
+    enabled: true,
     auto: false as boolean | ResolvedAutoZoom,
     mode: 'camera',
     edges: 'fill',
@@ -124,7 +128,8 @@ const DEFAULTS = {
     levels: { wide: 1.3, medium: 1.6, close: 2.2 } as Record<string, number>,
     motionBlur: 0,
   },
-  captions: { position: 'bottom', fontSize: 40, fontFamily: 'Inter Display' },
+  captions: { enabled: true, position: 'bottom', fontSize: 40, fontFamily: 'Inter Display' },
+  spotlight: { enabled: true },
   keystrokes: {
     show: 'none',
     position: 'bottom',
@@ -160,6 +165,19 @@ function mergeTwo(base: unknown, layer: unknown): unknown {
   return out;
 }
 
+/**
+ * Returns one level of render options with its preset under the other options of the level.
+ */
+export function applyPreset(options: RenderOptions | undefined): RenderOptions | undefined {
+  const name = options?.preset;
+  if (name === undefined) return options;
+  if (!Object.hasOwn(RENDER_PRESETS, name)) {
+    const names = Object.keys(RENDER_PRESETS).join(', ');
+    throw new Error(`Unknown preset "${name}". Use one of: ${names}`);
+  }
+  return deepMerge(RENDER_PRESETS[name], options);
+}
+
 const IMAGE_FILE = /\.(png|jpe?g|webp|avif|gif|svg)$/i;
 
 /**
@@ -184,7 +202,8 @@ function evenSize(size: Size, pixelFormat: string): Size {
 }
 
 /**
- * Resolves render options: defaults, then the session's options, then `options`.
+ * Resolves render options: defaults, then the session's options, then `options`. A preset
+ * applies at its own level, under the other options of that level.
  */
 export function resolveOptions(
   session: Session,
@@ -192,7 +211,11 @@ export function resolveOptions(
   presets: readonly string[],
   outputDuration: number,
 ): ResolvedOptions {
-  const merged = deepMerge(DEFAULTS, session.render, options) as typeof DEFAULTS & RenderOptions;
+  const merged = deepMerge(
+    DEFAULTS,
+    applyPreset(session.render),
+    applyPreset(options),
+  ) as typeof DEFAULTS & RenderOptions;
   const output = path.resolve(merged.output ?? `${session.name || 'autokast'}.mp4`);
   const ext = path.extname(output).toLowerCase();
   const format = ext === '.webm' ? 'webm' : ext === '.gif' ? 'gif' : 'mp4';
@@ -222,6 +245,7 @@ export function resolveOptions(
       followSpeed: Math.max(0.05, merged.zoom.followSpeed),
     },
     captions: merged.captions as ResolvedOptions['captions'],
+    spotlight: merged.spotlight,
     keystrokes: merged.keystrokes as ResolvedOptions['keystrokes'],
     encode,
     range: { start, end: Math.max(start, end) },

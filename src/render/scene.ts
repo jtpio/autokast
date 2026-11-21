@@ -94,8 +94,10 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
   }
   const events = timedEvents(session.events, map);
   const cursor = computeCursor(times, session.cursor, session.events, map, resolved.cursor);
-  let zooms = events.filter((e): e is TimedEvent<ZoomEvent> => e.type === 'zoom');
-  if (resolved.zoom.auto && zooms.length === 0) {
+  let zooms = resolved.zoom.enabled
+    ? events.filter((e): e is TimedEvent<ZoomEvent> => e.type === 'zoom')
+    : [];
+  if (resolved.zoom.enabled && resolved.zoom.auto && zooms.length === 0) {
     const at = (out: number) => {
       const i = Math.min(times.length - 1, Math.max(0, Math.round((out * resolved.fps) / 1000)));
       return { x: cursor.x[i], y: cursor.y[i] };
@@ -109,9 +111,11 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     );
   }
   const layout = computeLayout(resolved, session.viewport);
-  const captions = events.filter(
-    (e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '',
-  );
+  const captions = resolved.captions.enabled
+    ? events.filter(
+        (e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '',
+      )
+    : [];
   const band = captions.length ? bandLayout(layout, resolved.captions.position) : null;
   const measure = captionMeasure(resolved.captions.fontFamily);
   const { cues, groups } = planCaptions(captions, (text) =>
@@ -157,7 +161,9 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     camera,
     cursor,
     clicks: resolved.cursor.click.type === 'none' ? [] : clickMarks(events),
-    spotlights: events.filter((e): e is TimedEvent<SpotlightEvent> => e.type === 'spotlight'),
+    spotlights: resolved.spotlight.enabled
+      ? events.filter((e): e is TimedEvent<SpotlightEvent> => e.type === 'spotlight')
+      : [],
     captions: cues,
     keys,
     urls: events.filter((e): e is TimedEvent<UrlEvent> => e.type === 'url'),

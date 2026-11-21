@@ -7,7 +7,7 @@ import { contactSheet, describeSession } from './inspect.ts';
 import { recordScreencast } from './record/index.ts';
 import { render, renderFrame } from './render/index.ts';
 import { loadSession } from './session.ts';
-import type { RenderOptions, ScreencastDefinition, Size } from './types.ts';
+import type { PresetName, RenderOptions, ScreencastDefinition, Size } from './types.ts';
 
 const HELP = `autokast - automated, polished screencasts of web apps
 
@@ -21,6 +21,7 @@ Common options:
   -o, --out <file>        Output file (.mp4, .webm, .gif; .png for frame and inspect)
       --config <file>     JSON file with render options
       --set <key=value>   Set one option by path, e.g. --set zoom.maxScale=2.5 (repeatable)
+      --preset <name>     Render preset: plain, focus or showcase (other options override it)
       --preview           Fast render: half size, 30 fps, draft quality
       --size <WxH>        Output size, e.g. 1920x1080
       --fps <n>           Output frame rate
@@ -97,6 +98,7 @@ function parseFlags(args: string[]) {
       out: { type: 'string', short: 'o' },
       config: { type: 'string' },
       set: { type: 'string', multiple: true },
+      preset: { type: 'string' },
       preview: { type: 'boolean' },
       size: { type: 'string' },
       fps: { type: 'string' },
@@ -125,6 +127,9 @@ async function renderOptions(flags: Flags, sets: string[]): Promise<RenderOption
     ? JSON.parse(await readFile(flags.config, 'utf8'))
     : {};
   applySets(options as Record<string, unknown>, sets);
+  if (flags.preset) {
+    options.preset = flags.preset as PresetName;
+  }
   if (flags.size) {
     options.size = parseSize(flags.size);
   }

@@ -223,7 +223,14 @@ autokast render .autokast/demo -o demo-4k.mp4 --size 3840x2160 --set encode.qual
 autokast render .autokast/demo -o demo.gif --size 1280x720 --fps 20
 autokast render .autokast/demo -o tall.mp4 --size 1080x1920
 autokast render .autokast/demo --preview -o quick.mp4
+autokast render .autokast/demo -o plain.mp4 --preset plain
 ```
+
+Presets set several options at once. `plain`: the page fills the video, with no backdrop,
+zoom, caption or keycap (spotlights stay). `focus`: `plain` with the zooms. `showcase`: a
+backdrop, the browser frame, zooms, captions, spotlights and shortcut keycaps. Options at the
+same level override the preset (`render: { preset: 'focus', ... }` in the script, or flags
+next to `--preset`).
 
 | Option                                                | Values                                                                                                                                                                                                           |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -246,6 +253,7 @@ autokast render .autokast/demo --preview -o quick.mp4
 | `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                                                                         |
 | `keystrokes.show`                                     | `none` (default), `shortcuts` (key combinations from `cast.press` as keycaps) or `all`.                                                                                                                          |
 | `keystrokes.labels`                                   | `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when the render runs on macOS.                                                                                                                          |
+| `zoom.enabled`, `captions.enabled`                    | `false` ignores the zooms or captions of the script. `spotlight.enabled` does the same for spotlights.                                                                                                           |
 | `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                                                                                 |
 
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`

@@ -149,6 +149,64 @@ test('session render options sit between the defaults and the call options', () 
   });
 });
 
+test('zooms, captions and spotlights can be turned off at render time', () => {
+  const on = buildScene(session, { fps: 30 });
+  assert.ok(Math.max(...on.camera.scale) > 2);
+  assert.ok(on.captions.length > 0 && on.band);
+  assert.equal(on.spotlights.length, 1);
+  const off = buildScene(session, {
+    fps: 30,
+    zoom: { enabled: false, auto: true },
+    captions: { enabled: false },
+    spotlight: { enabled: false },
+  });
+  assert.ok(off.camera.scale.every((s) => s === 1));
+  assert.deepEqual(off.captions, []);
+  assert.equal(off.band, null);
+  assert.deepEqual(off.spotlights, []);
+});
+
+test('a preset sets the look, and the options at its level override it', () => {
+  const plain = buildScene(session, { fps: 30, preset: 'plain' });
+  assert.deepEqual(plain.layout.window, { x: 0, y: 0, width: 1920, height: 1080 });
+  assert.ok(plain.camera.scale.every((s) => s === 1));
+  assert.equal(plain.band, null);
+  assert.equal(plain.keys.length, 0);
+  assert.equal(plain.spotlights.length, 1);
+
+  const focus = buildScene(session, { fps: 30, preset: 'focus' });
+  assert.deepEqual(focus.layout.window, plain.layout.window);
+  assert.ok(Math.max(...focus.camera.scale) > 2);
+  assert.equal(focus.band, null);
+
+  const showcase = buildScene(session, { fps: 30, preset: 'showcase' });
+  assert.equal(showcase.options.frame.chrome, 'browser');
+  assert.equal(showcase.options.frame.padding, 0.07);
+  assert.ok(showcase.band && showcase.keys.length > 0);
+
+  const scripted = {
+    ...session,
+    render: {
+      preset: 'showcase' as const,
+      background: 'ink',
+      keystrokes: { show: 'all' as const },
+    },
+  };
+  assert.equal(buildScene(scripted).options.keystrokes.show, 'all');
+  const replaced = buildScene(scripted, { preset: 'plain' });
+  assert.equal(replaced.options.keystrokes.show, 'none');
+  assert.equal(replaced.options.frame.padding, 0);
+  assert.deepEqual(replaced.options.background, { type: 'preset', name: 'ink' });
+  const padded = buildScene(session, { preset: 'plain', frame: { padding: 0.1 } });
+  assert.equal(padded.options.frame.padding, 0.1);
+  assert.equal(padded.options.frame.chrome, 'none');
+
+  assert.throws(
+    () => buildScene(session, { preset: 'fancy' as 'plain' }),
+    /Unknown preset "fancy". Use one of: plain, focus, showcase/,
+  );
+});
+
 async function cornerLuminance(png: Buffer): Promise<number[]> {
   const image = await loadImage(png);
   const canvas = createCanvas(image.width, image.height);

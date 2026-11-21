@@ -122,6 +122,25 @@ autokast render .autokast/new-task -o plain.mp4 --set cursor.tilt=0 --set zoom.f
 
 `--set key=value` sets any option. Run `autokast --help` for the other flags.
 
+## Presets
+
+A preset sets several render options at once, so that a common look takes one flag:
+
+| Preset     | Look                                                                                    |
+| ---------- | --------------------------------------------------------------------------------------- |
+| `plain`    | The page fills the video: no backdrop, no zoom, no caption, no keycap. Spotlights stay. |
+| `focus`    | `plain` with the zooms of the script.                                                   |
+| `showcase` | A backdrop, the browser frame, zooms, captions, spotlights and shortcut keycaps.        |
+
+```sh
+autokast render .autokast/new-task -o plain.mp4 --preset plain
+```
+
+In a script, set `render: { preset: 'focus' }`. The other options at the same level override
+the preset, and a preset given to `render` replaces the look of the script. To turn off one
+effect without a preset, set `zoom.enabled`, `captions.enabled` or `spotlight.enabled` to
+`false`.
+
 ## Options
 
 Options are fields of the script, and render options go under `render`.

@@ -14,11 +14,12 @@ import {
   gifSettings,
   runFfmpeg,
 } from './encoder.ts';
+import { RENDER_PRESETS } from './presets.ts';
 import { buildScene, frameInput, frameInputs, type Scene } from './scene.ts';
 import { FrameSource, upcomingFrames } from './source.ts';
 import { frameIndexAt, sessionTimeMap } from './timeline.ts';
 
-export { BACKGROUND_PRESETS };
+export { BACKGROUND_PRESETS, RENDER_PRESETS };
 
 /**
  * Output duration of a session in milliseconds, after cuts and speed changes.
