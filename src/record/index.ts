@@ -300,6 +300,7 @@ export async function record(
       ...(opts.url ? { url: opts.url } : {}),
       viewport: opts.viewport,
       deviceScaleFactor: opts.deviceScaleFactor,
+      captureMode: opts.capture.mode,
       frameSize: capture.frameSize ?? frameSize,
       duration: round(duration),
       frames: roundDeep(

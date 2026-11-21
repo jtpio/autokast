@@ -9,8 +9,7 @@ describe('resolveOptions', () => {
     const options = resolveOptions({});
     assert.equal(options.name, 'screencast');
     assert.deepEqual(options.viewport, { width: 1280, height: 720 });
-    // Enough for sharp zooms up to the `close` level in a 1920x1080 video.
-    assert.equal(options.deviceScaleFactor, 3);
+    assert.equal(options.deviceScaleFactor, 2);
     assert.deepEqual(options.capture, {
       mode: 'realtime',
       fps: 60,
@@ -54,6 +53,7 @@ describe('resolveOptions', () => {
 
   it('rejects invalid values with a clear message', () => {
     assert.throws(() => resolveOptions({ deviceScaleFactor: 0 }), /deviceScaleFactor/);
+    assert.equal(resolveOptions({ deviceScaleFactor: 1.5 }).deviceScaleFactor, 1.5);
     assert.throws(() => resolveOptions({ viewport: { width: 10.5, height: 10 } }), /viewport/);
     assert.throws(() => resolveOptions({ cursor: { speed: 0 } }), /cursor\.speed/);
     assert.throws(() => resolveOptions({ timeout: 0 }), /timeout/);

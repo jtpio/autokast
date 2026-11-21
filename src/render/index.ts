@@ -115,7 +115,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
   while (last < times.length && times[last] < opts.range.end) last++;
   const total = last - first;
 
-  const warning = sharpnessWarning(captureEnlargement(scene, first, last));
+  const warning = sharpnessWarning(captureEnlargement(scene, first, last), session.captureMode);
   const { compositor, source, rest } = await setup(sessionDir, scene, first, last);
   const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autokast-')) : null;
   const target = temp ? path.join(temp, 'frames.mkv') : opts.output;

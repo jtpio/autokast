@@ -232,6 +232,10 @@ export interface Session {
   viewport: Size;
   deviceScaleFactor: number;
   /**
+   * How the frames were captured. Sessions from older versions do not have it.
+   */
+  captureMode?: CaptureOptions['mode'];
+  /**
    * Pixel size of the captured frames (viewport times device scale factor).
    */
   frameSize: Size;
@@ -340,8 +344,9 @@ export interface RecordOptions {
   url?: string;
   viewport?: Size;
   /**
-   * Device pixels per CSS pixel of the capture. Default: the smallest whole scale, 2 or 3,
-   * that keeps the deepest named zoom level sharp at `render.size`.
+   * Device pixels per CSS pixel of the capture. Default: 2 in realtime mode. In frame-perfect
+   * mode, the smallest whole scale, 2 or 3, that keeps the deepest named zoom level sharp at
+   * `render.size`.
    */
   deviceScaleFactor?: number;
   colorScheme?: 'light' | 'dark';

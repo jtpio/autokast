@@ -88,15 +88,16 @@ waits and for reading state.
   effects, motion blur, and a slight tilt when it travels.
 - **Camera.** `zoomTo` frames an element; `zoom` zooms on the cursor. Zoom levels have names
   (`wide`, `medium`, `close`), and a script can add its own. Each shot has a follow mode:
-  `off`, `edge` or `cursor`. The capture scale follows the video size, so text stays sharp in
-  a zoom, and the render warns when a zoom goes deeper than the capture allows.
+  `off`, `edge` or `cursor`. The render warns when a zoom goes deeper than the capture scale
+  allows.
 - **Spotlight.** `spotlight` dims the page around one element for a moment.
 - **Look.** Ten backdrops, or your own color, gradient or image. Padding, rounded corners,
   shadow, and an optional title bar or browser frame with an address bar that follows the
   page URL.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
-  page motion is exact at 60 fps on any machine. Use it for the final recording.
+  page motion is exact at 60 fps on any machine. It also captures at a higher scale when the
+  video size needs it, so text stays sharp in a zoom. Use it for the final recording.
 - **Made for agents.** `autokast inspect` prints the timeline and writes a contact sheet, so an
   agent can check a video that it cannot watch.
 
@@ -149,7 +150,7 @@ Options are fields of the script, and render options go under `render`.
 ```ts
 export default defineScreencast({
   viewport: { width: 1280, height: 720 },
-  deviceScaleFactor: 3, // default: 2 or 3, enough for sharp zooms at render.size
+  deviceScaleFactor: 3, // default: 2; frame-perfect picks 3 when render.size needs it
   capture: { mode: 'realtime' }, // or 'frame-perfect'
   typing: { delay: 45 },
 

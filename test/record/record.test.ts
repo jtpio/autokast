@@ -169,6 +169,7 @@ describe('record() end to end', () => {
     assert.equal(session.url, server.url);
     assert.deepEqual(session.viewport, { width: 1280, height: 720 });
     assert.equal(session.deviceScaleFactor, 2);
+    assert.equal(session.captureMode, 'realtime');
     assert.deepEqual(session.render, { fps: 30 });
     assert.equal(recorded.dir, dir);
     assert.equal(recorded.session.frames.length, session.frames.length);

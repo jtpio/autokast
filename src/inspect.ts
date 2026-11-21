@@ -81,7 +81,8 @@ export function describeSession(session: Session, options?: RenderOptions): stri
     `Session "${session.name}": ${seconds(duration)} recorded, ${seconds(output)} output`,
     `Viewport ${viewport.width}x${viewport.height} @${session.deviceScaleFactor}x, ${frames.length} frames (${fps.toFixed(0)} per second; a frame that does not change is stored once)`,
   ];
-  const warning = sharpnessWarning(captureEnlargement(buildScene(session, options)));
+  const enlargement = captureEnlargement(buildScene(session, options));
+  const warning = sharpnessWarning(enlargement, session.captureMode);
   if (warning) lines.push(`Warning: ${warning}`);
   lines.push('Timeline (output time):');
   const at = (t: number) => seconds(toOutputTime(session, t)).padStart(7);

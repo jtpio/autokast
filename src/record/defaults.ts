@@ -95,8 +95,9 @@ function check(condition: boolean, message: string): void {
 export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   const name = options.name ?? DEFAULTS.name;
   const viewport = { ...DEFAULTS.viewport, ...options.viewport };
-  const deviceScaleFactor = options.deviceScaleFactor ?? captureScale(viewport, options.render);
   const capture = { ...DEFAULTS.capture, ...options.capture };
+  const deviceScaleFactor =
+    options.deviceScaleFactor ?? captureScale(viewport, options.render, capture.mode);
   const cursor = {
     start: { x: viewport.width / 2, y: viewport.height / 2 },
     ...DEFAULTS.cursor,
