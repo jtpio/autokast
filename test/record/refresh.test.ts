@@ -46,7 +46,12 @@ it('captures the final state once after each quiet period, after a cut and at th
     (document.getElementById('box') as HTMLElement).style.setProperty('background', color);
   let session: Session;
   ({ session } = await record(
-    { url: server.url, sessionDir: dir, pacing: { startDelay: 300, endDelay: 300 } },
+    {
+      url: server.url,
+      sessionDir: dir,
+      deviceScaleFactor: 2,
+      pacing: { startDelay: 300, endDelay: 300 },
+    },
     async (cast) => {
       cast.marker('blue');
       await cast.page.evaluate(paint, 'rgb(0,0,255)');

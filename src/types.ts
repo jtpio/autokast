@@ -339,6 +339,10 @@ export interface RecordOptions {
   name?: string;
   url?: string;
   viewport?: Size;
+  /**
+   * Device pixels per CSS pixel of the capture. Default: the smallest whole scale, 2 or 3,
+   * that keeps the deepest named zoom level sharp at `render.size`.
+   */
   deviceScaleFactor?: number;
   colorScheme?: 'light' | 'dark';
   /**
@@ -811,6 +815,10 @@ export interface RenderResult {
   frames: number;
   size: Size;
   fps: number;
+  /**
+   * Problems that do not stop the render, such as soft text in a deep zoom.
+   */
+  warnings: string[];
 }
 
 /**

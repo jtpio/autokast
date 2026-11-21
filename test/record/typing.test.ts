@@ -65,7 +65,12 @@ it('types the exact text with auto indentation, also in an editor that indents',
   const down = session.events.find((event) => event.type === 'mouseDown');
   const box = field.box;
   assert.ok(down && box && down.type === 'mouseDown');
-  assert.deepEqual([down.x, down.y], [box.x + 0.9 * box.width, box.y + 0.5 * box.height]);
+  // The session stores coordinates to 0.01 px.
+  const round = (value: number) => Math.round(value * 100) / 100;
+  assert.deepEqual(
+    [down.x, down.y],
+    [round(box.x + 0.9 * box.width), round(box.y + 0.5 * box.height)],
+  );
   assert.equal(values['plain-auto'], CODE);
   assert.equal(values['plain-raw'], CODE);
   assert.equal(values['smart-auto'], CODE);

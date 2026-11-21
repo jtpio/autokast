@@ -89,6 +89,7 @@ test('render writes an H.264 mp4 with BT.709 tags and the requested frames', asy
     frames: 30,
     size: { width: 640, height: 360 },
     fps: 30,
+    warnings: [],
   });
   assert.equal(progress, 30);
   const s = probe(output);

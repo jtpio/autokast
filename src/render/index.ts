@@ -4,7 +4,7 @@ import path from 'node:path';
 import { loadSession } from '../session.ts';
 import type { RenderOptions, RenderResult, Session } from '../types.ts';
 import { BACKGROUND_PRESETS, createBackground } from './background.ts';
-import { Compositor } from './compositor.ts';
+import { Compositor, restImageSize } from './compositor.ts';
 import {
   checkFfmpeg,
   encoderArgs,
@@ -15,8 +15,9 @@ import {
   runFfmpeg,
 } from './encoder.ts';
 import { RENDER_PRESETS } from './presets.ts';
-import { buildScene, frameInput, frameInputs, type Scene } from './scene.ts';
-import { FrameSource, upcomingFrames } from './source.ts';
+import { buildScene, frameInput, frameInputs, restFrameIndices, type Scene } from './scene.ts';
+import { captureEnlargement, sharpnessWarning } from './sharpness.ts';
+import { FrameSource, RestFrames, upcomingFrames } from './source.ts';
 import { frameIndexAt, sessionTimeMap } from './timeline.ts';
 
 export { BACKGROUND_PRESETS, RENDER_PRESETS };
@@ -35,12 +36,22 @@ export function toOutputTime(session: Session, recordTime: number): number {
   return sessionTimeMap(session).toOutput(recordTime);
 }
 
-async function setup(sessionDir: string, scene: Scene) {
-  const { options, layout } = scene;
+/**
+ * Compositor and frame sources for output frames `from` to `to`.
+ */
+async function setup(sessionDir: string, scene: Scene, from: number, to: number) {
+  const { options, layout, session } = scene;
   const background = await createBackground(options.background, options.size, options.unit);
   return {
     compositor: new Compositor(options, layout, background, scene.band),
-    source: new FrameSource(sessionDir, scene.session.frames),
+    source: new FrameSource(sessionDir, session.frames),
+    rest: new RestFrames(
+      sessionDir,
+      session.frames,
+      restFrameIndices(scene, from, to),
+      restImageSize(layout, session.frameSize),
+      ffmpegPath(options),
+    ),
   };
 }
 
@@ -59,12 +70,13 @@ async function drawFrame(
   scene: Scene,
   compositor: Compositor,
   source: FrameSource,
+  rest: RestFrames,
   i: number,
 ): Promise<void> {
   const index = scene.frameIndex[i];
-  const image = await source.get(index);
+  const [image, restImage] = await Promise.all([source.get(index), rest.get(index)]);
   source.retain(index, upcomingFrames(scene.frameIndex, i, 4));
-  const inputs = frameInputs(scene, i).map((input) => ({ ...input, image }));
+  const inputs = frameInputs(scene, i).map((input) => ({ ...input, image, rest: restImage }));
   for (const { mark } of inputs[0].clicks) {
     if (!compositor.needsClickColor(mark)) continue;
     const frame = frameIndexAt(scene.session.frames, mark.t);
@@ -103,7 +115,8 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
   while (last < times.length && times[last] < opts.range.end) last++;
   const total = last - first;
 
-  const { compositor, source } = await setup(sessionDir, scene);
+  const warning = sharpnessWarning(captureEnlargement(scene, first, last));
+  const { compositor, source, rest } = await setup(sessionDir, scene, first, last);
   const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autokast-')) : null;
   const target = temp ? path.join(temp, 'frames.mkv') : opts.output;
   const encoder = new FfmpegProcess(
@@ -118,7 +131,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
   );
   try {
     for (let i = first; i < last; i++) {
-      await drawFrame(scene, compositor, source, i);
+      await drawFrame(scene, compositor, source, rest, i);
       await encoder.write(compositor.canvas.data());
       opts.onProgress?.(i - first + 1, total);
     }
@@ -131,6 +144,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
     encoder.kill();
     throw error;
   } finally {
+    rest.close();
     if (temp) await rm(temp, { recursive: true, force: true });
   }
 
@@ -145,6 +159,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
     frames: total,
     size,
     fps: opts.fps,
+    warnings: warning ? [warning] : [],
   };
 }
 
@@ -159,7 +174,11 @@ export async function renderFrame(
   const session = await loadSession(sessionDir);
   const scene = buildScene(session, options, Math.max(0, time));
   const i = scene.times.indexOf(Math.max(0, time));
-  const { compositor, source } = await setup(sessionDir, scene);
-  await drawFrame(scene, compositor, source, i);
+  const { compositor, source, rest } = await setup(sessionDir, scene, i, i + 1);
+  try {
+    await drawFrame(scene, compositor, source, rest, i);
+  } finally {
+    rest.close();
+  }
   return compositor.canvas.encode('png');
 }

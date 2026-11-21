@@ -75,7 +75,14 @@ describe('smooth scroll into view', () => {
   });
 
   function options(extra: RecordOptions = {}): RecordOptions {
-    return { url: server.url, sessionDir: dir, pacing: { startDelay: 0, endDelay: 0 }, ...extra };
+    return {
+      url: server.url,
+      sessionDir: dir,
+      // The page scroll events thin out when the page paints more pixels on a loaded CPU.
+      deviceScaleFactor: 2,
+      pacing: { startDelay: 0, endDelay: 0 },
+      ...extra,
+    };
   }
 
   it('scrolls the page, nested containers and clipped content with eased wheels', async () => {

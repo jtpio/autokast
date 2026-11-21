@@ -4,6 +4,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { outputDuration, renderFrame, toOutputTime } from './render/index.ts';
+import { buildScene } from './render/scene.ts';
+import { captureEnlargement, sharpnessWarning } from './render/sharpness.ts';
 import { loadSession } from './session.ts';
 import type { RenderOptions, Session, TimelineEvent } from './types.ts';
 
@@ -78,8 +80,10 @@ export function describeSession(session: Session, options?: RenderOptions): stri
   const lines = [
     `Session "${session.name}": ${seconds(duration)} recorded, ${seconds(output)} output`,
     `Viewport ${viewport.width}x${viewport.height} @${session.deviceScaleFactor}x, ${frames.length} frames (${fps.toFixed(0)} per second; a frame that does not change is stored once)`,
-    'Timeline (output time):',
   ];
+  const warning = sharpnessWarning(captureEnlargement(buildScene(session, options)));
+  if (warning) lines.push(`Warning: ${warning}`);
+  lines.push('Timeline (output time):');
   const at = (t: number) => seconds(toOutputTime(session, t)).padStart(7);
   const hasActions = session.events.some((event) => event.type === 'action');
   let typed = '';

@@ -9,7 +9,8 @@ describe('resolveOptions', () => {
     const options = resolveOptions({});
     assert.equal(options.name, 'screencast');
     assert.deepEqual(options.viewport, { width: 1280, height: 720 });
-    assert.equal(options.deviceScaleFactor, 2);
+    // Enough for sharp zooms up to the `close` level in a 1920x1080 video.
+    assert.equal(options.deviceScaleFactor, 3);
     assert.deepEqual(options.capture, {
       mode: 'realtime',
       fps: 60,

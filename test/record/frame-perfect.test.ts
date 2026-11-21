@@ -155,6 +155,7 @@ describe('frame-perfect capture', () => {
       {
         url: first.url,
         sessionDir: dir,
+        deviceScaleFactor: 2,
         capture: FRAME_PERFECT,
         pacing: { startDelay: 100, endDelay: 100 },
       },
