@@ -108,12 +108,7 @@ function cursorProbe(config: ProbeConfig, toStyle: (value: string) => string): v
   };
 
   const isOverText = (element: Element, roots: ShadowRoot[], x: number, y: number) => {
-    let node: Node | null = null;
-    if (document.caretPositionFromPoint) {
-      node = document.caretPositionFromPoint(x, y, { shadowRoots: roots })?.offsetNode ?? null;
-    } else {
-      node = document.caretRangeFromPoint?.(x, y)?.startContainer ?? null;
-    }
+    const node = document.caretPositionFromPoint(x, y, { shadowRoots: roots })?.offsetNode;
     if (!node || node.nodeType !== Node.TEXT_NODE || !element.contains(node)) {
       return false;
     }

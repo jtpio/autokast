@@ -74,7 +74,7 @@ export default defineScreencast({
     await cast.type('weather-analysis');
     await cast.click(dialog.getByRole('button', { name: 'Rename' }), { afterClick: 0 });
     await cast.cut(() => tab.filter({ hasText: 'weather-analysis' }).waitFor());
-    await cast.zoomTo({ x: 0, y: 0, width: 660, height: 300 }, { follow: false });
+    await cast.zoomTo({ x: 0, y: 0, width: 660, height: 300 }, { follow: 'off' });
     await cast.hover(page.locator('.jp-DirListing-item', { hasText: 'weather-analysis' }), {
       hold: 1400,
     });

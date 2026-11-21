@@ -13,7 +13,7 @@ interface Segment {
 
 /**
  * Piecewise-linear map between record time and output time, built from `cut` and
- * `speed` events. Overlapping speed ranges multiply; a cut wins over a speed range.
+ * `speed` events. The recorder does not nest these ranges, so they do not overlap.
  */
 export class TimeMap {
   readonly segments: Segment[];
@@ -24,36 +24,25 @@ export class TimeMap {
 
   constructor(events: TimelineEvent[], recordDuration: number) {
     const end = Math.max(0, recordDuration);
-    const ranges = events.filter((e) => e.type === 'cut' || e.type === 'speed');
-    const points = new Set([0, end]);
-    for (const r of ranges) {
-      points.add(Math.min(Math.max(r.t, 0), end));
-      points.add(Math.min(Math.max(r.end, 0), end));
-    }
-    const sorted = [...points].sort((a, b) => a - b);
     const segments: Segment[] = [];
+    let rec = 0;
     let out = 0;
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const a = sorted[i];
-      const b = sorted[i + 1];
-      const mid = (a + b) / 2;
-      let rate = 1;
-      for (const r of ranges) {
-        if (mid < r.t || mid >= r.end) continue;
-        if (r.type === 'cut') rate = Infinity;
-        else if (r.rate > 0 && rate !== Infinity) rate *= r.rate;
-      }
-      const last = segments[segments.length - 1];
-      if (last && last.rate === rate) {
-        last.recEnd = b;
-        last.outEnd = last.outStart + (b - last.recStart) / rate;
-        out = last.outEnd;
-        continue;
-      }
-      const length = rate === Infinity ? 0 : (b - a) / rate;
-      segments.push({ recStart: a, recEnd: b, outStart: out, outEnd: out + length, rate });
+    const add = (to: number, rate: number) => {
+      const recEnd = Math.min(Math.max(to, 0), end);
+      if (recEnd <= rec) return;
+      const length = rate === Infinity ? 0 : (recEnd - rec) / rate;
+      segments.push({ recStart: rec, recEnd, outStart: out, outEnd: out + length, rate });
+      rec = recEnd;
       out += length;
+    };
+    const ranges = events
+      .filter((e) => e.type === 'cut' || e.type === 'speed')
+      .sort((a, b) => a.t - b.t);
+    for (const r of ranges) {
+      add(r.t, 1);
+      add(r.end, r.type === 'cut' ? Infinity : r.rate);
     }
+    add(end, 1);
     if (segments.length === 0) {
       segments.push({ recStart: 0, recEnd: 0, outStart: 0, outEnd: 0, rate: 1 });
     }

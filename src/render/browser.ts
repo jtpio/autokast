@@ -56,19 +56,17 @@ export function splitAddress(url: string, origin = ''): { host: string; path: st
 
 /**
  * The address bar at output time `t`: the latest address of the page, as typed text while
- * a `cast.goto` types it. `urls` are in output time order; `start` is the address when the
- * session has no address events.
+ * a `cast.goto` types it. `urls` are in output time order.
  */
 export function addressAt(
   urls: TimedEvent<UrlEvent>[],
   t: number,
   options: { address: boolean | string; origin: string },
-  start = '',
 ): Address {
   if (options.address === false) return { host: '', path: '', focus: 0 };
   if (typeof options.address === 'string') return { ...splitAddress(options.address), focus: 0 };
   const event = urls.findLast((e) => e.out <= t);
-  const full = splitAddress(event?.url ?? start, options.origin);
+  const full = splitAddress(event?.url ?? '', options.origin);
   const typing = event?.typing ?? 0;
   const show = event?.show ?? 0;
   const age = event ? t - event.out : 0;

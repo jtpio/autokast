@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createCanvas } from '@napi-rs/canvas';
-import { computeCursor, cursorPath, normalizeStyle, tiltTrack } from '../../src/render/cursor.ts';
+import { computeCursor, cursorPath, tiltTrack } from '../../src/render/cursor.ts';
 import { cursorMatrix, cursorShape, drawCursor } from '../../src/render/cursors/shapes.ts';
 import { frameTimes, TimeMap } from '../../src/render/timeline.ts';
 import type { CursorSample, TimelineEvent } from '../../src/types.ts';
@@ -95,11 +95,6 @@ test('hideAfter fades the cursor out when idle and back in before it moves', () 
   assert.equal(track.opacity[at(2000)], 0);
   assert.equal(track.opacity[at(3100)], 1);
   assert.ok(track.opacity[at(2950)] > 0 && track.opacity[at(2950)] < 1);
-});
-
-test('unknown cursor styles map to default', () => {
-  assert.equal(normalizeStyle('zoom-in'), 'default');
-  assert.equal(normalizeStyle('nesw-resize'), 'nesw-resize');
 });
 
 const DEG = Math.PI / 180;

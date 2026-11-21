@@ -219,8 +219,11 @@ async function commandRecord(positionals: string[], flags: Flags): Promise<void>
   }
   process.stderr.write(`Recording ${definition.name ?? script}...\n`);
   const recorded = await recordScreencast(definition, overrides);
-  const seconds = (recorded.session.duration / 1000).toFixed(1);
-  console.log(`Session: ${recorded.dir} (${seconds}s, ${recorded.session.frames.length} frames)`);
+  const { duration, frames, deviceScaleFactor } = recorded.session;
+  const seconds = (duration / 1000).toFixed(1);
+  console.log(
+    `Session: ${recorded.dir} (${seconds}s, ${frames.length} frames, captured at ${deviceScaleFactor}x)`,
+  );
   if (flags['no-render']) {
     return;
   }
@@ -251,6 +254,7 @@ function printResult(result: Awaited<ReturnType<typeof render>>): void {
   const seconds = (result.duration / 1000).toFixed(1);
   const { width, height } = result.size;
   console.log(`Video: ${result.output} (${seconds}s, ${width}x${height} @ ${result.fps} fps)`);
+  for (const warning of result.warnings) console.error(`autokast: warning: ${warning}`);
 }
 
 async function commandFrame(positionals: string[], flags: Flags): Promise<void> {

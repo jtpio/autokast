@@ -280,7 +280,7 @@ export function cursorShape(style: CursorStyle): CursorShape | null {
   if (style === 'none') return null;
   let s = cache.get(style);
   if (!s) {
-    s = (BUILDERS[style] ?? arrow)();
+    s = BUILDERS[style]();
     cache.set(style, s);
   }
   return s;

@@ -47,11 +47,6 @@ test('the address bar shows the latest address of the page', () => {
   ];
   assert.deepEqual(addressAt(urls, 999, PAGE), { host: 'a.test', path: '', focus: 0 });
   assert.deepEqual(addressAt(urls, 1000, PAGE), { host: 'a.test', path: '/two', focus: 0 });
-  assert.deepEqual(addressAt([], 500, PAGE, 'http://start.test/x'), {
-    host: 'start.test',
-    path: '/x',
-    focus: 0,
-  });
   assert.deepEqual(addressAt(urls, 5000, { address: false, origin: '' }), {
     host: '',
     path: '',

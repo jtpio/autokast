@@ -75,15 +75,6 @@ export const DEAD_ZONE = 0.3;
 export const CURSOR_OMEGA = 5;
 
 /**
- * The follow mode of a shot: its own `follow` (true is 'edge', false is 'off'), or the
- * render option.
- */
-export function followMode(event: Pick<ZoomEvent, 'follow'> | undefined, fallback: FollowMode) {
-  const f = event?.follow;
-  return f === true ? 'edge' : f === false ? 'off' : (f ?? fallback);
-}
-
-/**
  * The scale a zoom event asks for: `scale`, else its named `level`, else undefined (fit).
  */
 export function zoomScale(
@@ -323,31 +314,19 @@ export function computeCamera(
   const constrain: Constrain = options.constrain ?? ((state) => clampCamera(state, viewport));
   const speed = options.followSpeed ?? 1;
   const levels = options.levels ?? {};
-  const cursorAt = (t: number) => {
-    let i = 0;
-    while (i < n - 1 && times[i + 1] <= t) i++;
-    return cursor ? { x: cursor.x[i], y: cursor.y[i] } : null;
-  };
   const transitions: Transition[] = [...zooms]
     .sort((a, b) => a.out - b.out)
     .map((event) => {
       const end = event.out + Math.max(0, event.duration ?? options.duration);
-      let focus = event.focus;
-      if (event.anchor === 'cursor') {
-        const at = focus
-          ? { x: focus.x + focus.width / 2, y: focus.y + focus.height / 2 }
-          : cursorAt(event.out);
-        focus = at && { x: at.x, y: at.y, width: 0, height: 0 };
-      }
       const scale = zoomScale(event, levels);
       const target = zoomTarget(
-        { focus, scale, padding: event.padding },
+        { focus: event.focus, scale, padding: event.padding },
         viewport,
         options.maxScale,
         options.fit?.(end),
       );
       const home = constrain(target, end);
-      const mode = followMode(event, options.follow);
+      const mode = event.follow ?? options.follow;
       const omega = (mode === 'cursor' ? CURSOR_OMEGA : FOLLOW_OMEGA) * speed;
       return { t0: event.out, end, event, mode, omega, home, land: home };
     });

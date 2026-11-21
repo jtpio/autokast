@@ -114,6 +114,7 @@ function session(events: TimelineEvent[], cursor: Point = [640, 360]): Session {
     createdAt: '',
     viewport: VP,
     deviceScaleFactor: 1,
+    captureMode: 'frame-perfect',
     frameSize: VP,
     duration: 4000,
     frames: [{ t: 0, file: 'none.jpg' }],

@@ -9,6 +9,7 @@ import type {
   Size,
   TypingOptions,
 } from '../types.ts';
+import { captureScale } from '../render/sharpness.ts';
 import { hashString } from './random.ts';
 
 /**
@@ -17,7 +18,6 @@ import { hashString } from './random.ts';
 export const DEFAULTS = {
   name: 'screencast',
   viewport: { width: 1280, height: 720 },
-  deviceScaleFactor: 2,
   capture: { mode: 'realtime', fps: 60, clockLead: 600_000, format: 'jpeg', quality: 92 },
   cursor: { speed: 1, curvature: 0.2, minDuration: 220, maxDuration: 1000 },
   typing: { delay: 45, variance: 0.35 },
@@ -95,8 +95,9 @@ function check(condition: boolean, message: string): void {
 export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   const name = options.name ?? DEFAULTS.name;
   const viewport = { ...DEFAULTS.viewport, ...options.viewport };
-  const deviceScaleFactor = options.deviceScaleFactor ?? DEFAULTS.deviceScaleFactor;
   const capture = { ...DEFAULTS.capture, ...options.capture };
+  const deviceScaleFactor =
+    options.deviceScaleFactor ?? captureScale(capture.mode, viewport, options.render);
   const cursor = {
     start: { x: viewport.width / 2, y: viewport.height / 2 },
     ...DEFAULTS.cursor,

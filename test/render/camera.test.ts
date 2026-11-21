@@ -221,7 +221,7 @@ test('a directive with follow overrides zoom.follow until the next directive', (
   const home = zoomTarget({ focus, scale: 2 }, VP, 3);
   const off = computeCamera(
     times,
-    [zoom(200, { focus, scale: 2, follow: false }), zoom(4000, { focus, scale: 2 })],
+    [zoom(200, { focus, scale: 2, follow: 'off' }), zoom(4000, { focus, scale: 2 })],
     cursor,
     VP,
     OPTIONS,
@@ -230,7 +230,7 @@ test('a directive with follow overrides zoom.follow until the next directive', (
   assert.ok(off.cx[at(times, 6800)] > home.cx + 100, 'the next directive follows again');
   const on = computeCamera(
     times,
-    [zoom(200, { focus, scale: 2, follow: true }), zoom(4000, { focus, scale: 2 })],
+    [zoom(200, { focus, scale: 2, follow: 'edge' }), zoom(4000, { focus, scale: 2 })],
     cursor,
     VP,
     { ...OPTIONS, follow: 'off' },

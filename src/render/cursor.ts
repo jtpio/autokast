@@ -3,22 +3,6 @@ import { clamp, smoothstep } from './easing.ts';
 import { springSmooth, springStep } from './spring.ts';
 import type { TimedEvent, TimeMap } from './timeline.ts';
 
-const STYLES: ReadonlySet<string> = new Set<CursorStyle>([
-  'default',
-  'pointer',
-  'text',
-  'grab',
-  'grabbing',
-  'crosshair',
-  'move',
-  'ew-resize',
-  'ns-resize',
-  'nesw-resize',
-  'nwse-resize',
-  'not-allowed',
-  'none',
-]);
-
 /**
  * Durations of the cursor animations, in output milliseconds.
  */
@@ -119,13 +103,6 @@ export function cursorPath(samples: CursorSample[]): (t: number) => { x: number;
       y: h00 * ys[lo] + h10 * h * my[lo] + h01 * ys[hi] + h11 * h * my[hi],
     };
   };
-}
-
-/**
- * Maps any cursor value to a shape that the renderer can draw.
- */
-export function normalizeStyle(style: string | undefined): CursorStyle {
-  return style && STYLES.has(style) ? (style as CursorStyle) : 'default';
 }
 
 function easeOutCubic(t: number): number {
@@ -259,8 +236,7 @@ export function computeCursor(
   let current: CursorStyle = 'default';
   for (let i = 0; i < n; i++) {
     for (; mi < mouse.length && mouse[mi].t <= rec[i]; mi++) down = mouse[mi].type === 'mouseDown';
-    for (; si < styles.length && styles[si].t <= rec[i]; si++)
-      current = normalizeStyle(styles[si].style);
+    for (; si < styles.length && styles[si].t <= rec[i]; si++) current = styles[si].style;
     pressed[i] = down ? 1 : 0;
     recStyle[i] = current;
   }

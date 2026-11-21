@@ -26,7 +26,13 @@ import {
   splitCaption,
   type CaptionCue,
 } from './captions.ts';
-import { computeLayout, type CursorFrame, type FrameInput, type Layout } from './compositor.ts';
+import {
+  computeLayout,
+  useRestImage,
+  type CursorFrame,
+  type FrameInput,
+  type Layout,
+} from './compositor.ts';
 import { clickMarks, computeCursor, type ClickMark, type CursorTrack } from './cursor.ts';
 import { resolveOptions, type ResolvedOptions } from './defaults.ts';
 import { spotlightAmount } from './effects.ts';
@@ -197,7 +203,29 @@ function fitRegion(
   };
 }
 
-type Input = Omit<FrameInput, 'image'>;
+/**
+ * Output pixels per CSS pixel of the page at output frame `i`.
+ */
+export function contentScale(scene: Scene, i: number): number {
+  const stage = stageAt(scene.band, scene.bandOpen[i]).scale;
+  return scene.layout.k * stage * scene.camera.scale[i];
+}
+
+/**
+ * Source frames that output frames `from` to `to` draw from the rest image, in order.
+ */
+export function restFrameIndices(scene: Scene, from: number, to: number): number[] {
+  const width = scene.session.frameSize.width;
+  const indices: number[] = [];
+  for (let i = from; i < to; i++) {
+    const index = scene.frameIndex[i];
+    if (indices.at(-1) === index) continue;
+    if (useRestImage(scene.layout, width, contentScale(scene, i))) indices.push(index);
+  }
+  return indices;
+}
+
+type Input = Omit<FrameInput, 'image' | 'rest'>;
 
 const CAMERA_SAMPLES = 20;
 const CURSOR_SAMPLES = 96;
@@ -351,7 +379,7 @@ export function frameInput(scene: Scene, i: number): Input {
     keys: scene.keys.filter((k) => keyCueVisible(k, t)),
     address:
       scene.options.frame.chrome === 'browser'
-        ? addressAt(scene.urls, t, scene.options.frame, scene.session.url)
+        ? addressAt(scene.urls, t, scene.options.frame)
         : undefined,
   };
 }
