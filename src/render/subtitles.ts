@@ -22,10 +22,10 @@ const EXIT = 150;
 const MIN_SHOW = 300;
 
 /**
- * Animation of a word: the pop, the fade, and how fast the highlight comes and goes.
+ * Animation of a word: the time it takes to come, and how fast the highlight comes and
+ * goes.
  */
-const POP = 280;
-const FADE = 90;
+const ENTER = 200;
 const LIGHT_IN = 70;
 const LIGHT_OUT = 220;
 
@@ -38,9 +38,8 @@ const OUTLINE = 0.15;
 const WORD_GAP = 0.13;
 const SHADOW_BLUR = 0.28;
 const SHADOW_OFFSET = 0.07;
-const START_SCALE = 0.58;
-const CURRENT_SCALE = 1.06;
-const RISE = 0.2;
+const START_SCALE = 0.94;
+const EXIT_SCALE = 0.96;
 
 const TEXT: Rgba = { r: 255, g: 255, b: 255, a: 1 };
 const OUTLINE_COLOR: Rgba = { r: 11, g: 13, b: 20, a: 0.94 };
@@ -249,19 +248,10 @@ export function subtitleVisible(cue: SubtitleCue, t: number): boolean {
 }
 
 /**
- * A scale that starts at 0, goes past 1 and settles on 1.
- */
-function overshoot(p: number): number {
-  const c = 2;
-  const q = clamp(p, 0, 1) - 1;
-  return 1 + (c + 1) * q * q * q + c * q * q;
-}
-
-/**
- * Draws a subtitle page. Each word pops in when it is said and has the highlight color
- * while it is the current word; a word between `**` keeps that color. The text has a
- * dark outline, so that it is readable on the page and on the backdrop. On exit the page
- * shrinks a little and fades.
+ * Draws a subtitle page. Each word fades in when it is said, with a small growth and no
+ * other movement, and has the highlight color while it is the current word; a word
+ * between `**` keeps that color. The text has a dark outline, so that it is readable on
+ * the page and on the backdrop. On exit the page shrinks a little and fades.
  */
 export function drawSubtitle(
   ctx: SKRSContext2D,
@@ -273,21 +263,18 @@ export function drawSubtitle(
   const size = cue.fontSize;
   const exit = smoothstep(cue.end, cue.end + EXIT, t);
   const highlight = style.highlights[cue.caption % style.highlights.length];
-  const top = style.y - cue.height / 2 - exit * 0.12 * size;
+  const top = style.y - cue.height / 2;
   const shown = cue.words
     .filter((word) => t >= word.at && word.at < cue.end)
     .map((word) => {
-      const p = (t - word.at) / POP;
+      const enter = 1 - (1 - clamp((t - word.at) / ENTER, 0, 1)) ** 3;
       const current =
         smoothstep(0, LIGHT_IN, t - word.at) * (1 - smoothstep(0, LIGHT_OUT, t - word.until));
       return {
         word,
-        alpha: clamp((t - word.at) / FADE, 0, 1) * (1 - exit),
-        scale:
-          (START_SCALE + (1 - START_SCALE) * overshoot(p)) *
-          (1 + (CURRENT_SCALE - 1) * current) *
-          (1 - 0.08 * exit),
-        y: top + word.baseline + (1 - clamp(p, 0, 1)) ** 3 * RISE * size,
+        alpha: enter * (1 - exit),
+        scale: (START_SCALE + (1 - START_SCALE) * enter) * (1 + (EXIT_SCALE - 1) * exit),
+        y: top + word.baseline,
         color: mixOklab(TEXT, highlight, word.strong ? 1 : current),
       };
     });
