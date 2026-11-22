@@ -14,6 +14,7 @@ const PLOT = `df.plot("date", "temp_max", figsize=(6, 4));`;
 /**
  * JupyterLab as a vertical video with animated subtitles, for the platforms that show
  * short videos on a phone. Start the server with `examples/jupyterlab/serve.sh` first.
+ * Render with `--voice` for a voice that says the subtitles.
  */
 export default defineScreencast({
   name: 'jupyterlab-vertical',

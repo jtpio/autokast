@@ -97,6 +97,7 @@ waits and for reading state.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Vertical videos.** `--vertical` records and renders for a phone screen, and captions can
   show as animated subtitles.
+- **Voice.** `--voice` adds a voice that says the captions, in sync with the subtitles.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
   page motion is exact at 60 fps on any machine. Use it for the final recording.
 - **Made for agents.** `autokast inspect` prints the timeline and writes a contact sheet, so an
@@ -183,6 +184,26 @@ The two options do not depend on each other: `--set captions.style=subtitles` al
 subtitles in a wide video. A zoomed shot puts its target above the subtitles, and the
 keycaps are below them. [`examples/jupyterlab-vertical.ts`](examples/jupyterlab-vertical.ts)
 is a full script.
+
+## Voice
+
+`--voice` adds a voice that says the captions of the script. The voice comes from the
+[ElevenLabs](https://elevenlabs.io) API, which needs a key in the `ELEVENLABS_API_KEY`
+environment variable.
+
+```sh
+export ELEVENLABS_API_KEY=...
+autokast render .autokast/new-task --voice -o new-task.mp4
+```
+
+With the `subtitles` caption style, the highlight follows the voice: each word has the color
+while it is said. In a script, set `render: { voice: { enabled: true } }`. The fields
+`voiceId`, `model` and `speed` select the voice.
+
+Each speech clip is made one time and kept in the session directory (`.autokast/<name>/voice`),
+so the next render of the same captions does not call the API. A voice does not start before
+the voice of the caption before it ends, and the render prints a warning when a caption has
+too little time for its voice. A GIF has no sound.
 
 ## Options
 

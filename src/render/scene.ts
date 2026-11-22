@@ -46,6 +46,7 @@ import {
   subtitleZone,
   type SubtitleCue,
 } from './subtitles.ts';
+import { planVoice, type SpeechClip, type VoiceCue } from './voice.ts';
 import {
   frameIndexAt,
   frameTimes,
@@ -86,6 +87,12 @@ export interface Scene {
    * Pages of the captions, for the `subtitles` caption style.
    */
   subtitles: SubtitleCue[];
+  /**
+   * Speech clips of the captions and their place in the video, and the problems of
+   * that plan. Empty without the voice.
+   */
+  voice: VoiceCue[];
+  voiceWarnings: string[];
   keys: KeyCue[];
   /**
    * Addresses of the page, in output time order, for the browser frame.
@@ -106,10 +113,16 @@ export interface Scene {
 }
 
 /**
- * Builds the scene. `extraTime` adds one output time to the frame grid (for a still
+ * Builds the scene. `speech` has the speech clips of the captions, for the voice.
+ * `extraTime` adds one output time to the frame grid (for a still
  * between two frames).
  */
-export function buildScene(session: Session, options?: RenderOptions, extraTime?: number): Scene {
+export function buildScene(
+  session: Session,
+  options?: RenderOptions,
+  extraTime?: number,
+  speech?: Map<string, SpeechClip>,
+): Scene {
   const map = sessionTimeMap(session);
   const resolved = resolveOptions(session, options, BACKGROUND_PRESETS, map.duration);
   let times = frameTimes(map.duration, resolved.fps);
@@ -135,11 +148,11 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     );
   }
   const layout = computeLayout(resolved, session.viewport);
-  const captions = resolved.captions.enabled
-    ? events.filter(
-        (e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '',
-      )
-    : [];
+  const said = events
+    .filter((e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '')
+    .sort((a, b) => a.out - b.out);
+  const voice = planVoice(said, (resolved.voice.enabled && speech) || new Map(), map.duration);
+  const captions = resolved.captions.enabled ? said : [];
   const subtitled = resolved.captions.style === 'subtitles';
   const band =
     captions.length && !subtitled ? bandLayout(layout, resolved.captions.position) : null;
@@ -152,7 +165,7 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
       resolved.captions.fontSize * layout.unit,
     ),
   );
-  const subtitles = subtitled ? subtitleCues(resolved, captions) : [];
+  const subtitles = subtitled ? subtitleCues(resolved, captions, voice.cues) : [];
   const clear = subtitles.length ? clearOfSubtitles(resolved, layout) : null;
   const camera = computeCamera(
     times,
@@ -194,6 +207,8 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
       : [],
     captions: cues,
     subtitles,
+    voice: voice.cues.filter((cue) => cue !== undefined),
+    voiceWarnings: voice.warnings,
     keys,
     urls: events.filter((e): e is TimedEvent<UrlEvent> => e.type === 'url'),
     band,
@@ -209,11 +224,12 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
 function subtitleCues(
   options: ResolvedOptions,
   captions: TimedEvent<CaptionEvent>[],
+  voice: (VoiceCue | undefined)[],
 ): SubtitleCue[] {
   const fontSize = options.captions.fontSize * options.unit;
   const maxWidth = Math.min(SUBTITLE_WIDTH * options.size.width, SUBTITLE_EMS * fontSize);
   const measure = subtitleMeasure(options.captions.fontFamily);
-  return planSubtitles(captions, (text) => paginate(text, measure, maxWidth, fontSize));
+  return planSubtitles(captions, (text) => paginate(text, measure, maxWidth, fontSize), voice);
 }
 
 /**

@@ -4,6 +4,7 @@ import { parseCaption, splitCaption } from './captions.ts';
 import { mixOklab, rgba, type Rgba } from './color.ts';
 import { clamp, smoothstep } from './easing.ts';
 import type { TimedEvent } from './timeline.ts';
+import { VOICE_HOLD, type VoiceCue } from './voice.ts';
 
 /**
  * Time a word is the current word, in output milliseconds: the pace of speech.
@@ -202,45 +203,104 @@ function wordTime(text: string): number {
  * Plans the pages of the captions. A page shows all its words at once, then each word
  * is the current word in its turn, at the pace of speech. The last page of a caption
  * stays until the caption ends. A caption that is too short for its words plays them
- * faster. A new caption replaces the page on screen.
+ * faster. A new caption replaces the page on screen. With a voice (one entry of `voice`
+ * for each caption), the words and the pages follow the speech.
  */
 export function planSubtitles(
   events: TimedEvent<CaptionEvent>[],
   pages: (text: string) => SubtitlePage[],
+  voice: (VoiceCue | undefined)[] = [],
 ): SubtitleCue[] {
   const cues: SubtitleCue[] = [];
   const sorted = events.filter((e) => e.text.trim()).sort((a, b) => a.out - b.out);
   sorted.forEach((event, caption) => {
     const laid = pages(event.text.trim());
-    const spoken = laid.map((page) => page.words.reduce((sum, w) => sum + wordTime(w.text), 0));
-    const natural = spoken.reduce((sum, time) => sum + ENTER + time + PAGE_HOLD, 0);
-    const duration = Math.max(0, event.duration);
-    const rate = natural > duration ? duration / natural : 1;
-    let start = event.out;
+    const said = voice[caption];
+    const planned = said ? spokenPages(laid, event, said) : pacedPages(laid, event);
     // Pages of the caption before that did not start yet give way to this caption.
-    while (cues.length && cues[cues.length - 1].start >= start) cues.pop();
-    laid.forEach((page, i) => {
-      const last = cues.at(-1);
-      if (last && last.end + EXIT > start) {
-        last.end = Math.max(last.start + MIN_SHOW, Math.min(last.end, start - EXIT));
-        start = Math.max(start, last.end + EXIT);
-      }
-      let at = start + ENTER * rate;
-      const words = page.words.map((word) => {
-        const until = at + wordTime(word.text) * rate;
-        const timed = { ...word, at, until };
-        at = until;
-        return timed;
+    while (cues.length && cues[cues.length - 1].start >= planned[0].start) cues.pop();
+    const last = cues.at(-1);
+    let late = 0;
+    if (last && last.end + EXIT > planned[0].start) {
+      last.end = Math.max(last.start + MIN_SHOW, Math.min(last.end, planned[0].start - EXIT));
+      // A voice does not wait: only the pages without a voice come later.
+      if (!said) late = Math.max(0, last.end + EXIT - planned[0].start);
+    }
+    planned.forEach((page, i) => {
+      cues.push({
+        caption,
+        start: page.start + late,
+        end: page.end + late,
+        fontSize: laid[i].fontSize,
+        height: laid[i].height,
+        words: page.words.map((word) => ({
+          ...word,
+          at: word.at + late,
+          until: word.until + late,
+        })),
       });
-      const end =
-        i === laid.length - 1
-          ? Math.max(at, event.out + duration)
-          : start + (ENTER + spoken[i] + PAGE_HOLD) * rate;
-      cues.push({ caption, start, end, fontSize: page.fontSize, height: page.height, words });
-      start = end + EXIT;
     });
   });
   return cues;
+}
+
+type PlannedPage = Pick<SubtitleCue, 'start' | 'end' | 'words'>;
+
+/**
+ * Times of the pages of a caption without a voice, from the pace of speech.
+ */
+function pacedPages(laid: SubtitlePage[], event: TimedEvent<CaptionEvent>): PlannedPage[] {
+  const spoken = laid.map((page) => page.words.reduce((sum, w) => sum + wordTime(w.text), 0));
+  const natural = spoken.reduce((sum, time) => sum + ENTER + time + PAGE_HOLD, 0);
+  const duration = Math.max(0, event.duration);
+  const rate = natural > duration ? duration / natural : 1;
+  let start = event.out;
+  return laid.map((page, i) => {
+    let at = start + ENTER * rate;
+    const words = page.words.map((word) => {
+      const until = at + wordTime(word.text) * rate;
+      const timed = { ...word, at, until };
+      at = until;
+      return timed;
+    });
+    const end =
+      i === laid.length - 1
+        ? Math.max(at, event.out + duration)
+        : start + (ENTER + spoken[i] + PAGE_HOLD) * rate;
+    const planned = { start, end, words };
+    start = end + EXIT;
+    return planned;
+  });
+}
+
+/**
+ * Times of the pages of a caption with a voice: a page comes just before its first word
+ * is said, and each word is the current word while it is said.
+ */
+function spokenPages(
+  laid: SubtitlePage[],
+  event: TimedEvent<CaptionEvent>,
+  said: VoiceCue,
+): PlannedPage[] {
+  const times = said.clip.words;
+  let index = 0;
+  return laid.map((page, i) => {
+    const first = index;
+    index += page.words.length;
+    const next = times[index];
+    const words = page.words.map((word, j) => {
+      const time = times[first + j] ?? { start: said.clip.duration, end: said.clip.duration };
+      const until =
+        j < page.words.length - 1 ? (times[first + j + 1]?.start ?? time.end) : time.end;
+      return { ...word, at: said.at + time.start, until: said.at + until };
+    });
+    const start = said.at + (i === 0 ? 0 : (times[first]?.start ?? 0)) - ENTER;
+    const end =
+      i === laid.length - 1 || !next
+        ? Math.max(said.end + VOICE_HOLD, event.out + Math.max(0, event.duration))
+        : said.at + next.start - ENTER - EXIT;
+    return { start, end: Math.max(end, start), words };
+  });
 }
 
 export function subtitleVisible(cue: SubtitleCue, t: number): boolean {

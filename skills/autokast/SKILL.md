@@ -220,6 +220,22 @@ subtitles.
 - Set `keystrokes.size` to 1.5 when the keycaps show: they are small on a phone otherwise.
 - The contact sheet of a vertical video has 8 tiles in a row.
 
+**Voice**
+
+Use it only when asked for a voice, a narration or sound.
+
+- Render with `--voice`, or set `render: { voice: { enabled: true } }`. A voice then says each
+  caption, and with the subtitles style the highlight follows the words. It needs an
+  ElevenLabs API key in the `ELEVENLABS_API_KEY` environment variable: when it is not set,
+  ask for it.
+- Write each caption as a sentence to say: full words, no symbols, no abbreviations.
+- A voice says about 15 characters each second. The next caption must come after the voice
+  ends: put enough action or a `cast.wait` between two captions, and end the video after the
+  last voice. The render prints a warning for each voice that starts late or ends after the
+  video: fix these in the script and record again.
+- Each speech clip is made one time and kept in `.autokast/<name>/voice`. A changed caption
+  text makes one new clip. `voice.voiceId` selects the voice and `voice.speed` its speed.
+
 **State**
 
 - A recording must start from the same state every time. Reset the app in `setup` (URL
@@ -249,6 +265,7 @@ autokast render .autokast/demo -o demo-4k.mp4 --size 3840x2160 --set encode.qual
 autokast render .autokast/demo -o demo.gif --size 1280x720 --fps 20
 autokast render .autokast/demo -o tall.mp4 --vertical
 autokast render .autokast/demo -o subtitled.mp4 --set captions.style=subtitles
+autokast render .autokast/demo -o voiced.mp4 --voice
 autokast render .autokast/demo --preview -o quick.mp4
 autokast render .autokast/demo -o plain.mp4 --preset plain
 ```
@@ -286,6 +303,8 @@ next to `--preset`).
 | `captions.style`                                      | `line` (default: one line on the backdrop) or `subtitles` (large animated words over the video).                                                                                                                 |
 | `captions.highlight`                                  | Subtitles: the highlight color, or a list of colors (each caption takes the next one).                                                                                                                           |
 | `keystrokes.size`                                     | Size of the keycaps (default 1).                                                                                                                                                                                 |
+| `voice.enabled`                                       | `true` adds a voice that says the captions (also `--voice`). Needs `ELEVENLABS_API_KEY`.                                                                                                                         |
+| `voice.voiceId`, `voice.model`, `voice.speed`         | The ElevenLabs voice and model, and the speed of the speech (default 1).                                                                                                                                         |
 
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`
 (sand), `clay` (terracotta), `dusk` (slate blue with a warm corner), `harbor` (deep teal),

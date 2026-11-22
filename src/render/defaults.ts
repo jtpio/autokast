@@ -77,6 +77,7 @@ export interface ResolvedOptions {
     fontFamily: string;
     highlight: string[];
   };
+  voice: { enabled: boolean; voiceId: string; model: string; speed: number };
   spotlight: { enabled: boolean };
   keystrokes: {
     show: 'none' | 'shortcuts' | 'all';
@@ -151,6 +152,12 @@ const DEFAULTS = {
     fontSize: undefined as number | undefined,
     fontFamily: 'Inter Display',
     highlight: DEFAULT_HIGHLIGHT as string | string[],
+  },
+  voice: {
+    enabled: false,
+    voiceId: 'JBFqnCBsd6RMkjVDRZzb',
+    model: 'eleven_multilingual_v2',
+    speed: 1,
   },
   spotlight: { enabled: true },
   keystrokes: {
@@ -288,6 +295,7 @@ export function resolveOptions(
       fontSize: captions.fontSize ?? CAPTION_FONT_SIZE[captions.style],
       highlight: highlight.length ? highlight : DEFAULT_HIGHLIGHT,
     },
+    voice: merged.voice,
     spotlight: merged.spotlight,
     keystrokes: merged.keystrokes as ResolvedOptions['keystrokes'],
     encode,

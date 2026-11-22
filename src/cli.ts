@@ -26,6 +26,7 @@ Common options:
       --size <WxH>        Output size, e.g. 1920x1080
       --vertical          Vertical video: the long side of the size is vertical (1080x1920);
                           record also turns the viewport (720x1280)
+      --voice             A voice says the captions (needs ELEVENLABS_API_KEY)
       --fps <n>           Output frame rate
       --background <b>    Background: a preset name, an image file or a CSS color
       --padding <n>       Space around the window: below 1 a fraction of the short side, else pixels
@@ -104,6 +105,7 @@ function parseFlags(args: string[]) {
       preview: { type: 'boolean' },
       size: { type: 'string' },
       vertical: { type: 'boolean' },
+      voice: { type: 'boolean' },
       fps: { type: 'string' },
       background: { type: 'string' },
       padding: { type: 'string' },
@@ -138,6 +140,9 @@ async function renderOptions(flags: Flags, sets: string[]): Promise<RenderOption
   }
   if (flags.vertical) {
     options.vertical = true;
+  }
+  if (flags.voice) {
+    options.voice = { ...options.voice, enabled: true };
   }
   if (flags.fps) {
     options.fps = Number(flags.fps);

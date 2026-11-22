@@ -777,6 +777,28 @@ export interface CaptionRenderOptions {
   highlight?: string | string[];
 }
 
+export interface VoiceOptions {
+  /**
+   * `true` adds a voice that says the captions of the script, made with the ElevenLabs
+   * API. The key of the API comes from the `ELEVENLABS_API_KEY` environment variable.
+   * With the `subtitles` caption style, the highlight follows the voice. Each speech clip
+   * is made once and kept in the session directory. Default: false.
+   */
+  enabled?: boolean;
+  /**
+   * Id of the ElevenLabs voice. Default: `JBFqnCBsd6RMkjVDRZzb` (George).
+   */
+  voiceId?: string;
+  /**
+   * Id of the ElevenLabs model. Default: `eleven_multilingual_v2`.
+   */
+  model?: string;
+  /**
+   * Speed of the speech: 1 is the speed of the voice. Default: 1.
+   */
+  speed?: number;
+}
+
 export interface SpotlightRenderOptions {
   /**
    * `false` ignores the spotlights of the script. Default: true.
@@ -832,6 +854,7 @@ export interface RenderOptions {
   zoom?: ZoomRenderOptions;
   keystrokes?: KeystrokeOptions;
   captions?: CaptionRenderOptions;
+  voice?: VoiceOptions;
   spotlight?: SpotlightRenderOptions;
   encode?: EncodeOptions;
   /**

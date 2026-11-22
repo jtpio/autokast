@@ -62,7 +62,8 @@ export async function checkFfmpeg(binary: string): Promise<void> {
 }
 
 /**
- * Arguments that encode raw RGBA frames from stdin into `output`.
+ * Arguments that encode raw RGBA frames from stdin into `output`. `audio` adds an audio
+ * stream: more inputs, and a filter graph that gives the stream `[voice]`.
  */
 export function encoderArgs(
   format: 'mp4' | 'webm' | 'mkv',
@@ -70,6 +71,7 @@ export function encoderArgs(
   fps: number,
   encode: ResolvedOptions['encode'],
   output: string,
+  audio?: { inputs: string[]; filter: string } | null,
 ): string[] {
   const input = [
     '-y',
@@ -86,7 +88,10 @@ export function encoderArgs(
     String(fps),
     '-i',
     'pipe:0',
+    ...(audio?.inputs ?? []),
   ];
+  const sound = (codec: string[]) =>
+    audio ? ['-filter_complex', audio.filter, '-map', '0:v', '-map', '[voice]', ...codec] : [];
   if (format === 'mkv') {
     return [...input, '-c:v', 'libx264rgb', '-preset', 'ultrafast', '-qp', '0', output];
   }
@@ -115,6 +120,7 @@ export function encoderArgs(
       '-pix_fmt',
       pixelFormat,
       ...COLOR_TAGS,
+      ...sound(['-c:a', 'libopus', '-b:a', '128k']),
       output,
     ];
   }
@@ -133,6 +139,7 @@ export function encoderArgs(
     '-pix_fmt',
     pixelFormat,
     ...COLOR_TAGS,
+    ...sound(['-c:a', 'aac', '-b:a', '160k']),
     '-movflags',
     '+faststart',
     output,
