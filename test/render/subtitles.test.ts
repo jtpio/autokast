@@ -93,7 +93,7 @@ test('the real font gives a wider space between two words', () => {
   assert.ok(Math.abs(width('ab', 128) - 2 * width('ab', 64)) < 0.01);
 });
 
-test('the words of a page come one at a time, and the last page stays to the end', () => {
+test('each word of a page is the current word in its turn, and the last page stays', () => {
   const cues = planSubtitles([caption(1000, 6000, 'x')], () => [
     page('Write', 'code'),
     page('in', 'a', 'notebook'),
@@ -101,7 +101,8 @@ test('the words of a page come one at a time, and the last page stays to the end
   assert.equal(cues.length, 2);
   const [first, second] = cues;
   assert.equal(first.start, 1000);
-  assert.equal(first.words[0].at, 1000);
+  assert.ok(first.words[0].at > 1000, 'the page shows before its first word is current');
+  assert.ok(first.words[0].at < 1400);
   assert.equal(first.words[1].at, first.words[0].until);
   assert.ok(first.end > first.words[1].until, 'a page stays after its last word');
   assert.ok(second.start > first.end, 'the next page comes after the exit');
@@ -243,8 +244,13 @@ async function frame(source: string, time: number) {
 const magenta = (r: number, g: number, b: number) => r > 230 && g < 60 && b > 230;
 const white = (r: number, g: number, b: number) => r > 245 && g > 245 && b > 245;
 
-test('subtitles are drawn over the video, in the highlight color and in white', async () => {
-  const text = { type: 'caption' as const, t: 100, duration: 4000, text: 'Hello **there** friend' };
+test('a subtitle shows all its words at once, and the color goes from word to word', async () => {
+  const text = (t: number) => ({
+    type: 'caption' as const,
+    t,
+    duration: 4000,
+    text: 'Hello **there** friend',
+  });
   const options = {
     size: SMALL,
     background: '#203040',
@@ -252,24 +258,28 @@ test('subtitles are drawn over the video, in the highlight color and in white', 
     captions: { style: 'subtitles' as const, highlight: '#ff00ff' },
   };
   const zone = subtitleZone(SMALL, 'bottom', 32);
-  const empty = await variant('plain', [], options);
-  const plain = await frame(empty, 3000);
-  const before = await frame(empty, 300);
-  const source = await variant('subtitled', [text], options);
-  const shown = await frame(source, 3000);
-  const early = await frame(source, 300);
-  assert.equal(plain(zone.top, zone.bottom, magenta), 0);
-  assert.ok(shown(zone.top, zone.bottom, magenta) > 150, 'the word between ** keeps the color');
-  assert.ok(
-    shown(zone.top, zone.bottom, white) > plain(zone.top, zone.bottom, white) + 300,
-    'the other words are white',
-  );
-  assert.equal(shown(0, zone.top - 20, magenta), 0, 'no text outside the zone');
-  assert.ok(early(zone.top, zone.bottom, magenta) > 50, 'the first word comes in the color');
-  assert.ok(
-    early(zone.top, zone.bottom, white) < before(zone.top, zone.bottom, white) + 50,
-    'the other words did not come yet',
-  );
+  const count = async (name: string, events: Session['events'], time: number) => {
+    const pixels = await frame(await variant(name, events, options), time);
+    return {
+      magenta: pixels(zone.top, zone.bottom, magenta),
+      white: pixels(zone.top, zone.bottom, white),
+      above: pixels(0, zone.top - 20, magenta),
+    };
+  };
+  // The same frame of the page, with no subtitle, after the last word and on the first word.
+  const late = [text(2400)];
+  const first = buildScene({ ...session, events: late }, options).subtitles[0].words[0];
+  const time = (first.at + first.until) / 2;
+  const plain = await count('plain', [], time);
+  const said = await count('said', [text(100)], time);
+  const current = await count('current', late, time);
+  assert.equal(plain.magenta, 0);
+  assert.ok(said.magenta > 150, 'the word between ** has the color');
+  assert.ok(said.white > plain.white + 300, 'the other words are white');
+  assert.equal(said.above, 0, 'no text outside the zone');
+  assert.ok(current.magenta > said.magenta + 100, 'the current word has the color too');
+  assert.ok(current.white > plain.white + 100, 'the words after it show at once, in white');
+  assert.ok(current.white < said.white - 100);
 });
 
 test('keycaps sit below the subtitles, and their size is an option', async () => {

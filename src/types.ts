@@ -758,9 +758,10 @@ export interface CaptionRenderOptions {
   enabled?: boolean;
   /**
    * `line` (default) shows a caption as one line on the backdrop. `subtitles` shows it
-   * as large words over the video, a few at a time, as on a short vertical video: each
-   * word fades in at the pace of speech and has the highlight color while it is the
-   * current word. Words between `**` keep the highlight color.
+   * as large words over the video, as on a short vertical video: a sentence shows at
+   * once, then the highlight color goes from word to word at the pace of speech. Words
+   * between `**` have the highlight color all the time. Long text shows as several
+   * pages in sequence.
    */
   style?: 'line' | 'subtitles';
   position?: 'bottom' | 'top';

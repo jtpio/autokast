@@ -160,10 +160,10 @@ becomes 720x1280), and the output size does the same. The page then has the layo
 narrow window and fills the video. `render: { vertical: true }` turns only the output size:
 a wide window is small in a tall video, so its text is readable only in the zoomed shots.
 
-Captions can show as subtitles, as on short videos: a few large words at a time, over the
-video. Each word fades in at the pace of speech and has a highlight color while it is the
-current word. Words between `**` keep the color, and each caption takes the next color of
-the list.
+Captions can show as subtitles, as on short videos: large words over the video. A sentence
+shows at once, then a highlight color goes from word to word at the pace of speech. Words
+between `**` have the color all the time, and each caption takes the next color of the
+list.
 
 ```ts
 export default defineScreencast({

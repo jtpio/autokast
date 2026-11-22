@@ -207,10 +207,11 @@ subtitles.
   no wider than about 450 pixels gives text of a good size: for a wide element, give
   `zoomTo` a rectangle of the part that matters, for example the left part of a code cell.
   Keep typed lines below 40 characters.
-- For subtitles, set `render: { captions: { style: 'subtitles' } }`. The words of a caption
-  then come one at a time, large, over the video, and the word between `**` keeps the
-  highlight color. Write the captions as short spoken sentences of about 30 characters, one
-  for each action, and do not set `duration`: a subtitle goes away when it is said.
+- For subtitles, set `render: { captions: { style: 'subtitles' } }`. A caption then shows
+  as large words over the video, all at once, and the highlight color goes from word to
+  word. The word between `**` has the color all the time. Write the captions as short
+  spoken sentences of about 30 characters, one for each action, and do not set `duration`:
+  a subtitle goes away when it is said.
 - The subtitles are at about 72% of the height of a vertical video (82% of a wide one). A
   zoomed shot puts its target above them, and the keycaps are below them. In the full view
   they cover that part of the page.

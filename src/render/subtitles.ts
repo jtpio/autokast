@@ -14,19 +14,19 @@ const WORD_MIN = 180;
 const WORD_MAX = 560;
 
 /**
- * Timing of a page: the time it stays after its last word, the length of its exit, and
- * the shortest time it shows when the next caption replaces it.
+ * Timing of a page: the time it takes to come, which is also the time before its first
+ * word is the current word, the time it stays after its last word, the length of its
+ * exit, and the shortest time it shows when the next caption replaces it.
  */
+const ENTER = 200;
 const PAGE_HOLD = 520;
 const EXIT = 150;
 const MIN_SHOW = 300;
 
 /**
- * Animation of a word: the time it takes to come, and how fast the highlight comes and
- * goes.
+ * How fast the highlight of a word comes and goes.
  */
-const ENTER = 200;
-const LIGHT_IN = 70;
+const LIGHT_IN = 90;
 const LIGHT_OUT = 220;
 
 /**
@@ -199,10 +199,10 @@ function wordTime(text: string): number {
 }
 
 /**
- * Plans the pages of the captions. The words of a page come one at a time, at the pace
- * of speech, and the last page of a caption stays until the caption ends. A caption that
- * is too short for its words plays them faster. A new caption replaces the page on
- * screen.
+ * Plans the pages of the captions. A page shows all its words at once, then each word
+ * is the current word in its turn, at the pace of speech. The last page of a caption
+ * stays until the caption ends. A caption that is too short for its words plays them
+ * faster. A new caption replaces the page on screen.
  */
 export function planSubtitles(
   events: TimedEvent<CaptionEvent>[],
@@ -213,7 +213,7 @@ export function planSubtitles(
   sorted.forEach((event, caption) => {
     const laid = pages(event.text.trim());
     const spoken = laid.map((page) => page.words.reduce((sum, w) => sum + wordTime(w.text), 0));
-    const natural = spoken.reduce((sum, time) => sum + time + PAGE_HOLD, 0);
+    const natural = spoken.reduce((sum, time) => sum + ENTER + time + PAGE_HOLD, 0);
     const duration = Math.max(0, event.duration);
     const rate = natural > duration ? duration / natural : 1;
     let start = event.out;
@@ -225,7 +225,7 @@ export function planSubtitles(
         last.end = Math.max(last.start + MIN_SHOW, Math.min(last.end, start - EXIT));
         start = Math.max(start, last.end + EXIT);
       }
-      let at = start;
+      let at = start + ENTER * rate;
       const words = page.words.map((word) => {
         const until = at + wordTime(word.text) * rate;
         const timed = { ...word, at, until };
@@ -235,7 +235,7 @@ export function planSubtitles(
       const end =
         i === laid.length - 1
           ? Math.max(at, event.out + duration)
-          : start + (spoken[i] + PAGE_HOLD) * rate;
+          : start + (ENTER + spoken[i] + PAGE_HOLD) * rate;
       cues.push({ caption, start, end, fontSize: page.fontSize, height: page.height, words });
       start = end + EXIT;
     });
@@ -248,10 +248,11 @@ export function subtitleVisible(cue: SubtitleCue, t: number): boolean {
 }
 
 /**
- * Draws a subtitle page. Each word fades in when it is said, with a small growth and no
- * other movement, and has the highlight color while it is the current word; a word
- * between `**` keeps that color. The text has a dark outline, so that it is readable on
- * the page and on the backdrop. On exit the page shrinks a little and fades.
+ * Draws a subtitle page. The page fades in with a small growth and no other movement.
+ * The highlight color then goes from word to word: a word has it while it is the current
+ * word, and a word between `**` has it all the time. The text has a dark outline, so
+ * that it is readable on the page and on the backdrop. On exit the page shrinks a little
+ * and fades.
  */
 export function drawSubtitle(
   ctx: SKRSContext2D,
@@ -261,50 +262,36 @@ export function drawSubtitle(
 ): void {
   if (!subtitleVisible(cue, t)) return;
   const size = cue.fontSize;
+  const enter = 1 - (1 - clamp((t - cue.start) / ENTER, 0, 1)) ** 3;
   const exit = smoothstep(cue.end, cue.end + EXIT, t);
+  const scale = (START_SCALE + (1 - START_SCALE) * enter) * (1 + (EXIT_SCALE - 1) * exit);
   const highlight = style.highlights[cue.caption % style.highlights.length];
-  const top = style.y - cue.height / 2;
-  const shown = cue.words
-    .filter((word) => t >= word.at && word.at < cue.end)
-    .map((word) => {
-      const enter = 1 - (1 - clamp((t - word.at) / ENTER, 0, 1)) ** 3;
-      const current =
-        smoothstep(0, LIGHT_IN, t - word.at) * (1 - smoothstep(0, LIGHT_OUT, t - word.until));
-      return {
-        word,
-        alpha: enter * (1 - exit),
-        scale: (START_SCALE + (1 - START_SCALE) * enter) * (1 + (EXIT_SCALE - 1) * exit),
-        y: top + word.baseline,
-        color: mixOklab(TEXT, highlight, word.strong ? 1 : current),
-      };
-    });
+  const colors = cue.words.map((word) => {
+    const current =
+      smoothstep(0, LIGHT_IN, t - word.at) * (1 - smoothstep(0, LIGHT_OUT, t - word.until));
+    return rgba(mixOklab(TEXT, highlight, word.strong ? 1 : current));
+  });
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // The page scales about its center.
+  ctx.setTransform(scale, 0, 0, scale, style.x, style.y);
+  ctx.globalAlpha = enter * (1 - exit);
   ctx.font = subtitleFont(style.family, size);
   ctx.letterSpacing = tracking(size);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
   ctx.lineWidth = OUTLINE * size;
+  ctx.shadowColor = SHADOW_COLOR;
+  ctx.shadowBlur = SHADOW_BLUR * size;
+  ctx.shadowOffsetY = SHADOW_OFFSET * size;
+  ctx.strokeStyle = rgba(OUTLINE_COLOR);
+  const top = -cue.height / 2;
   // All the outlines come first: the outline of a word must not cover its neighbor.
-  for (const pass of ['outline', 'fill'] as const) {
-    for (const { word, alpha, scale, y, color } of shown) {
-      // The word scales about the middle of its lowercase letters.
-      const pivot = y - 0.34 * size;
-      ctx.setTransform(scale, 0, 0, scale, style.x + word.x, pivot);
-      ctx.globalAlpha = alpha;
-      if (pass === 'outline') {
-        ctx.shadowColor = SHADOW_COLOR;
-        ctx.shadowBlur = SHADOW_BLUR * size;
-        ctx.shadowOffsetY = SHADOW_OFFSET * size;
-        ctx.strokeStyle = rgba(OUTLINE_COLOR);
-        ctx.strokeText(word.text, 0, y - pivot);
-      } else {
-        ctx.shadowColor = 'transparent';
-        ctx.fillStyle = rgba(color);
-        ctx.fillText(word.text, 0, y - pivot);
-      }
-    }
-  }
+  for (const word of cue.words) ctx.strokeText(word.text, word.x, top + word.baseline);
+  ctx.shadowColor = 'transparent';
+  cue.words.forEach((word, i) => {
+    ctx.fillStyle = colors[i];
+    ctx.fillText(word.text, word.x, top + word.baseline);
+  });
   ctx.restore();
 }
