@@ -51,7 +51,7 @@ export default defineScreencast({
       return { x: box.x, y: box.y, width, height: box.height };
     };
 
-    await cast.caption('Write code in a **notebook**');
+    await cast.caption('Write code in a notebook');
     await cast.click(page.locator('.jp-LauncherCard[data-category="Notebook"]').first(), {
       afterClick: 0,
     });
@@ -59,13 +59,13 @@ export default defineScreencast({
     await cast.zoomTo(await code(0, 430), { padding: 12 });
     await cast.type(LOAD, { into: cells.first().locator('.cm-content') });
 
-    await cast.caption('Run it and see the **result**');
+    await cast.caption('Run it and see the result');
     await cast.press('Shift+Enter');
     await cast.cut(() => page.locator('.jp-RenderedHTMLCommon table').waitFor());
     await cast.zoomTo(await code(0, 560), { padding: 12 });
     await cast.wait(1800);
 
-    await cast.caption('One more line gives a **plot**');
+    await cast.caption('One more line gives a plot');
     await cast.zoomTo(await code(1, 430), { padding: 12 });
     await cast.type(PLOT);
     await cast.press('Shift+Enter');
@@ -74,7 +74,7 @@ export default defineScreencast({
     await cast.zoomTo(plot, { padding: 24 });
     await cast.hover(plot, { position: { x: 0.56, y: 0.3 }, hold: 1600 });
 
-    await cast.caption('Jump to a section with the **table of contents**');
+    await cast.caption('Jump to a section with the table of contents');
     await cast.zoomOut();
     await cast.click(sidebar('filebrowser'));
     await cast.dblclick(file('weather-report.ipynb'), { afterClick: 0 });
@@ -88,7 +88,7 @@ export default defineScreencast({
     await cast.click(heading('Weather report 2025'));
     await cast.wait(500);
 
-    await cast.caption('Keep two documents **in view**');
+    await cast.caption('Keep two documents in view');
     await cast.zoomOut();
     await cast.click(sidebar('table-of-contents'));
     await cast.drag(tab('Untitled.ipynb'), '#jp-main-dock-panel', {
@@ -96,7 +96,7 @@ export default defineScreencast({
     });
     await cast.wait(1600);
 
-    await cast.caption('Find every command in the **command palette**');
+    await cast.caption('Find every command in the command palette');
     await cast.press('Control+Shift+C');
     const search = page.locator('#modal-command-palette .lm-CommandPalette-search');
     await cast.moveTo(search);
@@ -115,7 +115,7 @@ export default defineScreencast({
       await page.locator('#jupyterlab-splash').waitFor({ state: 'detached' });
       await page.waitForTimeout(300);
     });
-    await cast.caption('and make it **yours**', { duration: 2600 });
+    await cast.caption('and make it yours', { duration: 2600 });
     await cast.zoomOut({ wait: false });
     await cast.moveTo({ x: 640, y: 905 });
     await cast.wait(2400);
