@@ -75,7 +75,7 @@ export interface ResolvedOptions {
     position: 'bottom' | 'top';
     fontSize: number;
     fontFamily: string;
-    highlight: string[];
+    highlight: string;
   };
   voice: { enabled: boolean; voiceId: string; model: string; speed: number };
   spotlight: { enabled: boolean };
@@ -104,8 +104,6 @@ const DEFAULT_AUTO_ZOOM: ResolvedAutoZoom = { scale: 1.8, hold: 1500, mergeWindo
  * Font size of each caption style, for a 1080-pixel output.
  */
 const CAPTION_FONT_SIZE = { line: 40, subtitles: 64 };
-
-const DEFAULT_HIGHLIGHT = ['#ffd84a', '#5fe08a', '#5cc8ff', '#ff8fb8'];
 
 const DEFAULTS = {
   size: { width: 1920, height: 1080 },
@@ -151,7 +149,7 @@ const DEFAULTS = {
     position: 'bottom',
     fontSize: undefined as number | undefined,
     fontFamily: 'Inter Display',
-    highlight: DEFAULT_HIGHLIGHT as string | string[],
+    highlight: '#ffd84a',
   },
   voice: {
     enabled: false,
@@ -266,7 +264,6 @@ export function resolveOptions(
   if (captions.style !== 'line' && captions.style !== 'subtitles') {
     throw new Error(`Unknown captions.style "${captions.style}". Use one of: line, subtitles`);
   }
-  const highlight = [captions.highlight].flat().filter(Boolean);
   const fps = Math.min(240, Math.max(1, merged.fps));
   const auto = merged.zoom.auto;
   const shadow = merged.frame.shadow;
@@ -293,7 +290,6 @@ export function resolveOptions(
     captions: {
       ...(captions as ResolvedOptions['captions']),
       fontSize: captions.fontSize ?? CAPTION_FONT_SIZE[captions.style],
-      highlight: highlight.length ? highlight : DEFAULT_HIGHLIGHT,
     },
     voice: merged.voice,
     spotlight: merged.spotlight,

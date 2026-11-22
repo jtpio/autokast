@@ -154,13 +154,14 @@ export interface SpeedEvent {
 
 /**
  * A text caption shown from `t` for `duration` milliseconds. `**` in the text starts and
- * ends the emphasis.
+ * ends the emphasis. `highlight` is the highlight color of this caption as subtitles.
  */
 export interface CaptionEvent {
   type: 'caption';
   t: number;
   duration: number;
   text: string;
+  highlight?: string;
 }
 
 /**
@@ -491,6 +492,11 @@ export interface CaptionOptions {
    * Waits for the caption to end. Default: false.
    */
   wait?: boolean;
+  /**
+   * Highlight color of this caption with the `subtitles` style. Default: the
+   * `captions.highlight` render option.
+   */
+  highlight?: string;
 }
 
 export interface GotoOptions {
@@ -771,10 +777,10 @@ export interface CaptionRenderOptions {
   fontSize?: number;
   fontFamily?: string;
   /**
-   * Highlight color of the subtitles. With several colors, each caption takes the next
-   * one. Default: yellow, green, blue and pink.
+   * Highlight color of the subtitles. The `highlight` option of `cast.caption` gives one
+   * caption a different color. Default: `#ffd84a` (yellow).
    */
-  highlight?: string | string[];
+  highlight?: string;
 }
 
 export interface VoiceOptions {

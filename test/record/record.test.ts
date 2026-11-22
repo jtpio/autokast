@@ -143,7 +143,7 @@ describe('record() end to end', () => {
         await cast.hover('#resize', { hold: 200 });
         await cast.cut(() => cast.wait(500));
         await cast.speed(2, () => cast.moveTo({ x: 100, y: 600 }));
-        await cast.caption('Done', { duration: 800 });
+        await cast.caption('Done', { duration: 800, highlight: '#00ff00' });
         cast.marker('end');
         page.value = await cast.page.locator('#name').inputValue();
         page.log = await cast.page.evaluate(() => (window as unknown as { log: string[] }).log);
@@ -290,6 +290,7 @@ describe('record() end to end', () => {
     assert.equal(speed.rate, 2);
     assert.ok(speed.end > speed.t);
     assert.equal(ofType(session, 'caption')[0].text, 'Done');
+    assert.equal(ofType(session, 'caption')[0].highlight, '#00ff00');
     assert.equal(ofType(session, 'marker')[0].label, 'end');
   });
 

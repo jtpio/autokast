@@ -108,7 +108,7 @@ elements fails, so narrow it.
 | `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                                                                                                   |
 | `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                                                                                                |
 | `cast.spotlight(target, { duration, padding, radius })`             | Dims the page around the target for `duration` (default 2 s), to point at one element without a zoom. `padding` and `radius` shape the lit area; `wait: true` waits for the end.                                                                                |
-| `cast.caption(text, { duration })`                                  | Optional caption on the backdrop below the window. `**` around words gives them the emphasis. Use only when asked for text in the video. The `captions.style` render option shows the captions as animated subtitles (see "Vertical videos and subtitles").     |
+| `cast.caption(text, { duration, highlight })`                       | Optional caption on the backdrop below the window. `**` around words gives them the emphasis. Use only when asked for text in the video. The `captions.style` render option shows the captions as animated subtitles (see "Vertical videos and subtitles").     |
 | `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                                                                                                       |
 
 `cast.page` is the Playwright page. Use it to wait and to read state
@@ -209,7 +209,8 @@ subtitles.
   Keep typed lines below 40 characters.
 - For subtitles, set `render: { captions: { style: 'subtitles' } }`. A caption then shows
   as large words over the video, all at once, and the highlight color goes from word to
-  word. The word between `**` has the color all the time. Write the captions as short
+  word. The word between `**` has the color all the time. The color is yellow: keep one
+  color for the full video, unless the user asks for more. Write the captions as short
   spoken sentences of about 30 characters, one for each action, and do not set `duration`:
   a subtitle goes away when it is said.
 - The subtitles are at about 72% of the height of a vertical video (82% of a wide one). A
@@ -305,7 +306,7 @@ next to `--preset`).
 | `zoom.enabled`, `captions.enabled`                    | `false` ignores the zooms or captions of the script. `spotlight.enabled` does the same for spotlights.                                                                                                           |
 | `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                                                                                 |
 | `captions.style`                                      | `line` (default: one line on the backdrop) or `subtitles` (large animated words over the video).                                                                                                                 |
-| `captions.highlight`                                  | Subtitles: the highlight color, or a list of colors (each caption takes the next one).                                                                                                                           |
+| `captions.highlight`                                  | Subtitles: the highlight color (default yellow). The `highlight` option of `cast.caption` gives one caption a different color.                                                                                   |
 | `keystrokes.size`                                     | Size of the keycaps (default 1).                                                                                                                                                                                 |
 | `voice.enabled`                                       | `true` adds a voice that says the captions (also `--voice`). Needs `ELEVENLABS_API_KEY`.                                                                                                                         |
 | `voice.voiceId`, `voice.model`, `voice.speed`         | The ElevenLabs voice and model, and the speed of the speech (default 1).                                                                                                                                         |

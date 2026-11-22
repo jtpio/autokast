@@ -1,7 +1,7 @@
 import { createCanvas, type SKRSContext2D } from '@napi-rs/canvas';
 import type { CaptionEvent, Size } from '../types.ts';
 import { markedWord, parseCaption, splitCaption } from './captions.ts';
-import { mixOklab, rgba, type Rgba } from './color.ts';
+import { mixOklab, parseColor, rgba, type Rgba } from './color.ts';
 import { clamp, smoothstep } from './easing.ts';
 import type { TimedEvent } from './timeline.ts';
 import { VOICE_HOLD, type VoiceCue } from './voice.ts';
@@ -64,9 +64,9 @@ export interface SubtitleWord {
  */
 export interface SubtitleCue {
   /**
-   * Index of the caption of this page, which selects its highlight color.
+   * Highlight color of the caption of this page, when it has its own.
    */
-  caption: number;
+  highlight?: Rgba;
   start: number;
   end: number;
   fontSize: number;
@@ -90,7 +90,7 @@ export interface SubtitleStyle {
    */
   x: number;
   y: number;
-  highlights: Rgba[];
+  highlight: Rgba;
 }
 
 /**
@@ -259,9 +259,10 @@ export function planSubtitles(
       // A voice does not wait: only the pages without a voice come later.
       if (!said) late = Math.max(0, last.end + EXIT - planned[0].start);
     }
+    const highlight = (event.highlight && parseColor(event.highlight)) || undefined;
     planned.forEach((page, i) => {
       cues.push({
-        caption,
+        highlight,
         start: page.start + late,
         end: page.end + late,
         fontSize: laid[i].fontSize,
@@ -364,7 +365,7 @@ export function drawSubtitle(
   const enter = 1 - (1 - clamp((t - cue.start) / ENTER, 0, 1)) ** 3;
   const exit = smoothstep(cue.end, cue.end + EXIT, t);
   const scale = (START_SCALE + (1 - START_SCALE) * enter) * (1 + (EXIT_SCALE - 1) * exit);
-  const highlight = style.highlights[cue.caption % style.highlights.length];
+  const highlight = cue.highlight ?? style.highlight;
   const colors = cue.words.map((word) => {
     const current =
       smoothstep(0, LIGHT_IN, t - word.at) * (1 - smoothstep(0, LIGHT_OUT, t - word.until));

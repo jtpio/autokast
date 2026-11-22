@@ -339,9 +339,7 @@ export class Compositor {
       family: options.captions.fontFamily,
       x: zone.x,
       y: zone.y,
-      highlights: options.captions.highlight.map(
-        (color) => parseColor(color) ?? { r: 255, g: 216, b: 74, a: 1 },
-      ),
+      highlight: parseColor(options.captions.highlight) ?? { r: 255, g: 216, b: 74, a: 1 },
     };
   }
 

@@ -163,19 +163,21 @@ a wide window is small in a tall video, so its text is readable only in the zoom
 
 Captions can show as subtitles, as on short videos: large words over the video. A sentence
 shows at once, then a highlight color goes from word to word at the pace of speech. Words
-between `**` have the color all the time, and each caption takes the next color of the
-list.
+between `**` have the color all the time. The color is yellow by default:
+`captions.highlight` sets it for the video, and the `highlight` option of `cast.caption`
+sets it for one caption.
 
 ```ts
 export default defineScreencast({
   vertical: true,
   render: {
-    captions: { style: 'subtitles', highlight: ['#ffd84a', '#5fe08a'] },
+    captions: { style: 'subtitles', highlight: '#5fe08a' },
     keystrokes: { show: 'shortcuts', size: 1.5 },
   },
 
   async run(cast) {
     await cast.caption('Write code in a **notebook**');
+    await cast.caption('Then make a chart', { highlight: '#5cc8ff' });
   },
 });
 ```

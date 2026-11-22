@@ -156,10 +156,6 @@ test('a new caption replaces the page on screen and the pages that did not start
   );
   assert.ok(cues[0].end < 1100);
   assert.equal(cues[1].start, 1100);
-  assert.deepEqual(
-    cues.map((cue) => cue.caption),
-    [0, 1],
-  );
 });
 
 test('a caption that has only marks gives no page', () => {
@@ -204,12 +200,19 @@ test('the subtitles style has no caption band, and the window does not move', ()
   );
 });
 
-test('the highlight is one color or a list, and each caption takes the next color', () => {
-  const colors = (highlight?: string | string[]) =>
+test('the highlight is one color, and a caption can have its own color', () => {
+  const color = (highlight?: string) =>
     buildScene(session, { captions: { style: 'subtitles', highlight } }).options.captions.highlight;
-  assert.equal(colors().length, 4);
-  assert.deepEqual(colors('#ff0000'), ['#ff0000']);
-  assert.deepEqual(colors(['#ff0000', '#00ff00']), ['#ff0000', '#00ff00']);
+  assert.equal(color(), '#ffd84a');
+  assert.equal(color('#ff0000'), '#ff0000');
+  const cues = planSubtitles(
+    [caption(0, 2000, 'a'), { ...caption(3000, 2000, 'b'), highlight: '#00ff00' }],
+    () => [page('word')],
+  );
+  assert.deepEqual(
+    cues.map((cue) => cue.highlight),
+    [undefined, { r: 0, g: 255, b: 0, a: 1 }],
+  );
 });
 
 test('a zoom puts its focus above the subtitles', () => {
@@ -275,6 +278,7 @@ async function frame(source: string, time: number) {
 
 const magenta = (r: number, g: number, b: number) => r > 230 && g < 60 && b > 230;
 const white = (r: number, g: number, b: number) => r > 245 && g > 245 && b > 245;
+const green = (r: number, g: number, b: number) => r < 60 && g > 230 && b < 60;
 
 test('a subtitle shows all its words at once, and the color goes from word to word', async () => {
   const text = (t: number) => ({
@@ -312,6 +316,11 @@ test('a subtitle shows all its words at once, and the color goes from word to wo
   assert.ok(current.magenta > said.magenta + 100, 'the current word has the color too');
   assert.ok(current.white > plain.white + 100, 'the words after it show at once, in white');
   assert.ok(current.white < said.white - 100);
+
+  const own = await variant('own', [{ ...text(100), highlight: '#00ff00' }], options);
+  const pixels = await frame(own, time);
+  assert.equal(pixels(zone.top, zone.bottom, magenta), 0);
+  assert.ok(pixels(zone.top, zone.bottom, green) > 150, 'the caption has its own color');
 });
 
 test('keycaps sit below the subtitles, and their size is an option', async () => {
