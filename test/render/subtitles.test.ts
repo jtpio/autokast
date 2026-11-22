@@ -162,6 +162,15 @@ test('a new caption replaces the page on screen and the pages that did not start
   );
 });
 
+test('a caption that has only marks gives no page', () => {
+  assert.deepEqual(paginate('**', measure, 600, 60), []);
+  const cues = planSubtitles([caption(0, 2000, 'Hello there'), caption(500, 2000, '**')], (text) =>
+    paginate(text, measure, 600, 60),
+  );
+  assert.equal(cues.length, 1);
+  assert.equal(cues[0].end, 2000);
+});
+
 test('the subtitles are lower in a wide video than in a vertical one', () => {
   const wide = subtitleZone({ width: 1920, height: 1080 }, 'bottom', 64);
   const tall = subtitleZone({ width: 1080, height: 1920 }, 'bottom', 64);

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { CaptionEvent } from '../types.ts';
 import { parseCaption } from './captions.ts';
@@ -22,7 +22,7 @@ const BITRATE = 128_000;
  * Timing of the voice, in output milliseconds: the time between a caption and its
  * voice, the silence between two captions, and the time a caption stays after its voice.
  */
-export const VOICE_LEAD = 200;
+const VOICE_LEAD = 200;
 const VOICE_GAP = 250;
 export const VOICE_HOLD = 400;
 
@@ -144,6 +144,12 @@ async function requestSpeech(
   return { audio: Buffer.from(data.audio_base64, 'base64'), alignment: data.alignment ?? null };
 }
 
+const exists = (file: string) =>
+  access(file).then(
+    () => true,
+    () => false,
+  );
+
 /**
  * Returns the speech clip of each caption text, by its spoken text. The clips that are
  * not in `dir` yet come from the ElevenLabs API, which needs the `ELEVENLABS_API_KEY`
@@ -163,7 +169,7 @@ export async function loadSpeech(
     const file = path.join(dir, `${id}.mp3`);
     const meta = path.join(dir, `${id}.json`);
     const saved = await readFile(meta, 'utf8').then(JSON.parse, () => null);
-    if (saved && (await readFile(file).then(Boolean, () => false))) {
+    if (saved && (await exists(file))) {
       clips.set(text, { file, duration: saved.duration, words: saved.words });
       continue;
     }

@@ -248,6 +248,8 @@ export function planSubtitles(
     const laid = pages(event.text.trim());
     const said = voice[caption];
     const planned = said ? spokenPages(laid, event, said) : pacedPages(laid, event);
+    // Text that is only `**` marks has no page.
+    if (!planned.length) return;
     // Pages of the caption before that did not start yet give way to this caption.
     while (cues.length && cues[cues.length - 1].start >= planned[0].start) cues.pop();
     const last = cues.at(-1);
@@ -305,32 +307,38 @@ function pacedPages(laid: SubtitlePage[], event: TimedEvent<CaptionEvent>): Plan
 }
 
 /**
- * Times of the pages of a caption with a voice: a page comes just before its first word
- * is said, and each word is the current word while it is said.
+ * Times of the pages of a caption with a voice: each word is the current word while it
+ * is said. A page comes a moment before its first word, but not before the last word of
+ * the page before it ends, so that no word is cut where the speech has no pause.
  */
 function spokenPages(
   laid: SubtitlePage[],
   event: TimedEvent<CaptionEvent>,
   said: VoiceCue,
 ): PlannedPage[] {
-  const times = said.clip.words;
-  let index = 0;
+  const none = { start: said.clip.duration, end: said.clip.duration };
+  const time = (index: number) => {
+    const word = said.clip.words[index] ?? none;
+    return { start: said.at + word.start, end: said.at + word.end };
+  };
+  let first = 0;
+  let start = said.at - ENTER;
   return laid.map((page, i) => {
-    const first = index;
-    index += page.words.length;
-    const next = times[index];
-    const words = page.words.map((word, j) => {
-      const time = times[first + j] ?? { start: said.clip.duration, end: said.clip.duration };
-      const until =
-        j < page.words.length - 1 ? (times[first + j + 1]?.start ?? time.end) : time.end;
-      return { ...word, at: said.at + time.start, until: said.at + until };
-    });
-    const start = said.at + (i === 0 ? 0 : (times[first]?.start ?? 0)) - ENTER;
-    const end =
-      i === laid.length - 1 || !next
-        ? Math.max(said.end + VOICE_HOLD, event.out + Math.max(0, event.duration))
-        : said.at + next.start - ENTER - EXIT;
-    return { start, end: Math.max(end, start), words };
+    const count = page.words.length;
+    const words = page.words.map((word, j) => ({
+      ...word,
+      at: time(first + j).start,
+      until: j < count - 1 ? time(first + j + 1).start : time(first + j).end,
+    }));
+    const planned = { start, end: 0, words };
+    first += count;
+    if (i === laid.length - 1) {
+      planned.end = Math.max(said.end + VOICE_HOLD, event.out + Math.max(0, event.duration));
+    } else {
+      start = Math.max(time(first - 1).end, time(first).start - ENTER);
+      planned.end = Math.max(planned.start, start - EXIT);
+    }
+    return planned;
   });
 }
 

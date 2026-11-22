@@ -5,6 +5,7 @@ import { loadSession } from '../session.ts';
 import type { RenderOptions, RenderResult, Session } from '../types.ts';
 import { BACKGROUND_PRESETS, createBackground } from './background.ts';
 import { Compositor, restImageSize } from './compositor.ts';
+import { resolveOptions } from './defaults.ts';
 import {
   checkFfmpeg,
   encoderArgs,
@@ -47,10 +48,15 @@ async function buildVoicedScene(
   options?: RenderOptions,
   extraTime?: number,
 ): Promise<Scene> {
-  const scene = buildScene(session, options, extraTime);
-  if (!scene.options.voice.enabled || scene.options.format === 'gif') return scene;
+  const { voice, format } = resolveOptions(
+    session,
+    options,
+    BACKGROUND_PRESETS,
+    outputDuration(session),
+  );
+  if (!voice.enabled || format === 'gif') return buildScene(session, options, extraTime);
   const texts = session.events.flatMap((event) => (event.type === 'caption' ? [event.text] : []));
-  const speech = await loadSpeech(path.join(sessionDir, VOICE_DIR), texts, scene.options.voice);
+  const speech = await loadSpeech(path.join(sessionDir, VOICE_DIR), texts, voice);
   return buildScene(session, options, extraTime, speech);
 }
 

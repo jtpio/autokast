@@ -257,6 +257,21 @@ test('with a voice, the words and the pages of a subtitle follow the speech', ()
   assert.equal(cues[1].words[0].at, 1200 + 1500);
   assert.equal(cues[1].words[1].until, 1200 + 2500);
   assert.ok(cues[1].end > said.end, 'the last page stays until the voice is at its end');
+
+  // Without a pause in the speech, the next page waits for the end of the word before it.
+  const fast = {
+    clip: clip(1800, [0, 400], [400, 900], [900, 1300], [1300, 1800]),
+    at: 1200,
+    end: 3000,
+  };
+  const [one, two] = planSubtitles(
+    [caption(1000, 'x', 1000)],
+    () => [page('One', 'two'), page('three', 'four')],
+    [fast],
+  );
+  assert.equal(two.start, 1200 + 900, 'the page comes when the word before it ends');
+  assert.equal(two.words[0].at, two.start);
+  assert.ok(one.end < two.start && one.end > one.words[1].at, 'the last word is not cut');
 });
 
 test('a render with the voice has an audio stream of the length of the video', async () => {
