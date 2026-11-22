@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, it } from 'node:test';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { imageSize } from '../../src/record/capture.ts';
+import { imageSize, QUIET_MS } from '../../src/record/capture.ts';
 import { record } from '../../src/record/index.ts';
 import type { Session } from '../../src/types.ts';
 import { serve, type TestServer } from './helpers.ts';
@@ -72,15 +72,16 @@ it('captures the final state once after each quiet period, after a cut and at th
   const colors = await Promise.all(quiet.map((f) => colorAt(path.join(dir, f.file))));
   const times = quiet.map((f, i) => `${Math.round(f.t - marks.blue)} ms ${colors[i]}`).join(', ');
   assert.equal(colors.at(-1), 'blue', times);
-  const late = quiet.filter((f) => f.t > marks.blue + 700);
-  assert.equal(late.length, 0, `no frame late in the quiet period: ${times}`);
-  // The marker comes before the repaint: the first frames can still show the old color.
-  const change = quiet[colors.indexOf('blue')];
-  const refresh = quiet.filter((f) => f.t > change.t + 150);
-  assert.ok(
-    refresh.length >= 1 && refresh.length <= 2,
-    `${refresh.length} frames after the change: ${times}`,
-  );
+  // The page paints the change in one frame or more, on a slow machine during more than
+  // 150 ms. The forced capture is the first frame that comes a quiet time after the frame
+  // before it: it can make the screencast send one more frame, and then no frame comes.
+  const forced = quiet.findIndex((f, i) => i > 0 && f.t - quiet[i - 1].t >= QUIET_MS);
+  assert.ok(forced > 0, `a frame after a quiet time: ${times}`);
+  assert.ok(colors.slice(0, forced).includes('blue'), `the change is painted first: ${times}`);
+  const refresh = quiet.slice(forced);
+  assert.ok(refresh.length <= 2, `${refresh.length} frames after the quiet time: ${times}`);
+  const wait = refresh[0].t - quiet[forced - 1].t;
+  assert.ok(wait < QUIET_MS + 500, `the forced capture is not late: ${times}`);
 
   const [cut] = session.events.filter((event) => event.type === 'cut');
   const atEnd = frames.filter((f) => f.t >= cut.end - 1 && f.t <= cut.end + 100);
