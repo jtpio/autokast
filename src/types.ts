@@ -786,7 +786,9 @@ export interface VoiceOptions {
    */
   enabled?: boolean;
   /**
-   * Id of the ElevenLabs voice. Default: `JBFqnCBsd6RMkjVDRZzb` (George).
+   * Id of the ElevenLabs voice. Default: `TX3LPaxmHKxFdv7VOQHJ` (Liam), one of the
+   * default voices of ElevenLabs. ElevenLabs can remove its default voices: the render
+   * then asks for the id of a voice of your account.
    */
   voiceId?: string;
   /**

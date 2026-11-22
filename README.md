@@ -198,7 +198,9 @@ autokast render .autokast/new-task --voice -o new-task.mp4
 
 With the `subtitles` caption style, the highlight follows the voice: each word has the color
 while it is said. In a script, set `render: { voice: { enabled: true } }`. The fields
-`voiceId`, `model` and `speed` select the voice.
+`voiceId`, `model` and `speed` select the voice. The default voice is Liam, one of the
+default voices of ElevenLabs. ElevenLabs can remove its default voices: set `voiceId` to a
+voice of your account when that occurs.
 
 Each speech clip is made one time and kept in the session directory (`.autokast/<name>/voice`),
 so the next render of the same captions does not call the API. A voice does not start before

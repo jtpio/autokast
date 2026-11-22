@@ -155,7 +155,7 @@ const DEFAULTS = {
   },
   voice: {
     enabled: false,
-    voiceId: 'JBFqnCBsd6RMkjVDRZzb',
+    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',
     model: 'eleven_multilingual_v2',
     speed: 1,
   },

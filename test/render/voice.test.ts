@@ -218,7 +218,13 @@ test('an error of the API gives its message', async () => {
   fakeApi(401);
   await assert.rejects(
     loadSpeech(path.join(dir, 'failed'), ['Hello'], VOICE),
-    /ElevenLabs did not give the voice of "Hello" \(status 401\): The key is not valid\./,
+    /ElevenLabs did not give the voice of "Hello" \(status 401\): The key is not valid\.$/,
+  );
+  mock.restoreAll();
+  fakeApi(404);
+  await assert.rejects(
+    loadSpeech(path.join(dir, 'failed'), ['Hello'], VOICE),
+    /\(status 404\): .* Set voice\.voiceId to the id of a voice of your account\.$/,
   );
 });
 
@@ -286,7 +292,7 @@ test('a render with the voice has an audio stream of the length of the video', a
   });
   const captions = session.events.filter((event) => event.type === 'caption');
   assert.equal(calls.length, captions.length);
-  assert.match(calls[0].url, /text-to-speech\/JBFqnCBsd6RMkjVDRZzb\/with-timestamps/);
+  assert.match(calls[0].url, /text-to-speech\/TX3LPaxmHKxFdv7VOQHJ\/with-timestamps/);
   assert.equal(calls[0].body.model_id, 'eleven_multilingual_v2');
   assert.equal((await readdir(path.join(source, VOICE_DIR))).length, 2 * captions.length);
   const [video, audio] = streams(voiced.output);

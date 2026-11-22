@@ -126,9 +126,13 @@ async function requestSpeech(
   } | null;
   if (!response.ok || !data?.audio_base64) {
     const detail = typeof data?.detail === 'string' ? data.detail : data?.detail?.message;
+    // ElevenLabs can remove a voice, also one of its default voices.
+    const hint =
+      response.status === 404 ? ' Set voice.voiceId to the id of a voice of your account.' : '';
     throw new Error(
       `ElevenLabs did not give the voice of "${text}" (status ${response.status})` +
-        (detail ? `: ${detail}` : '.'),
+        (detail ? `: ${detail}` : '.') +
+        hint,
     );
   }
   return { audio: Buffer.from(data.audio_base64, 'base64'), alignment: data.alignment ?? null };
