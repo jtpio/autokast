@@ -78,6 +78,29 @@ test('a short caption is one page, and a long one has pages of at most two lines
   assert.ok(Math.max(...counts) - Math.min(...counts) <= 4, `pages ${counts}`);
 });
 
+test('a page ends where a speaker pauses: at the end of a sentence or at a comma', () => {
+  const texts = (text: string) =>
+    paginate(text, measure, 600, 60).map((p) => p.words.map((word) => word.text).join(' '));
+  assert.deepEqual(texts('Need two notebooks at once? Drag a tab down to split the screen.'), [
+    'Need two notebooks at once?',
+    'Drag a tab down to split the screen.',
+  ]);
+  assert.deepEqual(texts('Press Shift Enter to run it, and the table shows up right below.'), [
+    'Press Shift Enter to run it,',
+    'and the table shows up right below.',
+  ]);
+  assert.deepEqual(texts('Long notebook? Open the contents.'), [
+    'Long notebook? Open the contents.',
+  ]);
+  const first = texts('First, we load a year of weather data.');
+  assert.match(first[0], /^First, we load/, 'a comma after one word is no place for a break');
+  const strong = paginate('Open **the table, of** contents now. Then go on.', measure, 300, 60);
+  assert.deepEqual(
+    strong.flatMap((p) => p.words.filter((word) => word.strong).map((word) => word.text)),
+    ['the', 'table,', 'of'],
+  );
+});
+
 test('the lines of a page are centered, and a very long word makes the text smaller', () => {
   const [one] = paginate('Hello there', measure, 600, 60);
   assert.ok(Math.abs(one.words[0].x + one.words[1].x) < 60);

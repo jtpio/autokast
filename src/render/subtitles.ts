@@ -1,6 +1,6 @@
 import { createCanvas, type SKRSContext2D } from '@napi-rs/canvas';
 import type { CaptionEvent, Size } from '../types.ts';
-import { parseCaption, splitCaption } from './captions.ts';
+import { markedWord, parseCaption, splitCaption } from './captions.ts';
 import { mixOklab, rgba, type Rgba } from './color.ts';
 import { clamp, smoothstep } from './easing.ts';
 import type { TimedEvent } from './timeline.ts';
@@ -144,9 +144,31 @@ export function subtitleMeasure(family: string): (text: string, size: number) =>
 }
 
 /**
- * Breaks caption text into pages of at most two centered lines no wider than `maxWidth`,
- * of about the same length. A word wider than `maxWidth` makes the text of its page
- * smaller.
+ * Fewest words of a part of a sentence that can be a page of its own.
+ */
+const MIN_PHRASE = 3;
+
+/**
+ * Splits caption text into the parts that a speaker says in one go: a part ends at the
+ * end of a sentence, or at a comma, a semicolon or a colon after some words. Each word
+ * keeps its `**` marks.
+ */
+function phrases(text: string): string[] {
+  const parts: string[][] = [[]];
+  for (const word of parseCaption(text)) {
+    const part = parts[parts.length - 1];
+    part.push(markedWord(word));
+    const pause = /[,;:]$/.test(word.text) && part.length >= MIN_PHRASE;
+    if (pause || /[.?!]$/.test(word.text)) parts.push([]);
+  }
+  return parts.filter((part) => part.length).map((part) => part.join(' '));
+}
+
+/**
+ * Breaks caption text into pages of at most two centered lines no wider than `maxWidth`.
+ * A page ends where a speaker pauses, when the text has such a place: at the end of a
+ * sentence or at a comma. Text with no such place breaks into pages of about the same
+ * length. A word wider than `maxWidth` makes the text of its page smaller.
  */
 export function paginate(
   text: string,
@@ -156,11 +178,20 @@ export function paginate(
 ): SubtitlePage[] {
   const fits = (page: string) =>
     splitCaption(page, measure, maxWidth, fontSize).length <= MAX_LINES;
-  let pages = [text];
-  // The widest page text that fits: found from the top, so that the pages have about the
-  // same length. At `maxWidth` each page is one line.
-  for (let width = MAX_LINES * maxWidth; !pages.every(fits); width *= 0.94) {
-    pages = splitCaption(text, measure, width, fontSize);
+  const pages: string[] = [];
+  for (const phrase of phrases(text)) {
+    const last = pages.at(-1);
+    if (last !== undefined && fits(`${last} ${phrase}`)) {
+      pages[pages.length - 1] = `${last} ${phrase}`;
+      continue;
+    }
+    let parts = [phrase];
+    // The widest page text that fits: found from the top, so that the pages have about
+    // the same length. At `maxWidth` each page is one line.
+    for (let width = MAX_LINES * maxWidth; !parts.every(fits); width *= 0.94) {
+      parts = splitCaption(phrase, measure, width, fontSize);
+    }
+    pages.push(...parts);
   }
   return pages.map((page) => layoutPage(page, measure, maxWidth, fontSize));
 }

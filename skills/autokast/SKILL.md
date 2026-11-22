@@ -233,6 +233,10 @@ Use it only when asked for a voice, a narration or sound.
   ends: put enough action or a `cast.wait` between two captions, and end the video after the
   last voice. The render prints a warning for each voice that starts late or ends after the
   video: fix these in the script and record again.
+- For a voice that talks during the whole video, write a narration: one sentence for each
+  action, as long as the action. Where an action is shorter than its sentence, add a
+  `cast.wait`. A long caption shows as several subtitle pages, and a page ends at the end of
+  a sentence or at a comma.
 - Each speech clip is made one time and kept in `.autokast/<name>/voice`. A changed caption
   text makes one new clip. `voice.voiceId` selects the voice and `voice.speed` its speed.
 

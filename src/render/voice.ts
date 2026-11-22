@@ -27,6 +27,12 @@ const VOICE_GAP = 250;
 export const VOICE_HOLD = 400;
 
 /**
+ * A voice that starts later than this after its place gives a warning: a shorter time
+ * has no effect that a viewer can see.
+ */
+const VOICE_LATE = 150;
+
+/**
  * The speech of one caption. Times are milliseconds from the start of the audio, and
  * `words` has one entry for each word of the text.
  */
@@ -199,7 +205,7 @@ export function planVoice(
     if (!clip) return undefined;
     const wanted = caption.out + VOICE_LEAD;
     const at = Math.max(wanted, free);
-    if (at > wanted + 1) {
+    if (at > wanted + VOICE_LATE) {
       warnings.push(
         `The voice of the caption at ${seconds(caption.out)} starts ${seconds(at - wanted)} ` +
           `late, because the voice of the caption before it is not at its end. Give that ` +

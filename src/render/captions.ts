@@ -156,9 +156,16 @@ export interface CaptionLine {
   runs: CaptionRun[];
 }
 
-interface ParsedWord {
+export interface ParsedWord {
   text: string;
   runs: { text: string; strong: boolean }[];
+}
+
+/**
+ * The text of a word with its own `**` marks, so that it can be apart from the others.
+ */
+export function markedWord(word: ParsedWord): string {
+  return word.runs.map((run) => (run.strong ? `**${run.text}**` : run.text)).join('');
 }
 
 /**
@@ -209,9 +216,7 @@ export function splitCaption(
     if (fill(limit).length > count) narrow = limit;
     else wide = limit;
   }
-  const marked = (word: ParsedWord) =>
-    word.runs.map((run) => (run.strong ? `**${run.text}**` : run.text)).join('');
-  return fill(wide).map((line) => line.map(marked).join(' '));
+  return fill(wide).map((line) => line.map(markedWord).join(' '));
 }
 
 /**

@@ -761,7 +761,7 @@ export interface CaptionRenderOptions {
    * as large words over the video, as on a short vertical video: a sentence shows at
    * once, then the highlight color goes from word to word at the pace of speech. Words
    * between `**` have the highlight color all the time. Long text shows as several
-   * pages in sequence.
+   * pages in sequence, and a page ends where a speaker pauses.
    */
   style?: 'line' | 'subtitles';
   position?: 'bottom' | 'top';
