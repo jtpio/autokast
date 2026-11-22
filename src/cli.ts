@@ -24,6 +24,8 @@ Common options:
       --preset <name>     Render preset: plain, focus or showcase (other options override it)
       --preview           Fast render: half size, 30 fps, draft quality
       --size <WxH>        Output size, e.g. 1920x1080
+      --vertical          Vertical video: the long side of the size is vertical (1080x1920);
+                          record also turns the viewport (720x1280)
       --fps <n>           Output frame rate
       --background <b>    Background: a preset name, an image file or a CSS color
       --padding <n>       Space around the window: below 1 a fraction of the short side, else pixels
@@ -38,8 +40,8 @@ inspect options:
       --every <sec>       Time between tiles (default: fits 16 tiles)
       --from <sec>        Start time
       --to <sec>          End time
-      --cols <n>          Columns (default: 4)
-      --tile-width <px>   Width of one tile (default: 480)
+      --cols <n>          Columns (default: 4; 8 for a vertical video)
+      --tile-width <px>   Width of one tile (default: 480; 270 for a vertical video)
 
 For record, --set applies to the screencast definition (render options are under "render.").
 For render, frame and inspect, --set applies to the render options.
@@ -101,6 +103,7 @@ function parseFlags(args: string[]) {
       preset: { type: 'string' },
       preview: { type: 'boolean' },
       size: { type: 'string' },
+      vertical: { type: 'boolean' },
       fps: { type: 'string' },
       background: { type: 'string' },
       padding: { type: 'string' },
@@ -132,6 +135,9 @@ async function renderOptions(flags: Flags, sets: string[]): Promise<RenderOption
   }
   if (flags.size) {
     options.size = parseSize(flags.size);
+  }
+  if (flags.vertical) {
+    options.vertical = true;
   }
   if (flags.fps) {
     options.fps = Number(flags.fps);
@@ -216,6 +222,9 @@ async function commandRecord(positionals: string[], flags: Flags): Promise<void>
   }
   if (flags.headed) {
     setPath(overrides, 'browser.headless', false);
+  }
+  if (flags.vertical) {
+    overrides.vertical = true;
   }
   process.stderr.write(`Recording ${definition.name ?? script}...\n`);
   const recorded = await recordScreencast(definition, overrides);

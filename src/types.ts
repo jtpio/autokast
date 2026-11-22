@@ -339,6 +339,12 @@ export interface RecordOptions {
   url?: string;
   viewport?: Size;
   /**
+   * Records for a vertical video: the viewport turns so that its long side is vertical
+   * (1280x720 gives 720x1280), and the render does the same with the output size.
+   * Default: false.
+   */
+  vertical?: boolean;
+  /**
    * Device pixels per CSS pixel of the capture. Default: 2. Set 3 for sharp text in deep
    * zooms: the render warns when a zoom needs it.
    */
@@ -581,7 +587,8 @@ export interface Cast {
    * Shows a caption on the backdrop, one line at a time: text that is too long for one
    * line shows as several lines in sequence. Words between `**` get the emphasis: they
    * keep the full tone and the other words are dimmed. When the window fills the video
-   * (`frame.padding: 0`), the caption is over the page, on a shade.
+   * (`frame.padding: 0`), the caption is over the page, on a shade. The `captions.style`
+   * render option can show the captions as animated subtitles.
    */
   caption(text: string, options?: CaptionOptions): Promise<void>;
   spotlight(target: Target, options?: SpotlightOptions): Promise<void>;
@@ -733,6 +740,11 @@ export interface KeystrokeOptions {
   show?: 'none' | 'shortcuts' | 'all';
   position?: 'bottom' | 'top';
   /**
+   * Size multiplier of the keycaps. Default: 1. A vertical video needs about 1.5 for a
+   * phone screen.
+   */
+  size?: number;
+  /**
    * Key names on the caps: `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when
    * the render runs on macOS, else `pc`.
    */
@@ -744,9 +756,24 @@ export interface CaptionRenderOptions {
    * `false` hides the captions of the script. Default: true.
    */
   enabled?: boolean;
+  /**
+   * `line` (default) shows a caption as one line on the backdrop. `subtitles` shows it
+   * as large words over the video, a few at a time, as on a short vertical video: each
+   * word pops in at the pace of speech and has the highlight color while it is the
+   * current word. Words between `**` keep the highlight color.
+   */
+  style?: 'line' | 'subtitles';
   position?: 'bottom' | 'top';
+  /**
+   * Default: 40 for `line`, 64 for `subtitles`.
+   */
   fontSize?: number;
   fontFamily?: string;
+  /**
+   * Highlight color of the subtitles. With several colors, each caption takes the next
+   * one. Default: yellow, green, blue and pink.
+   */
+  highlight?: string | string[];
 }
 
 export interface SpotlightRenderOptions {
@@ -789,6 +816,11 @@ export interface RenderOptions {
    */
   output?: string;
   size?: Size;
+  /**
+   * Turns the output size so that its long side is vertical: 1920x1080 gives 1080x1920.
+   * Default: false.
+   */
+  vertical?: boolean;
   fps?: number;
   /**
    * A string is a preset name, the path of an image file, or a CSS color.

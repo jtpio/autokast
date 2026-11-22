@@ -39,6 +39,14 @@ import { spotlightAmount } from './effects.ts';
 import { keyCueVisible, planKeys, type KeyCue } from './keycaps.ts';
 import { bandLayout, fillEdges, stageAt, type BandLayout } from './stage.ts';
 import {
+  paginate,
+  planSubtitles,
+  subtitleMeasure,
+  subtitleVisible,
+  subtitleZone,
+  type SubtitleCue,
+} from './subtitles.ts';
+import {
   frameIndexAt,
   frameTimes,
   sessionTimeMap,
@@ -51,6 +59,12 @@ import {
  * Arrow height of a size-1 cursor in CSS pixels: the follow camera keeps this much room.
  */
 const CURSOR_EXTENT = 20;
+
+/**
+ * Longest line of a subtitle: a share of the output width, and a number of font sizes.
+ */
+const SUBTITLE_WIDTH = 0.78;
+const SUBTITLE_EMS = 14;
 
 /**
  * Everything precomputed for a render: options, layout, and per-frame camera, cursor and
@@ -68,6 +82,10 @@ export interface Scene {
   clicks: ClickMark[];
   spotlights: TimedEvent<SpotlightEvent>[];
   captions: CaptionCue[];
+  /**
+   * Pages of the captions, for the `subtitles` caption style.
+   */
+  subtitles: SubtitleCue[];
   keys: KeyCue[];
   /**
    * Addresses of the page, in output time order, for the browser frame.
@@ -122,9 +140,11 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
         (e): e is TimedEvent<CaptionEvent> => e.type === 'caption' && e.text.trim() !== '',
       )
     : [];
-  const band = captions.length ? bandLayout(layout, resolved.captions.position) : null;
+  const subtitled = resolved.captions.style === 'subtitles';
+  const band =
+    captions.length && !subtitled ? bandLayout(layout, resolved.captions.position) : null;
   const measure = captionMeasure(resolved.captions.fontFamily);
-  const { cues, groups } = planCaptions(captions, (text) =>
+  const { cues, groups } = planCaptions(subtitled ? [] : captions, (text) =>
     splitCaption(
       text,
       measure,
@@ -132,6 +152,8 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
       resolved.captions.fontSize * layout.unit,
     ),
   );
+  const subtitles = subtitled ? subtitleCues(resolved, captions) : [];
+  const clear = subtitles.length ? clearOfSubtitles(resolved, layout) : null;
   const camera = computeCamera(
     times,
     zooms,
@@ -139,7 +161,7 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
     session.viewport,
     {
       ...resolved.zoom,
-      fit: (t) => fitRegion(resolved, layout, band, bandAt(groups, t)),
+      fit: (t) => clear ?? fitRegion(resolved, layout, band, bandAt(groups, t)),
       constrain: (state, t) => {
         const clamped = clampCamera(state, session.viewport);
         if (resolved.zoom.mode === 'crop' || resolved.zoom.edges === 'keep') return clamped;
@@ -171,11 +193,51 @@ export function buildScene(session: Session, options?: RenderOptions, extraTime?
       ? events.filter((e): e is TimedEvent<SpotlightEvent> => e.type === 'spotlight')
       : [],
     captions: cues,
+    subtitles,
     keys,
     urls: events.filter((e): e is TimedEvent<UrlEvent> => e.type === 'url'),
     band,
     bandOpen: bandTrack(times, groups),
     frameIndex,
+  };
+}
+
+/**
+ * Subtitle pages of the captions: lines take most of the width of a vertical video, and
+ * no more than a short phrase in a wide one.
+ */
+function subtitleCues(
+  options: ResolvedOptions,
+  captions: TimedEvent<CaptionEvent>[],
+): SubtitleCue[] {
+  const fontSize = options.captions.fontSize * options.unit;
+  const maxWidth = Math.min(SUBTITLE_WIDTH * options.size.width, SUBTITLE_EMS * fontSize);
+  const measure = subtitleMeasure(options.captions.fontFamily);
+  return planSubtitles(captions, (text) => paginate(text, measure, maxWidth, fontSize));
+}
+
+/**
+ * Region of a zoomed shot in a video with subtitles: the part of the output (of the frame
+ * box in crop mode) on the other side of the subtitles. A zoom puts its focus there, so
+ * that the subtitles do not cover the subject.
+ */
+function clearOfSubtitles(options: ResolvedOptions, layout: Layout): FitRegion {
+  const { width: W, height: H } = options.size;
+  const c = layout.content;
+  const crop = options.zoom.mode === 'crop';
+  const zone = subtitleZone(
+    options.size,
+    options.captions.position,
+    options.captions.fontSize * layout.unit,
+  );
+  let top = crop ? c.y : 0;
+  let bottom = crop ? c.y + c.height : H;
+  if (options.captions.position === 'top') top = Math.min(Math.max(top, zone.bottom), bottom);
+  else bottom = Math.max(Math.min(bottom, zone.top), top);
+  return {
+    x: (crop ? c.width : W) / c.width,
+    y: Math.max(bottom - top, c.height / 4) / c.height,
+    dy: (c.y + c.height / 2 - (top + bottom) / 2) / layout.k,
   };
 }
 
@@ -376,6 +438,7 @@ export function frameInput(scene: Scene, i: number): Input {
       .map((event) => ({ event, amount: spotlightAmount(event, t) }))
       .filter((s) => s.amount > 0),
     captions: scene.captions.filter((c) => t >= c.textIn && t <= c.textOut + 250),
+    subtitles: scene.subtitles.filter((cue) => subtitleVisible(cue, t)),
     keys: scene.keys.filter((k) => keyCueVisible(k, t)),
     address:
       scene.options.frame.chrome === 'browser'

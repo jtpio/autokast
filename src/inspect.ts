@@ -7,7 +7,7 @@ import { outputDuration, renderFrame, toOutputTime } from './render/index.ts';
 import { buildScene } from './render/scene.ts';
 import { sharpnessWarning } from './render/sharpness.ts';
 import { loadSession } from './session.ts';
-import type { RenderOptions, Session } from './types.ts';
+import type { RenderOptions, Session, Size } from './types.ts';
 
 const exec = promisify(execFile);
 const MAX_TILES = 64;
@@ -20,6 +20,9 @@ export interface ContactSheetOptions {
   every?: number;
   from?: number;
   to?: number;
+  /**
+   * Default: 4 columns of 480 pixels; 8 columns of 270 pixels for a vertical video.
+   */
   columns?: number;
   tileWidth?: number;
   render?: RenderOptions;
@@ -84,6 +87,22 @@ async function videoDuration(file: string): Promise<number> {
   return Number(stdout.trim()) * 1000;
 }
 
+async function videoSize(file: string): Promise<Size> {
+  const { stdout } = await exec('ffprobe', [
+    '-v',
+    'error',
+    '-select_streams',
+    'v:0',
+    '-show_entries',
+    'stream=width,height',
+    '-of',
+    'csv=p=0',
+    file,
+  ]);
+  const [width, height] = stdout.trim().split(',').map(Number);
+  return { width, height };
+}
+
 async function videoFrame(file: string, time: number, width: number): Promise<Buffer> {
   const { stdout } = await exec(
     'ffmpeg',
@@ -117,22 +136,24 @@ export async function contactSheet(
   options: ContactSheetOptions,
 ): Promise<ContactSheetResult> {
   const isVideo = /\.(mp4|webm|gif|mov|mkv)$/i.test(source);
-  const tileWidth = options.tileWidth ?? 480;
-  const columns = options.columns ?? 4;
+  const session = isVideo ? null : await loadSession(source);
+  const size = session ? buildScene(session, options.render).options.size : await videoSize(source);
+  // A vertical video gives narrow tiles: more of them fit in a row.
+  const tall = size.height > size.width;
+  const tileWidth = options.tileWidth ?? (tall ? 270 : 480);
+  const columns = options.columns ?? (tall ? 8 : 4);
   let duration: number;
   let grab: (time: number) => Promise<Buffer>;
-  if (isVideo) {
-    duration = await videoDuration(source);
-    grab = (time) => videoFrame(source, time, tileWidth);
-  } else {
-    const session = await loadSession(source);
+  if (session) {
     duration = outputDuration(session);
-    const size = options.render?.size ?? session.render?.size ?? { width: 1920, height: 1080 };
     const tileSize = {
       width: tileWidth,
       height: Math.round((tileWidth * size.height) / size.width / 2) * 2,
     };
     grab = (time) => renderFrame(source, time, { ...options.render, size: tileSize });
+  } else {
+    duration = await videoDuration(source);
+    grab = (time) => videoFrame(source, time, tileWidth);
   }
 
   const from = Math.max(0, options.from ?? 0);

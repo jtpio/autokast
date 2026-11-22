@@ -51,6 +51,18 @@ describe('resolveOptions', () => {
     assert.deepEqual(options.cursor.start, { x: 400, y: 300 });
   });
 
+  it('turns the viewport and the render size for a vertical video', () => {
+    const options = resolveOptions({ vertical: true, render: { fps: 30 } });
+    assert.deepEqual(options.viewport, { width: 720, height: 1280 });
+    assert.deepEqual(options.cursor.start, { x: 360, y: 640 });
+    assert.deepEqual(options.render, { vertical: true, fps: 30 });
+    const tall = resolveOptions({ vertical: true, viewport: { width: 600, height: 900 } });
+    assert.deepEqual(tall.viewport, { width: 600, height: 900 });
+    const wide = resolveOptions({ vertical: true, render: { vertical: false } });
+    assert.deepEqual(wide.render, { vertical: false });
+    assert.equal(resolveOptions({}).render, undefined);
+  });
+
   it('rejects invalid values with a clear message', () => {
     assert.throws(() => resolveOptions({ deviceScaleFactor: 0 }), /deviceScaleFactor/);
     assert.throws(() => resolveOptions({ viewport: { width: 10.5, height: 10 } }), /viewport/);

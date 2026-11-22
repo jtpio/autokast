@@ -33,6 +33,7 @@ import {
   type KeyCue,
 } from './keycaps.ts';
 import { bandHeight, contentMap, type BandLayout, type StageTransform } from './stage.ts';
+import { drawSubtitle, subtitleZone, type SubtitleCue, type SubtitleStyle } from './subtitles.ts';
 import type { TimedEvent } from './timeline.ts';
 import { BROWSER_BAR, drawAddressLens, drawBrowserBar, type Address } from './browser.ts';
 
@@ -176,6 +177,7 @@ export interface FrameInput {
   clicks: { mark: ClickMark; age: number }[];
   spotlights: { event: TimedEvent<SpotlightEvent>; amount: number }[];
   captions: CaptionCue[];
+  subtitles?: SubtitleCue[];
   keys: KeyCue[];
   /**
    * Text of the address bar, for the browser frame.
@@ -276,6 +278,15 @@ export class Compositor {
   private overlay: Canvas | null = null;
   private overlayKey = '';
   private readonly captionStyle: CaptionStyle;
+  private readonly subtitleStyle: SubtitleStyle;
+  /**
+   * Rows that the subtitles cover, or null for the other caption style.
+   */
+  private readonly subtitleRows: { top: number; bottom: number } | null;
+  /**
+   * Resolution unit of the keycaps: the unit of the layout times their size.
+   */
+  private readonly capUnit: number;
   private readonly captionLines = new Map<CaptionCue, CaptionLine>();
   private readonly keyThemes = new Map<KeyCue, CapTheme>();
 
@@ -320,6 +331,17 @@ export class Compositor {
       fontSize: options.captions.fontSize * u,
       color: dark ? { r: 246, g: 244, b: 240, a: 0.97 } : { r: 23, g: 24, b: 28, a: 0.94 },
       unit: u,
+    };
+    const zone = subtitleZone(layout.size, options.captions.position, this.captionStyle.fontSize);
+    this.subtitleRows = options.captions.style === 'subtitles' ? zone : null;
+    this.capUnit = u * options.keystrokes.size;
+    this.subtitleStyle = {
+      family: options.captions.fontFamily,
+      x: zone.x,
+      y: zone.y,
+      highlights: options.captions.highlight.map(
+        (color) => parseColor(color) ?? { r: 255, g: 216, b: 74, a: 1 },
+      ),
     };
   }
 
@@ -470,6 +492,7 @@ export class Compositor {
     }
     for (const cue of input.captions) this.drawCaptionCue(ctx, cue, input.t);
     for (const cue of input.keys) this.drawKeys(ctx, cue, input.band, input.t);
+    for (const cue of input.subtitles ?? []) drawSubtitle(ctx, cue, this.subtitleStyle, input.t);
   }
 
   /**
@@ -628,11 +651,12 @@ export class Compositor {
   /**
    * Keycaps sit centered in the padding at rest; with the caption band open on their side
    * they move into the band, right-aligned with the frame. A window that fills the output
-   * has no padding: the keycaps then sit over the page, where the band would be.
+   * has no padding: the keycaps then sit over the page, where the band would be. With
+   * subtitles on their side, they sit next to the subtitles, away from the subject.
    */
   private keysBox(cue: KeyCue, open: number) {
     const L = this.layout;
-    const u = L.unit;
+    const u = this.capUnit;
     const caps = capLayouts(cue.keys, u, this.options.keystrokes.labels);
     const width = capsWidth(caps, u);
     const h = 40 * u;
@@ -640,6 +664,10 @@ export class Compositor {
     let x = (L.size.width - width) / 2;
     const gap = L.fullBleed ? -bandHeight(L) : L.padding;
     let y = top ? L.window.y - gap / 2 - h / 2 : L.window.y + L.window.height + gap / 2 - h / 2;
+    const rows = this.subtitleRows;
+    if (rows && (this.options.captions.position === 'top') === top) {
+      y = top ? rows.top - h : rows.bottom;
+    }
     const band = this.band;
     if (band && (band.side === 'top') === top && open > 0) {
       x += (band.right - width - x) * open;
@@ -721,7 +749,7 @@ export class Compositor {
       (this.backgroundLuminance({ x: box.x, y: box.y, w: box.width, h: box.height }) < 0.4
         ? LIGHT_CAPS
         : DARK_CAPS);
-    drawKeycaps(ctx, cue, box.caps, theme, box.x, box.y, this.layout.unit, t);
+    drawKeycaps(ctx, cue, box.caps, theme, box.x, box.y, this.capUnit, t);
   }
 
   /**

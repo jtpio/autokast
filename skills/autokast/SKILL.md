@@ -108,7 +108,7 @@ elements fails, so narrow it.
 | `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                                                                                                   |
 | `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                                                                                                |
 | `cast.spotlight(target, { duration, padding, radius })`             | Dims the page around the target for `duration` (default 2 s), to point at one element without a zoom. `padding` and `radius` shape the lit area; `wait: true` waits for the end.                                                                                |
-| `cast.caption(text, { duration })`                                  | Optional caption on the backdrop below the window. `**` around words gives them the emphasis. Use only when asked for text in the video.                                                                                                                        |
+| `cast.caption(text, { duration })`                                  | Optional caption on the backdrop below the window. `**` around words gives them the emphasis. Use only when asked for text in the video. The `captions.style` render option shows the captions as animated subtitles (see "Vertical videos and subtitles").     |
 | `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                                                                                                       |
 
 `cast.page` is the Playwright page. Use it to wait and to read state
@@ -195,6 +195,30 @@ moment has motion or something new to read.
   caption is over the bottom fifth of the page, on a shade. Keep the subject of a captioned
   shot above that part.
 
+**Vertical videos and subtitles**
+
+Use these only when asked for a vertical video (a short, a reel, a video for a phone) or for
+subtitles.
+
+- Set `vertical: true` in the script. The viewport becomes 720x1280 and the video
+  1080x1920. Explore the app at that viewport first: the layout of a narrow window is
+  different. Close the side panels that the beat does not need.
+- At rest, the text is small on a phone. Zoom for everything the viewer must read. A target
+  no wider than about 450 pixels gives text of a good size: for a wide element, give
+  `zoomTo` a rectangle of the part that matters, for example the left part of a code cell.
+  Keep typed lines below 40 characters.
+- For subtitles, set `render: { captions: { style: 'subtitles' } }`. The words of a caption
+  then come one at a time, large, over the video, and the word between `**` keeps the
+  highlight color. Write the captions as short spoken sentences of about 30 characters, one
+  for each action, and do not set `duration`: a subtitle goes away when it is said.
+- The subtitles are at about 72% of the height of a vertical video (82% of a wide one). A
+  zoomed shot puts its target above them, and the keycaps are below them. In the full view
+  they cover that part of the page.
+- The interface of a video platform covers about the bottom fifth of a vertical video and a
+  strip on the right. Keep the subject away from these parts.
+- Set `keystrokes.size` to 1.5 when the keycaps show: they are small on a phone otherwise.
+- The contact sheet of a vertical video has 8 tiles in a row.
+
 **State**
 
 - A recording must start from the same state every time. Reset the app in `setup` (URL
@@ -222,7 +246,8 @@ autokast render .autokast/demo -o demo.mp4 --background harbor
 autokast render .autokast/demo -o demo.mp4 --background wallpaper.jpg --padding 0.12
 autokast render .autokast/demo -o demo-4k.mp4 --size 3840x2160 --set encode.quality=high
 autokast render .autokast/demo -o demo.gif --size 1280x720 --fps 20
-autokast render .autokast/demo -o tall.mp4 --size 1080x1920
+autokast render .autokast/demo -o tall.mp4 --vertical
+autokast render .autokast/demo -o subtitled.mp4 --set captions.style=subtitles
 autokast render .autokast/demo --preview -o quick.mp4
 autokast render .autokast/demo -o plain.mp4 --preset plain
 ```
@@ -236,6 +261,7 @@ next to `--preset`).
 | Option                                                | Values                                                                                                                                                                                                           |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `size`, `fps`                                         | Any size; 24 to 120 fps. Default 1920x1080 at 60.                                                                                                                                                                |
+| `vertical`                                            | `true` turns the size so that its long side is vertical: 1080x1920 by default (also `--vertical`). In the script, `vertical: true` at the top level also turns the viewport.                                     |
 | `encode.quality`                                      | `draft`, `standard` (default), `high`, `max`. Also `encode.crf`, `encode.preset`.                                                                                                                                |
 | `background`                                          | `paper`, `fog`, `sage`, `dune`, `clay`, `dusk` (default), `harbor`, `graphite`, `ink`, `ember`, a CSS color, an image file, or `{ type: 'gradient' \| 'image', ... }`.                                           |
 | `frame.padding`, `frame.radius`, `frame.shadow`       | Space between the window and the edges of the video (below 1: a fraction of the short side; else pixels; 0: no background, and captions and keycaps are over the page; also `--padding`), corner radius, shadow. |
@@ -256,6 +282,9 @@ next to `--preset`).
 | `keystrokes.labels`                                   | `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when the render runs on macOS.                                                                                                                          |
 | `zoom.enabled`, `captions.enabled`                    | `false` ignores the zooms or captions of the script. `spotlight.enabled` does the same for spotlights.                                                                                                           |
 | `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                                                                                 |
+| `captions.style`                                      | `line` (default: one line on the backdrop) or `subtitles` (large animated words over the video).                                                                                                                 |
+| `captions.highlight`                                  | Subtitles: the highlight color, or a list of colors (each caption takes the next one).                                                                                                                           |
+| `keystrokes.size`                                     | Size of the keycaps (default 1).                                                                                                                                                                                 |
 
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`
 (sand), `clay` (terracotta), `dusk` (slate blue with a warm corner), `harbor` (deep teal),
