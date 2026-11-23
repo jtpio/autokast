@@ -71,7 +71,7 @@ A target is a Playwright locator, a selector, a point or a rectangle.
 | `goto(url)`, `showUrl()`                       | Opens a URL; shows the URL in the browser frame  |
 | `zoomTo(target)`, `zoom('close')`, `zoomOut()` | Camera moves                                     |
 | `wait(ms)`, `cut(fn)`, `speed(rate, fn)`       | Hold a shot, remove a wait, play a part faster   |
-| `caption(text)`                                | A caption on the backdrop                        |
+| `caption(text)`                                | A caption on the backdrop, or animated subtitles |
 | `spotlight(target)`                            | Dims the page around one element                 |
 
 Use `cast` for every action that the viewer must see. `cast.page` is the Playwright page, for
@@ -95,6 +95,9 @@ waits and for reading state.
   shadow, and an optional title bar or browser frame with an address bar that follows the
   page URL.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
+- **Vertical videos.** `--vertical` records and renders for a phone screen, and captions can
+  show as animated subtitles.
+- **Voice.** `--voice` adds a voice that says the captions, in sync with the subtitles.
 - **Frame-perfect capture.** `--set capture.mode=frame-perfect` controls the page clock, so
   page motion is exact at 60 fps on any machine. Use it for the final recording.
 - **Made for agents.** `autokast inspect` prints the timeline and writes a contact sheet, so an
@@ -115,7 +118,7 @@ A recording is stored as a session in `.autokast/<name>`. The look is decided at
 so one recording can give many videos:
 
 ```sh
-autokast render .autokast/new-task -o tall.mp4 --size 1080x1920 --background ink
+autokast render .autokast/new-task -o tall.mp4 --vertical --background ink
 autokast render .autokast/new-task -o big.mp4 --size 3840x2160 --set encode.quality=high
 autokast render .autokast/new-task -o photo.mp4 --background wallpaper.jpg --padding 0.12
 autokast render .autokast/new-task -o plain.mp4 --set cursor.tilt=0 --set zoom.follow=off
@@ -141,6 +144,70 @@ In a script, set `render: { preset: 'focus' }`. The other options at the same le
 the preset, and a preset given to `render` replaces the look of the script. To turn off one
 effect without a preset, set `zoom.enabled`, `captions.enabled` or `spotlight.enabled` to
 `false`.
+
+## Vertical videos and subtitles
+
+![Four stills of a vertical video with subtitles](docs/images/vertical.jpg)
+
+`vertical` makes a video for a phone screen: 1080x1920 by default.
+
+```sh
+autokast record new-task.ts --vertical -o new-task.mp4      # records the page at 720x1280
+autokast render .autokast/new-task --vertical -o tall.mp4   # a recording that exists
+```
+
+In a script, `vertical: true` turns the viewport so that its long side is vertical (1280x720
+becomes 720x1280), and the output size does the same. The page then has the layout of a
+narrow window and fills the video. `render: { vertical: true }` turns only the output size:
+a wide window is small in a tall video, so its text is readable only in the zoomed shots.
+
+Captions can show as subtitles, as on short videos: large words over the video. A sentence
+shows at once, then a highlight color goes from word to word at the pace of speech. Words
+between `**` have the color all the time. The color is yellow by default:
+`captions.highlight` sets it for the video, and the `highlight` option of `cast.caption`
+sets it for one caption.
+
+```ts
+export default defineScreencast({
+  vertical: true,
+  render: {
+    captions: { style: 'subtitles', highlight: '#5fe08a' },
+    keystrokes: { show: 'shortcuts', size: 1.5 },
+  },
+
+  async run(cast) {
+    await cast.caption('Write code in a **notebook**');
+    await cast.caption('Then make a chart', { highlight: '#5cc8ff' });
+  },
+});
+```
+
+The two options do not depend on each other: `--set captions.style=subtitles` also gives
+subtitles in a wide video. A zoomed shot puts its target above the subtitles, and the
+keycaps are below them. [`examples/jupyterlab-vertical.ts`](examples/jupyterlab-vertical.ts)
+is a full script.
+
+## Voice
+
+`--voice` adds a voice that says the captions of the script. The voice comes from the
+[ElevenLabs](https://elevenlabs.io) API, which needs a key in the `ELEVENLABS_API_KEY`
+environment variable.
+
+```sh
+export ELEVENLABS_API_KEY=...
+autokast render .autokast/new-task --voice -o new-task.mp4
+```
+
+With the `subtitles` caption style, the highlight follows the voice: each word has the color
+while it is said. In a script, set `render: { voice: { enabled: true } }`. The fields
+`voiceId`, `model` and `speed` select the voice. The default voice is Liam, one of the
+default voices of ElevenLabs. ElevenLabs can remove its default voices: set `voiceId` to a
+voice of your account when that occurs.
+
+Each speech clip is made one time and kept in the session directory (`.autokast/<name>/voice`),
+so the next render of the same captions does not call the API. A voice does not start before
+the voice of the caption before it ends, and the render prints a warning when a caption has
+too little time for its voice. A GIF has no sound.
 
 ## Options
 
@@ -184,7 +251,8 @@ Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill 
 
 The [`examples`](examples) directory has scripts for JupyterLab, JupyterLite and a demo app.
 Each script names the command that starts its server. The video at the top of this page is
-[`examples/jupyterlab-demo.ts`](examples/jupyterlab-demo.ts).
+[`examples/jupyterlab-demo.ts`](examples/jupyterlab-demo.ts), and
+[`examples/jupyterlab-vertical.ts`](examples/jupyterlab-vertical.ts) is its vertical version.
 
 ## Development
 

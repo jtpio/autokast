@@ -12,6 +12,7 @@ import {
   toOutputTime,
 } from '../../src/render/index.ts';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { contactSheet } from '../../src/inspect.ts';
 import { luminance, parseColor } from '../../src/render/color.ts';
 import { adaptiveClickColor } from '../../src/render/effects.ts';
 import { buildScene } from '../../src/render/scene.ts';
@@ -148,6 +149,47 @@ test('session render options sit between the defaults and the call options', () 
     type: 'solid',
     color: '#123456',
   });
+});
+
+test('vertical turns the output size so that its long side is vertical', async () => {
+  const size = (options?: Parameters<typeof buildScene>[1], base = session) =>
+    buildScene(base, { fps: 30, ...options }).options.size;
+  assert.deepEqual(size(), { width: 1920, height: 1080 });
+  assert.deepEqual(size({ vertical: true }), { width: 1080, height: 1920 });
+  assert.deepEqual(size({ vertical: true, size: { width: 1280, height: 720 } }), {
+    width: 720,
+    height: 1280,
+  });
+  assert.deepEqual(size({ vertical: true, size: { width: 1080, height: 1350 } }), {
+    width: 1080,
+    height: 1350,
+  });
+  const scripted = { ...session, render: { vertical: true } };
+  assert.deepEqual(size(undefined, scripted), { width: 1080, height: 1920 });
+  assert.deepEqual(size({ vertical: false }, scripted), { width: 1920, height: 1080 });
+  const tall = buildScene(session, { fps: 30, vertical: true });
+  assert.equal(tall.options.unit, 1);
+  assert.ok(tall.layout.window.width <= 1080 && tall.layout.window.x > 0);
+  const png = await renderFrame(path.join(dir, 'session'), 1000, {
+    vertical: true,
+    size: { width: 640, height: 360 },
+  });
+  assert.deepEqual(pngSize(png), [360, 640]);
+});
+
+test('the contact sheet of a vertical video has more and narrower tiles in a row', async () => {
+  const sheet = async (name: string, render?: Parameters<typeof buildScene>[1]) => {
+    const out = path.join(dir, name);
+    await contactSheet(path.join(dir, 'session'), { out, every: 1000, to: 8000, render });
+    return pngSize(await readFile(out));
+  };
+  const gap = 8;
+  const label = 24;
+  assert.deepEqual(await sheet('wide.png'), [4 * 480 + 5 * gap, 2 * (270 + label) + 3 * gap]);
+  assert.deepEqual(await sheet('tall.png', { vertical: true }), [
+    8 * 270 + 9 * gap,
+    480 + label + 2 * gap,
+  ]);
 });
 
 test('zooms, captions and spotlights can be turned off at render time', () => {

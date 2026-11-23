@@ -5,6 +5,7 @@ import { loadSession } from '../session.ts';
 import type { RenderOptions, RenderResult, Session } from '../types.ts';
 import { BACKGROUND_PRESETS, createBackground } from './background.ts';
 import { Compositor, restImageSize } from './compositor.ts';
+import { resolveOptions } from './defaults.ts';
 import {
   checkFfmpeg,
   encoderArgs,
@@ -19,6 +20,7 @@ import { buildScene, frameInput, frameInputs, restFrameIndices, type Scene } fro
 import { sharpnessWarning } from './sharpness.ts';
 import { FrameSource, RestFrames, upcomingFrames } from './source.ts';
 import { frameIndexAt, sessionTimeMap } from './timeline.ts';
+import { loadSpeech, VOICE_DIR, voiceTrack } from './voice.ts';
 
 export { BACKGROUND_PRESETS, RENDER_PRESETS };
 
@@ -34,6 +36,28 @@ export function outputDuration(session: Session): number {
  */
 export function toOutputTime(session: Session, recordTime: number): number {
   return sessionTimeMap(session).toOutput(recordTime);
+}
+
+/**
+ * Builds the scene. When the options ask for the voice, the scene has the speech of the
+ * captions, which this function gets first. A GIF has no sound, so it gets no voice.
+ */
+async function buildVoicedScene(
+  sessionDir: string,
+  session: Session,
+  options?: RenderOptions,
+  extraTime?: number,
+): Promise<Scene> {
+  const { voice, format } = resolveOptions(
+    session,
+    options,
+    BACKGROUND_PRESETS,
+    outputDuration(session),
+  );
+  if (!voice.enabled || format === 'gif') return buildScene(session, options, extraTime);
+  const texts = session.events.flatMap((event) => (event.type === 'caption' ? [event.text] : []));
+  const speech = await loadSpeech(path.join(sessionDir, VOICE_DIR), texts, voice);
+  return buildScene(session, options, extraTime, speech);
 }
 
 /**
@@ -98,7 +122,7 @@ async function drawFrame(
  */
 export async function render(sessionDir: string, options?: RenderOptions): Promise<RenderResult> {
   const session = await loadSession(sessionDir);
-  let scene = buildScene(session, options);
+  let scene = await buildVoicedScene(sessionDir, session, options);
   const format = scene.options.format;
   if (format === 'gif') {
     const gif = gifSettings(scene.options.size, scene.options.fps);
@@ -115,7 +139,14 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
   while (last < times.length && times[last] < opts.range.end) last++;
   const total = last - first;
 
-  const warning = sharpnessWarning(scene, first, last);
+  const warnings = [sharpnessWarning(scene, first, last), ...scene.voiceWarnings];
+  if (format === 'gif' && opts.voice.enabled) {
+    warnings.push('A GIF has no sound: the voice is not in this file.');
+  }
+  const audio =
+    total > 0
+      ? voiceTrack(scene.voice, times[first], times[first] + (total * 1000) / opts.fps)
+      : null;
   const { compositor, source, rest } = await setup(sessionDir, scene, first, last);
   const temp = format === 'gif' ? await mkdtemp(path.join(os.tmpdir(), 'autokast-')) : null;
   const target = temp ? path.join(temp, 'frames.mkv') : opts.output;
@@ -127,6 +158,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
       opts.fps,
       opts.encode,
       target,
+      audio,
     ),
   );
   try {
@@ -159,7 +191,7 @@ export async function render(sessionDir: string, options?: RenderOptions): Promi
     frames: total,
     size,
     fps: opts.fps,
-    warnings: warning ? [warning] : [],
+    warnings: warnings.filter((warning) => warning !== undefined),
   };
 }
 
@@ -172,7 +204,7 @@ export async function renderFrame(
   options?: RenderOptions,
 ): Promise<Buffer> {
   const session = await loadSession(sessionDir);
-  const scene = buildScene(session, options, Math.max(0, time));
+  const scene = await buildVoicedScene(sessionDir, session, options, Math.max(0, time));
   const i = scene.times.indexOf(Math.max(0, time));
   const { compositor, source, rest } = await setup(sessionDir, scene, i, i + 1);
   try {

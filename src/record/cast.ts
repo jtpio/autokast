@@ -468,7 +468,14 @@ export class Director implements Cast {
     return this.step(`caption(${describeText(text)})`, async () => {
       const duration =
         options.duration ?? CAST_DEFAULTS.captionBase + CAST_DEFAULTS.captionPerChar * text.length;
-      this.push({ type: 'caption', t: this.timeline.now(), duration, text });
+      const { highlight } = options;
+      this.push({
+        type: 'caption',
+        t: this.timeline.now(),
+        duration,
+        text,
+        ...(highlight ? { highlight } : {}),
+      });
       if (options.wait) {
         await this.pace.sleep(duration);
       }

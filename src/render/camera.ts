@@ -53,6 +53,11 @@ export type Constrain = (state: CameraState, t: number) => CameraState;
 export interface FitRegion {
   x: number;
   y: number;
+  /**
+   * How far the center of the region is above the center of the rest frame, in CSS
+   * pixels of the full view. A zoom puts its focus on the center of the region.
+   */
+  dy?: number;
 }
 
 /**
@@ -127,8 +132,8 @@ export function zoomTarget(
     );
   }
   scale = clamp(scale, 1, maxScale);
-  const center = { scale, cx: focus.x + focus.width / 2, cy: focus.y + focus.height / 2 };
-  return clampCamera(center, viewport);
+  const cy = focus.y + focus.height / 2 + (fit.dy ?? 0) / scale;
+  return clampCamera({ scale, cx: focus.x + focus.width / 2, cy }, viewport);
 }
 
 /**

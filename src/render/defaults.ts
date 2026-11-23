@@ -69,11 +69,20 @@ export interface ResolvedOptions {
     levels: Record<string, number>;
     motionBlur: number;
   };
-  captions: { enabled: boolean; position: 'bottom' | 'top'; fontSize: number; fontFamily: string };
+  captions: {
+    enabled: boolean;
+    style: 'line' | 'subtitles';
+    position: 'bottom' | 'top';
+    fontSize: number;
+    fontFamily: string;
+    highlight: string;
+  };
+  voice: { enabled: boolean; voiceId: string; model: string; speed: number };
   spotlight: { enabled: boolean };
   keystrokes: {
     show: 'none' | 'shortcuts' | 'all';
     position: 'bottom' | 'top';
+    size: number;
     labels: 'mac' | 'pc';
   };
   encode: Required<Omit<EncodeOptions, 'ffmpegPath' | 'crf' | 'preset'>> & EncodeOptions;
@@ -91,8 +100,14 @@ const DEFAULT_SHADOW: ResolvedShadow = {
 
 const DEFAULT_AUTO_ZOOM: ResolvedAutoZoom = { scale: 1.8, hold: 1500, mergeWindow: 2500 };
 
+/**
+ * Font size of each caption style, for a 1080-pixel output.
+ */
+const CAPTION_FONT_SIZE = { line: 40, subtitles: 64 };
+
 const DEFAULTS = {
   size: { width: 1920, height: 1080 },
+  vertical: false,
   fps: 60,
   background: DEFAULT_BACKGROUND as BackgroundOptions | string,
   frame: {
@@ -128,11 +143,25 @@ const DEFAULTS = {
     levels: { wide: 1.3, medium: 1.6, close: 2.2 } as Record<string, number>,
     motionBlur: 0,
   },
-  captions: { enabled: true, position: 'bottom', fontSize: 40, fontFamily: 'Inter Display' },
+  captions: {
+    enabled: true,
+    style: 'line',
+    position: 'bottom',
+    fontSize: undefined as number | undefined,
+    fontFamily: 'Inter Display',
+    highlight: '#ffd84a',
+  },
+  voice: {
+    enabled: false,
+    voiceId: 'TX3LPaxmHKxFdv7VOQHJ',
+    model: 'eleven_multilingual_v2',
+    speed: 1,
+  },
   spotlight: { enabled: true },
   keystrokes: {
     show: 'none',
     position: 'bottom',
+    size: 1,
     labels: process.platform === 'darwin' ? 'mac' : 'pc',
   },
   encode: { quality: 'standard', pixelFormat: 'yuv420p' },
@@ -193,6 +222,13 @@ export function normalizeBackground(
   return { type: 'solid', color: value };
 }
 
+/**
+ * The size with its long side vertical.
+ */
+function verticalSize(size: Size): Size {
+  return size.width > size.height ? { width: size.height, height: size.width } : size;
+}
+
 function evenSize(size: Size, pixelFormat: string): Size {
   const round = (v: number) => Math.max(2, Math.round(v));
   const w = round(size.width);
@@ -220,7 +256,14 @@ export function resolveOptions(
   const ext = path.extname(output).toLowerCase();
   const format = ext === '.webm' ? 'webm' : ext === '.gif' ? 'gif' : 'mp4';
   const encode = merged.encode as ResolvedOptions['encode'];
-  const size = evenSize(merged.size, encode.pixelFormat);
+  const size = evenSize(
+    merged.vertical ? verticalSize(merged.size) : merged.size,
+    encode.pixelFormat,
+  );
+  const captions = merged.captions;
+  if (captions.style !== 'line' && captions.style !== 'subtitles') {
+    throw new Error(`Unknown captions.style "${captions.style}". Use one of: line, subtitles`);
+  }
   const fps = Math.min(240, Math.max(1, merged.fps));
   const auto = merged.zoom.auto;
   const shadow = merged.frame.shadow;
@@ -244,7 +287,11 @@ export function resolveOptions(
       maxScale: Math.max(1, merged.zoom.maxScale),
       followSpeed: Math.max(0.05, merged.zoom.followSpeed),
     },
-    captions: merged.captions as ResolvedOptions['captions'],
+    captions: {
+      ...(captions as ResolvedOptions['captions']),
+      fontSize: captions.fontSize ?? CAPTION_FONT_SIZE[captions.style],
+    },
+    voice: merged.voice,
     spotlight: merged.spotlight,
     keystrokes: merged.keystrokes as ResolvedOptions['keystrokes'],
     encode,

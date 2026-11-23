@@ -94,7 +94,11 @@ function check(condition: boolean, message: string): void {
  */
 export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   const name = options.name ?? DEFAULTS.name;
-  const viewport = { ...DEFAULTS.viewport, ...options.viewport };
+  const vertical = options.vertical ?? false;
+  let viewport: Size = { ...DEFAULTS.viewport, ...options.viewport };
+  if (vertical && viewport.width > viewport.height) {
+    viewport = { width: viewport.height, height: viewport.width };
+  }
   const deviceScaleFactor = options.deviceScaleFactor ?? DEFAULTS.deviceScaleFactor;
   const capture = { ...DEFAULTS.capture, ...options.capture };
   const cursor = {
@@ -143,7 +147,7 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
     scrollBehavior: options.scrollBehavior ?? DEFAULTS.scrollBehavior,
     timeout,
     seed: options.seed ?? hashString(name),
-    render: options.render,
+    render: vertical ? { vertical: true, ...options.render } : options.render,
   };
 }
 

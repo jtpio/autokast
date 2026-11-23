@@ -9,7 +9,7 @@ export const FRAMES_DIR = 'frames';
 /**
  * Quiet time, in ms, after the last screencast frame before a forced capture.
  */
-const QUIET_MS = 200;
+export const QUIET_MS = 200;
 
 /**
  * Screencast settings. `maxWidth` and `maxHeight` are in device pixels.

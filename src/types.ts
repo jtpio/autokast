@@ -154,13 +154,14 @@ export interface SpeedEvent {
 
 /**
  * A text caption shown from `t` for `duration` milliseconds. `**` in the text starts and
- * ends the emphasis.
+ * ends the emphasis. `highlight` is the highlight color of this caption as subtitles.
  */
 export interface CaptionEvent {
   type: 'caption';
   t: number;
   duration: number;
   text: string;
+  highlight?: string;
 }
 
 /**
@@ -339,6 +340,12 @@ export interface RecordOptions {
   url?: string;
   viewport?: Size;
   /**
+   * Records for a vertical video: the viewport turns so that its long side is vertical
+   * (1280x720 gives 720x1280), and the render does the same with the output size.
+   * Default: false.
+   */
+  vertical?: boolean;
+  /**
    * Device pixels per CSS pixel of the capture. Default: 2. Set 3 for sharp text in deep
    * zooms: the render warns when a zoom needs it.
    */
@@ -485,6 +492,11 @@ export interface CaptionOptions {
    * Waits for the caption to end. Default: false.
    */
   wait?: boolean;
+  /**
+   * Highlight color of this caption with the `subtitles` style. Default: the
+   * `captions.highlight` render option.
+   */
+  highlight?: string;
 }
 
 export interface GotoOptions {
@@ -581,7 +593,8 @@ export interface Cast {
    * Shows a caption on the backdrop, one line at a time: text that is too long for one
    * line shows as several lines in sequence. Words between `**` get the emphasis: they
    * keep the full tone and the other words are dimmed. When the window fills the video
-   * (`frame.padding: 0`), the caption is over the page, on a shade.
+   * (`frame.padding: 0`), the caption is over the page, on a shade. The `captions.style`
+   * render option can show the captions as animated subtitles.
    */
   caption(text: string, options?: CaptionOptions): Promise<void>;
   spotlight(target: Target, options?: SpotlightOptions): Promise<void>;
@@ -733,6 +746,11 @@ export interface KeystrokeOptions {
   show?: 'none' | 'shortcuts' | 'all';
   position?: 'bottom' | 'top';
   /**
+   * Size multiplier of the keycaps. Default: 1. A vertical video needs about 1.5 for a
+   * phone screen.
+   */
+  size?: number;
+  /**
    * Key names on the caps: `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when
    * the render runs on macOS, else `pc`.
    */
@@ -744,9 +762,49 @@ export interface CaptionRenderOptions {
    * `false` hides the captions of the script. Default: true.
    */
   enabled?: boolean;
+  /**
+   * `line` (default) shows a caption as one line on the backdrop. `subtitles` shows it
+   * as large words over the video, as on a short vertical video: a sentence shows at
+   * once, then the highlight color goes from word to word at the pace of speech. Words
+   * between `**` have the highlight color all the time. Long text shows as several
+   * pages in sequence, and a page ends where a speaker pauses.
+   */
+  style?: 'line' | 'subtitles';
   position?: 'bottom' | 'top';
+  /**
+   * Default: 40 for `line`, 64 for `subtitles`.
+   */
   fontSize?: number;
   fontFamily?: string;
+  /**
+   * Highlight color of the subtitles. The `highlight` option of `cast.caption` gives one
+   * caption a different color. Default: `#ffd84a` (yellow).
+   */
+  highlight?: string;
+}
+
+export interface VoiceOptions {
+  /**
+   * `true` adds a voice that says the captions of the script, made with the ElevenLabs
+   * API. The key of the API comes from the `ELEVENLABS_API_KEY` environment variable.
+   * With the `subtitles` caption style, the highlight follows the voice. Each speech clip
+   * is made once and kept in the session directory. Default: false.
+   */
+  enabled?: boolean;
+  /**
+   * Id of the ElevenLabs voice. Default: `TX3LPaxmHKxFdv7VOQHJ` (Liam), one of the
+   * default voices of ElevenLabs. ElevenLabs can remove its default voices: the render
+   * then asks for the id of a voice of your account.
+   */
+  voiceId?: string;
+  /**
+   * Id of the ElevenLabs model. Default: `eleven_multilingual_v2`.
+   */
+  model?: string;
+  /**
+   * Speed of the speech: 1 is the speed of the voice. Default: 1.
+   */
+  speed?: number;
 }
 
 export interface SpotlightRenderOptions {
@@ -789,6 +847,11 @@ export interface RenderOptions {
    */
   output?: string;
   size?: Size;
+  /**
+   * Turns the output size so that its long side is vertical: 1920x1080 gives 1080x1920.
+   * Default: false.
+   */
+  vertical?: boolean;
   fps?: number;
   /**
    * A string is a preset name, the path of an image file, or a CSS color.
@@ -799,6 +862,7 @@ export interface RenderOptions {
   zoom?: ZoomRenderOptions;
   keystrokes?: KeystrokeOptions;
   captions?: CaptionRenderOptions;
+  voice?: VoiceOptions;
   spotlight?: SpotlightRenderOptions;
   encode?: EncodeOptions;
   /**
