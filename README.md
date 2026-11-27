@@ -97,9 +97,9 @@ the recording starts: use it to log in, to prepare data or to wait for the app.
   `off`, `edge` or `cursor`. The render warns when a zoom goes deeper than the capture scale
   allows.
 - **Spotlight.** `spotlight` dims the page around one element for a moment.
-- **Look.** Ten backdrops, or your own color, gradient or image. Padding, rounded corners,
-  shadow, and an optional title bar or browser frame with an address bar that follows the
-  page URL.
+- **Look.** [Ten backdrops](#render-options), or your own color, gradient or image. Padding,
+  rounded corners, shadow, and an optional title bar or browser frame with an address bar that
+  follows the page URL.
 - **Output.** Any size and frame rate, as mp4, webm or gif.
 - **Vertical videos.** `--vertical` records and renders for a phone screen, and captions can
   show as animated subtitles.
@@ -359,8 +359,18 @@ for one render.
 `background` is a backdrop name, a CSS color, the path of an image file, or an object:
 `{ type: 'image', path: 'wallpaper.jpg', blur: 12 }` or
 `{ type: 'gradient', colors: ['#1e3a5f', '#c98b6b'], angle: 135 }`. The backdrops, from light
-to dark, are `paper`, `fog`, `sage`, `dune`, `clay`, `dusk`, `harbor`, `graphite`, `ink` and
-`ember`.
+to dark:
+
+| `paper`                                                                         | `fog`                                                                      | `sage`                                                                         | `dune`                                                                  | `clay`                                                                        |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| <img src="docs/images/backdrops/paper.jpg" width="160" alt="paper: warm white"> | <img src="docs/images/backdrops/fog.jpg" width="160" alt="fog: cool gray"> | <img src="docs/images/backdrops/sage.jpg" width="160" alt="sage: muted green"> | <img src="docs/images/backdrops/dune.jpg" width="160" alt="dune: sand"> | <img src="docs/images/backdrops/clay.jpg" width="160" alt="clay: terracotta"> |
+
+| `dusk`                                                                                           | `harbor`                                                                         | `graphite`                                                                           | `ink`                                                                       | `ember`                                                                         |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| <img src="docs/images/backdrops/dusk.jpg" width="160" alt="dusk: slate blue with a warm corner"> | <img src="docs/images/backdrops/harbor.jpg" width="160" alt="harbor: deep teal"> | <img src="docs/images/backdrops/graphite.jpg" width="160" alt="graphite: dark gray"> | <img src="docs/images/backdrops/ink.jpg" width="160" alt="ink: blue-black"> | <img src="docs/images/backdrops/ember.jpg" width="160" alt="ember: dark brown"> |
+
+To see a backdrop behind your app, render one frame:
+`autokast frame .autokast/new-task --at 1 --background harbor`.
 
 #### Frame
 
@@ -514,6 +524,7 @@ Each script names the command that starts its server. The video at the top of th
 npm install
 npm test
 node src/cli.ts record examples/orbit-board.ts   # runs from source
+npm run docs:backdrops                           # draws the backdrop images of this page again
 ```
 
 See [RELEASE.md](RELEASE.md) for the release steps.
