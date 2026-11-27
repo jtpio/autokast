@@ -80,7 +80,7 @@ export interface ResolvedOptions {
   voice: { enabled: boolean; voiceId: string; model: string; speed: number };
   spotlight: { enabled: boolean };
   keystrokes: {
-    show: 'none' | 'shortcuts' | 'all';
+    show: 'none' | 'shortcuts';
     position: 'bottom' | 'top';
     size: number;
     labels: 'mac' | 'pc';

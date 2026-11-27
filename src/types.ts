@@ -745,7 +745,10 @@ export interface ZoomRenderOptions {
 }
 
 export interface KeystrokeOptions {
-  show?: 'none' | 'shortcuts' | 'all';
+  /**
+   * `shortcuts` shows the key combinations of `cast.press` as keycaps. Default: `none`.
+   */
+  show?: 'none' | 'shortcuts';
   position?: 'bottom' | 'top';
   /**
    * Size multiplier of the keycaps. Default: 1. A vertical video needs about 1.5 for a
