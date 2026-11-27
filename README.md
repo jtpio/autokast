@@ -111,6 +111,44 @@ the recording starts: use it to log in, to prepare data or to wait for the app.
 
 ![A contact sheet: a grid of stills with their times](docs/images/contact-sheet.jpg)
 
+## Demos
+
+Each video shows one feature. Its title is a link to the script that makes it.
+
+<!-- Demo videos: upload each file to GitHub and put its link in the `src` of its video. -->
+
+<table>
+  <tr>
+    <td width="35%" valign="top">
+      <video src="jupyterlab-camera.mp4" width="100%" controls></video>
+      <b><a href="examples/jupyterlab-camera.ts">Camera</a>.</b>
+      Named zoom levels, a camera that travels with the cursor, and a fixed shot.
+    </td>
+    <td width="35%" valign="top">
+      <video src="orbit-spotlight.mp4" width="100%" controls></video>
+      <b><a href="examples/orbit-spotlight.ts">Spotlight</a>.</b>
+      The page dims around one element, to point at it without a zoom.
+    </td>
+    <td width="30%" valign="top" rowspan="2">
+      <video src="jupyterlab-vertical.mp4" width="100%" controls></video>
+      <b><a href="examples/jupyterlab-vertical.ts">Vertical video</a>.</b>
+      A video for a phone screen, with animated subtitles and a voice.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <video src="orbit-browser.mp4" width="100%" controls></video>
+      <b><a href="examples/orbit-browser.ts">Browser frame</a>.</b>
+      The address bar shows a URL as typed text, then follows the page.
+    </td>
+    <td valign="top">
+      <video src="looks.mp4" width="100%" controls></video>
+      <b><a href="docs/looks.ts">Looks</a>.</b>
+      One recording and four renders: presets, backdrops and window frames.
+    </td>
+  </tr>
+</table>
+
 ## Commands
 
 ```sh
@@ -522,6 +560,8 @@ The [`examples`](examples) directory has scripts for JupyterLab, JupyterLite and
 Each script names the command that starts its server. The video at the top of this page is
 [`examples/jupyterlab-demo.ts`](examples/jupyterlab-demo.ts), and
 [`examples/jupyterlab-vertical.ts`](examples/jupyterlab-vertical.ts) is its vertical version.
+The videos of [Demos](#demos) are recordings of other scripts in this directory. The vertical
+one is rendered with `--voice`.
 
 ## Development
 
@@ -530,6 +570,7 @@ npm install
 npm test
 node src/cli.ts record examples/orbit-board.ts   # runs from source
 npm run docs:backdrops                           # draws the backdrop images of this page again
+npm run docs:looks                               # makes the video of the looks again, from that recording
 ```
 
 See [RELEASE.md](RELEASE.md) for the release steps.
