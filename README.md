@@ -85,7 +85,8 @@ waits and for reading state.
 | Named zoom levels, a fit to an element, and a camera that can follow the cursor. | Captions on the backdrop and shortcuts as keycaps. Both are optional. |
 
 - **Cursor.** A large vector cursor that takes the shape the page asks for, with click
-  effects, motion blur, and a slight tilt when it travels.
+  effects, motion blur, and a slight tilt when it travels. With `cursor.hideAfter`, it fades
+  out while it does not move, and fades in again before its next move.
 - **Camera.** `zoomTo` frames an element; `zoom` zooms on the cursor. Zoom levels have names
   (`wide`, `medium`, `close`), and a script can add its own. Each shot has a follow mode:
   `off`, `edge` or `cursor`. The render warns when a zoom goes deeper than the capture scale
@@ -122,6 +123,7 @@ autokast render .autokast/new-task -o tall.mp4 --vertical --background ink
 autokast render .autokast/new-task -o big.mp4 --size 3840x2160 --set encode.quality=high
 autokast render .autokast/new-task -o photo.mp4 --background wallpaper.jpg --padding 0.12
 autokast render .autokast/new-task -o plain.mp4 --set cursor.tilt=0 --set zoom.follow=off
+autokast render .autokast/new-task -o calm.mp4 --set cursor.hideAfter=1000
 ```
 
 `--set key=value` sets any option. Run `autokast --help` for the other flags.
@@ -242,7 +244,9 @@ between the window and the edges of the video: a fraction of the short side when
 pixels otherwise. With 0 there is no background: the window fills the video, with square
 corners, when the viewport and the output have the same aspect ratio. Captions and keycaps are
 then over the page. `zoom.levels` takes any names, for example `{ hero: 2.8 }`, and
-`cast.zoom('hero')` then uses that level.
+`cast.zoom('hero')` then uses that level. `cursor.hideAfter` is a time in milliseconds: the
+cursor fades out after that time without a move, for example while the script types, and
+fades in again before its next move. The default is 0, which keeps the cursor visible.
 
 Every option, with its meaning, is in [`src/types.ts`](src/types.ts). The skill in
 [`skills/autokast`](skills/autokast/SKILL.md) has the full workflow and the direction rules.

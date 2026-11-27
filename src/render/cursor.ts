@@ -1,4 +1,10 @@
-import type { CursorSample, CursorStyle, MouseButtonEvent, TimelineEvent } from '../types.ts';
+import type {
+  CursorSample,
+  CursorStyle,
+  MouseButtonEvent,
+  Point,
+  TimelineEvent,
+} from '../types.ts';
 import { clamp, smoothstep } from './easing.ts';
 import { springSmooth, springStep } from './spring.ts';
 import type { TimedEvent, TimeMap } from './timeline.ts';
@@ -20,7 +26,7 @@ export interface CursorTrack {
   x: Float64Array;
   y: Float64Array;
   /**
-   * 1 where the recorded cursor moved since the previous frame.
+   * 1 where the recorded cursor moved since the previous frame. A jump at a cut is not a move.
    */
   moving: Uint8Array;
   opacity: Float64Array;
@@ -214,14 +220,18 @@ export function computeCursor(
   const rawX = new Float64Array(n);
   const rawY = new Float64Array(n);
   const breaks = new Array<boolean>(n).fill(false);
+  const jumps = new Uint8Array(n);
+  const travel = (a: Point, b: Point) => Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
   for (let i = 0; i < n; i++) {
     rec[i] = map.toRecord(times[i]);
     const p = path(rec[i]);
     rawX[i] = p.x;
     rawY[i] = p.y;
     if (i > 0) {
-      breaks[i] = map.cutBetween(rec[i - 1], rec[i] + 1e-6);
-      track.moving[i] = Math.abs(p.x - rawX[i - 1]) + Math.abs(p.y - rawY[i - 1]) > 0.02 ? 1 : 0;
+      const cut = map.cutRange(rec[i - 1], rec[i] + 1e-6);
+      breaks[i] = cut !== null;
+      if (cut) jumps[i] = travel(path(cut.start), path(cut.end)) > 0.02 ? 1 : 0;
+      else track.moving[i] = travel({ x: rawX[i - 1], y: rawY[i - 1] }, p) > 0.02 ? 1 : 0;
     }
   }
 
@@ -311,15 +321,17 @@ export function computeCursor(
     if (i === 0 || track.moving[i] || pressed[i]) lastActive = times[i];
     active[i] = times[i] - lastActive < options.hideAfter ? 1 : 0;
   }
+  // A fade does not continue across a cut in which the cursor changed place: the cursor
+  // would show at a place where it is not.
   const fade = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    fade[i] = active[i]
-      ? 1
-      : Math.max(0, (i ? fade[i - 1] : 1) - (times[i] - times[i - 1]) / IDLE_FADE_OUT);
+    const before = i === 0 ? 1 : jumps[i] ? 0 : fade[i - 1];
+    fade[i] = active[i] ? 1 : Math.max(0, before - (times[i] - times[i - 1]) / IDLE_FADE_OUT);
   }
   let ahead = 0;
   for (let i = n - 1; i >= 0; i--) {
-    ahead = active[i] ? 1 : Math.max(0, ahead - (times[i + 1] - times[i]) / IDLE_FADE_IN);
+    const step = i < n - 1 ? (times[i + 1] - times[i]) / IDLE_FADE_IN : 0;
+    ahead = active[i] ? 1 : jumps[i + 1] ? 0 : Math.max(0, ahead - step);
     track.opacity[i] = smoothstep(0, 1, Math.max(fade[i], ahead));
   }
   return track;
