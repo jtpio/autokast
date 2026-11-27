@@ -45,6 +45,7 @@
     "test": "node --test \"test/**/*.test.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "docs:backdrops": "node docs/backdrops.ts",
     "prepublishOnly": "npm run build"
   },
   "engines": {
