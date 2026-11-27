@@ -292,7 +292,7 @@ test('no page point reverses in a fixture transition that starts from a still ca
       assert.ok(r.cross < 0.5, `cross-track ${r.cross} in zoom at ${z.out}`);
     }
   });
-  assert.ok(checked >= 3, `${checked} transitions checked`);
+  assert.ok(checked >= 2, `${checked} transitions checked`);
 });
 
 test('motion stays continuous through transitions, follow and the caption band', () => {

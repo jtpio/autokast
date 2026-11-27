@@ -161,8 +161,8 @@ test('follow offsets the camera a little near an edge and returns home in the mi
     [2000, 1100, 28],
     [2600, 640, 360],
     [3000, 640, 360],
-    [3500, home.cx + hw - 20, 360],
-    [5000, home.cx + hw - 20, 360],
+    [3500, home.cx + hw - 100, 360],
+    [5000, home.cx + hw - 100, 360],
     [5500, 640, 360],
   ]);
   const track = computeCamera(
