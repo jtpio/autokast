@@ -84,10 +84,13 @@ export class TimeMap {
   }
 
   /**
-   * True when a cut lies between two record times (a < b).
+   * Record time range that the cuts between two record times (a < b) remove, or null.
    */
-  cutBetween(a: number, b: number): boolean {
-    return this.segments.some((s) => s.rate === Infinity && s.recStart >= a && s.recStart < b);
+  cutRange(a: number, b: number): { start: number; end: number } | null {
+    const cuts = this.segments.filter(
+      (s) => s.rate === Infinity && s.recStart >= a && s.recStart < b,
+    );
+    return cuts.length ? { start: cuts[0].recStart, end: cuts[cuts.length - 1].recEnd } : null;
   }
 
   /**
