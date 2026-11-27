@@ -67,7 +67,7 @@ export const DEFAULT_FOCUS_PADDING = 40;
 /**
  * Follow keeps the cursor this fraction of the visible size away from the edges.
  */
-export const FOLLOW_MARGIN = 0.06;
+export const FOLLOW_MARGIN = 0.15;
 /**
  * Angular frequency of the follow spring, in 1/s (settles in about 0.7 s).
  */
