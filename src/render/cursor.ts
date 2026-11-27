@@ -20,7 +20,7 @@ export interface CursorTrack {
   x: Float64Array;
   y: Float64Array;
   /**
-   * 1 where the recorded cursor moved since the previous frame.
+   * 1 where the recorded cursor moved since the previous frame. A jump at a cut is not a move.
    */
   moving: Uint8Array;
   opacity: Float64Array;
@@ -221,7 +221,8 @@ export function computeCursor(
     rawY[i] = p.y;
     if (i > 0) {
       breaks[i] = map.cutBetween(rec[i - 1], rec[i] + 1e-6);
-      track.moving[i] = Math.abs(p.x - rawX[i - 1]) + Math.abs(p.y - rawY[i - 1]) > 0.02 ? 1 : 0;
+      const travel = Math.abs(p.x - rawX[i - 1]) + Math.abs(p.y - rawY[i - 1]);
+      track.moving[i] = !breaks[i] && travel > 0.02 ? 1 : 0;
     }
   }
 
@@ -319,7 +320,8 @@ export function computeCursor(
   }
   let ahead = 0;
   for (let i = n - 1; i >= 0; i--) {
-    ahead = active[i] ? 1 : Math.max(0, ahead - (times[i + 1] - times[i]) / IDLE_FADE_IN);
+    const step = i < n - 1 ? (times[i + 1] - times[i]) / IDLE_FADE_IN : 0;
+    ahead = active[i] ? 1 : Math.max(0, ahead - step);
     track.opacity[i] = smoothstep(0, 1, Math.max(fade[i], ahead));
   }
   return track;

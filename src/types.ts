@@ -677,7 +677,9 @@ export interface CursorRenderOptions {
    */
   pressScale?: number;
   /**
-   * Hides the cursor after this many milliseconds without a move. 0 keeps it visible.
+   * Hides the cursor after this many milliseconds without a move or a button press. The
+   * cursor fades out, and fades in again just before its next move. Default: 0, which
+   * keeps it visible.
    */
   hideAfter?: number;
   /**

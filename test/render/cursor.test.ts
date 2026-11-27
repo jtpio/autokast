@@ -97,6 +97,48 @@ test('hideAfter fades the cursor out when idle and back in before it moves', () 
   assert.ok(track.opacity[at(2950)] > 0 && track.opacity[at(2950)] < 1);
 });
 
+test('hideAfter fades the cursor out when the video ends without a move', () => {
+  const samples: CursorSample[] = [
+    { t: 0, x: 0, y: 0 },
+    { t: 200, x: 100, y: 0 },
+  ];
+  const map = new TimeMap([], 4000);
+  const times = frameTimes(4000, 60);
+  const track = computeCursor(times, samples, [], map, {
+    visible: true,
+    smoothing: 0,
+    hideAfter: 1000,
+  });
+  const at = (ms: number) => Math.round(ms * 0.06);
+  assert.ok(track.opacity.every((o) => o >= 0 && o <= 1));
+  assert.equal(track.opacity[at(1000)], 1);
+  assert.ok(track.opacity[at(1350)] > 0 && track.opacity[at(1350)] < 1);
+  assert.equal(track.opacity[at(2000)], 0);
+  assert.equal(track.opacity[times.length - 1], 0);
+});
+
+test('a cursor jump at a cut does not show a hidden cursor', () => {
+  const samples: CursorSample[] = [
+    { t: 0, x: 100, y: 100 },
+    { t: 2500, x: 100, y: 100 },
+    { t: 3000, x: 500, y: 300 },
+    { t: 6000, x: 500, y: 300 },
+    { t: 6300, x: 700, y: 300 },
+  ];
+  const events: TimelineEvent[] = [{ type: 'cut', t: 2000, end: 4000 }];
+  const map = new TimeMap(events, 7000);
+  const times = frameTimes(map.duration, 60);
+  const track = computeCursor(times, samples, events, map, {
+    visible: true,
+    smoothing: 0.3,
+    hideAfter: 1000,
+  });
+  const at = (ms: number) => Math.round(ms * 0.06);
+  assert.ok(Math.abs(track.x[at(2100)] - 500) < 1e-6);
+  for (let i = at(1600); i <= at(3700); i++) assert.equal(track.opacity[i], 0, `frame ${i}`);
+  assert.equal(track.opacity[at(4100)], 1);
+});
+
 const DEG = Math.PI / 180;
 
 /**
