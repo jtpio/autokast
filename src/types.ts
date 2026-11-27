@@ -304,8 +304,8 @@ export interface CursorMotionOptions {
 
 export interface TypingOptions {
   /**
-   * Mean delay between characters, in milliseconds. Default: 55, which gives about
-   * 13 characters per second with the pauses after spaces and punctuation.
+   * Mean delay between characters, in milliseconds. Default: 45, which gives about
+   * 16 characters per second with the pauses after spaces and punctuation.
    */
   delay?: number;
   /**
