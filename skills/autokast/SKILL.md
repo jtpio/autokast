@@ -13,10 +13,15 @@ You cannot watch a video, so the workflow depends on two commands that show you 
 `autokast inspect` (timeline as text plus a contact sheet image) and `autokast frame` (one
 still). Look at their output with your image reader after every recording.
 
+This skill has the workflow and the direction rules. The reference is the README of the
+package, `node_modules/autokast/README.md` (`README.md` in a clone): every flag, option and
+call option, with its default. Read only the section that you need: "Flags", "Recording
+options", "Render options" or "Call options".
+
 ## Setup
 
 ```sh
-npm install --save-dev autokast playwright
+npm install --save-dev autokast playwright     # needs Node.js 22.18 or later
 npx playwright install chromium                # skip when Chromium is already installed
 ffmpeg -version                                # must be on the PATH
 ```
@@ -49,7 +54,7 @@ of the autokast repository, `node src/cli.ts <command>` runs from source.
    `--set capture.mode=frame-perfect` (see "Capture modes"), and with the `deviceScaleFactor`
    of the soft-text warning if `inspect` printed one, then
    `autokast render .autokast/<name> -o demo.mp4`. Run `autokast inspect demo.mp4 -o final.png`
-   and read it as the last check.
+   and read it as the last check. `frame` reads a session only, not a video file.
 
 ## Script template
 
@@ -84,32 +89,39 @@ Scripts are TypeScript or `.mjs`, and Node runs them directly. In a project whos
 `package.json` has no `"type": "module"`, name the script `.mts`: with `.ts`, Node prints a
 module warning (it does no harm).
 
+The script takes more options at its top level, such as `colorScheme` (`light` or `dark`),
+`pacing` (the pauses around clicks and keys), `cursor.speed` and `timeout`: see "Recording
+options" in the README.
+
 ## Cast calls
 
 A target is a Playwright locator, a selector string, a point `{ x, y }` or a rectangle
 `{ x, y, width, height }` (viewport pixels). Locators are strict: a locator that matches two
 elements fails, so narrow it.
 
-| Call                                                                | Use                                                                                                                                                                                                                                                             |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                                                                                                                       |
-| `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.                                                                                                   |
-| `cast.select(target, values)`                                       | Clicks a native `<select>` and chooses options by value or label. The list does not open: the browser draws it outside the page, where the video cannot show it.                                                                                                |
-| `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                                                                                                               |
-| `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                                                                                              |
-| `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                                                                                                 |
-| `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                                                                                                                         |
-| `cast.goto(url)`                                                    | Opens a URL and removes the load from the video. With the browser frame, the address bar first shows the URL as typed text.                                                                                                                                     |
-| `cast.showUrl({ duration })`                                        | Browser frame only: makes the address bar larger for a moment (default 2 s), so that the viewer can read the URL.                                                                                                                                               |
-| `cast.zoomTo(target, { level, scale, padding, follow })`            | Frames a target. `level` is a named zoom level (`wide`, `medium`, `close`), `scale` a number; with neither, the target plus `padding` fills the view. `follow` is `off`, `edge` or `cursor`. The next action overlaps the move; `wait: true` waits for its end. |
-| `cast.zoom(level)`                                                  | Zooms on the cursor, to a level name or a number, and the camera then travels with the cursor. Use it to guide the eye across the interface without a fixed target.                                                                                             |
-| `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                                                                                                                          |
-| `cast.wait(ms)`                                                     | Hold the shot.                                                                                                                                                                                                                                                  |
-| `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                                                                                                   |
-| `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                                                                                                |
-| `cast.spotlight(target, { duration, padding, radius })`             | Dims the page around the target for `duration` (default 2 s), to point at one element without a zoom. `padding` and `radius` shape the lit area; `wait: true` waits for the end.                                                                                |
-| `cast.caption(text, { duration, highlight })`                       | Optional caption on the backdrop below the window. `**` around words gives them the emphasis. Use only when asked for text in the video. The `captions.style` render option shows the captions as animated subtitles (see "Vertical videos and subtitles").     |
-| `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                                                                                                       |
+| Call                                                                | Use                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cast.click(target)` / `dblclick` / `rightClick`                    | Cursor moves to the target, then presses. Options: `position: { x, y }` as fractions of the target, `modifiers`, `force`.                                                                                                                                                                       |
+| `cast.moveTo(target)` / `cast.hover(target, { hold: 800 })`         | Cursor move without a press. `position` may go outside 0..1, for example `{ x: 0.5, y: -0.2 }` to arrive from above a target without crossing its neighbours.                                                                                                                                   |
+| `cast.select(target, values)`                                       | Clicks a native `<select>` and chooses options by value or label. The list does not open: the browser draws it outside the page, where the video cannot show it.                                                                                                                                |
+| `cast.drag(from, to)`                                               | Press on `from`, move, release on `to`. Options: `position` (source), `toPosition` (destination), `dragDuration`.                                                                                                                                                                               |
+| `cast.scrollTo(target)` / `cast.scroll({ y: 400 }, { at: target })` | Smooth scroll. Targets off screen scroll into view by themselves before an action.                                                                                                                                                                                                              |
+| `cast.type(text, { into: target })`                                 | Human typing. Multi-line code keeps its indentation, also in editors that indent by themselves.                                                                                                                                                                                                 |
+| `cast.press('Shift+Enter')`                                         | Key combination (Playwright key names).                                                                                                                                                                                                                                                         |
+| `cast.goto(url)`                                                    | Opens a URL and removes the load from the video. With the browser frame, the address bar first shows the URL as typed text.                                                                                                                                                                     |
+| `cast.showUrl({ duration })`                                        | Browser frame only: makes the address bar larger for a moment (default 2 s), so that the viewer can read the URL.                                                                                                                                                                               |
+| `cast.zoomTo(target, { level, scale, padding, follow })`            | Frames a target. `level` is a named zoom level (`wide`, `medium`, `close`), `scale` a number; with neither, the target plus `padding` fills the view. `follow` is `off`, `edge` or `cursor`. The next action overlaps the move; `wait: true` waits for its end.                                 |
+| `cast.zoom(level)`                                                  | Zooms on the cursor, to a level name or a number, and the camera then travels with the cursor. Use it to guide the eye across the interface without a fixed target.                                                                                                                             |
+| `cast.zoomOut()`                                                    | Back to the full view.                                                                                                                                                                                                                                                                          |
+| `cast.wait(ms)`                                                     | Hold the shot.                                                                                                                                                                                                                                                                                  |
+| `cast.cut(fn)`                                                      | Run `fn` and remove that time from the video.                                                                                                                                                                                                                                                   |
+| `cast.speed(rate, fn)`                                              | Run `fn` and play that time `rate` times faster.                                                                                                                                                                                                                                                |
+| `cast.spotlight(target, { duration, padding, radius })`             | Dims the page around the target for `duration` (default 2 s), to point at one element without a zoom. `padding` and `radius` shape the lit area; `wait: true` waits for the end.                                                                                                                |
+| `cast.caption(text, { duration, highlight })`                       | Optional caption on the backdrop below the window (above it with `captions.position`). `**` around words gives them the emphasis. Use only when asked for text in the video. The `captions.style` render option shows the captions as animated subtitles (see "Vertical videos and subtitles"). |
+| `cast.marker(label)`                                                | Name a point in time; shown by `inspect`.                                                                                                                                                                                                                                                       |
+
+Most calls take more options, such as `duration`, `wait` or `timeout`: see "Call options" in
+the README.
 
 `cast.page` is the Playwright page. Use it to wait and to read state
 (`await cast.cut(() => page.getByText('Done').waitFor())`). Never click, type or scroll through
@@ -179,7 +191,8 @@ moment has motion or something new to read.
   the words that name the feature: `cast.caption('**Site Drive** shows the site files')`.
   These words keep the full tone and the other words are dimmed.
 - A new caption replaces the one on screen, so give each caption a `duration` longer than its
-  part, and let the last one stay until the end.
+  part, and let the last one stay until the end: a `duration` longer than the rest of the
+  video is correct.
 - A caption shows one line: write one short sentence of about 60 characters. Do not number
   the captions ("1.", "Step 2"). For more text, use several captions. Text that is too
   long for one line shows as several lines, one at a time, and the lines share the
@@ -191,44 +204,40 @@ moment has motion or something new to read.
   so a 16:9 target shows more of the page at its sides. Give the target the shape of the
   view, for example `{ x: 0, y: 28, width: 960, height: 472 }` with `padding: 0`, or use a
   `level`.
-- With `frame.padding: 0` the window fills the video and does not move for a caption: the
-  caption is over the bottom fifth of the page, on a shade. Keep the subject of a captioned
-  shot above that part.
+- With `frame.padding: 0`, which the `plain` and `focus` presets set, the window fills the
+  video and does not move for a caption: the caption is over the bottom fifth of the page, on
+  a shade. Keep the subject of a captioned shot above that part.
 
 **Vertical videos and subtitles**
 
 Use these only when asked for a vertical video (a short, a reel, a video for a phone) or for
 subtitles.
 
-- Set `vertical: true` in the script. The viewport becomes 720x1280 and the video
-  1080x1920. Explore the app at that viewport first: the layout of a narrow window is
-  different. Close the side panels that the beat does not need.
+- Set `vertical: true` in the script: the page is then 720x1280. Explore the app at that
+  viewport first: the layout of a narrow window is different. Close the side panels that the
+  beat does not need.
 - At rest, the text is small on a phone. Zoom for everything the viewer must read. A target
   no wider than about 450 pixels gives text of a good size: for a wide element, give
   `zoomTo` a rectangle of the part that matters, for example the left part of a code cell.
   Keep typed lines below 40 characters.
-- For subtitles, set `render: { captions: { style: 'subtitles' } }`. A caption then shows
-  as large words over the video, all at once, and the highlight color goes from word to
-  word. The word between `**` has the color all the time. The color is yellow: keep one
-  color for the full video, unless the user asks for more. Write the captions as short
-  spoken sentences of about 30 characters, one for each action, and do not set `duration`:
-  a subtitle goes away when it is said.
+- For subtitles, set `render: { captions: { style: 'subtitles' } }`. Write the captions as
+  short spoken sentences of about 30 characters, one for each action, and do not set
+  `duration`: a subtitle goes away when it is said. Keep one highlight color for the full
+  video, unless the user asks for more.
 - The subtitles are at about 72% of the height of a vertical video (82% of a wide one). A
-  zoomed shot puts its target above them, and the keycaps are below them. In the full view
-  they cover that part of the page.
+  zoomed shot puts its target above them. In the full view they cover that part of the
+  page.
 - The interface of a video platform covers about the bottom fifth of a vertical video and a
   strip on the right. Keep the subject away from these parts.
 - Set `keystrokes.size` to 1.5 when the keycaps show: they are small on a phone otherwise.
-- The contact sheet of a vertical video has 8 tiles in a row.
 
 **Voice**
 
 Use it only when asked for a voice, a narration or sound.
 
-- Render with `--voice`, or set `render: { voice: { enabled: true } }`. A voice then says each
-  caption, and with the subtitles style the highlight follows the words. It needs an
-  ElevenLabs API key in the `ELEVENLABS_API_KEY` environment variable: when it is not set,
-  ask for it.
+- Render with `--voice`, or set `render: { voice: { enabled: true } }`: a voice then says
+  each caption. It needs an ElevenLabs API key in the `ELEVENLABS_API_KEY` environment
+  variable: when it is not set, ask for it.
 - Write each caption as a sentence to say: full words, no symbols, no abbreviations.
 - A voice says about 15 characters each second. The next caption must come after the voice
   ends: put enough action or a `cast.wait` between two captions, and end the video after the
@@ -238,8 +247,8 @@ Use it only when asked for a voice, a narration or sound.
   action, as long as the action. Where an action is shorter than its sentence, add a
   `cast.wait`. A long caption shows as several subtitle pages, and a page ends at the end of
   a sentence or at a comma.
-- Each speech clip is made one time and kept in `.autokast/<name>/voice`. A changed caption
-  text makes one new clip. `voice.voiceId` selects the voice and `voice.speed` its speed.
+- The speech clips stay in the session directory, so a new render calls the API only for a
+  changed caption. For a different voice or speed, see the `voice` options in the README.
 
 **State**
 
@@ -261,55 +270,45 @@ Read the contact sheet and check:
 
 ## Look and quality
 
-Pass these to `record`, `render`, `frame` or `inspect`. None of them needs a new recording.
+The look is decided at render time. Pass these options to `render`, `frame` or `inspect`: none
+of them needs a new recording.
 
 ```sh
 autokast render .autokast/demo -o demo.mp4 --background harbor
 autokast render .autokast/demo -o demo.mp4 --background wallpaper.jpg --padding 0.12
 autokast render .autokast/demo -o demo-4k.mp4 --size 3840x2160 --set encode.quality=high
 autokast render .autokast/demo -o demo.gif --size 1280x720 --fps 20
-autokast render .autokast/demo -o tall.mp4 --vertical
-autokast render .autokast/demo -o subtitled.mp4 --set captions.style=subtitles
-autokast render .autokast/demo -o voiced.mp4 --voice
-autokast render .autokast/demo --preview -o quick.mp4
 autokast render .autokast/demo -o plain.mp4 --preset plain
+autokast render .autokast/demo -o part.mp4 --range 10:14
+autokast render .autokast/demo --preview -o quick.mp4
 ```
 
-Presets set several options at once. `plain`: the page fills the video, with no backdrop,
-zoom, caption or keycap (spotlights stay). `focus`: `plain` with the zooms. `showcase`: a
-backdrop, the browser frame, zooms, captions, spotlights and shortcut keycaps. Options at the
-same level override the preset (`render: { preset: 'focus', ... }` in the script, or flags
-next to `--preset`).
+With `record`, `--set` changes a field of the script, so a render option needs the `render.`
+prefix: `--set render.background=ink`. Without the prefix, `record` ignores the option and
+gives no error.
 
-| Option                                                | Values                                                                                                                                                                                                           |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `size`, `fps`                                         | Any size; 1 to 240 fps. Default 1920x1080 at 60. A GIF has at most 25 fps and a width of 1280 pixels.                                                                                                            |
-| `vertical`                                            | `true` turns the size so that its long side is vertical: 1080x1920 by default (also `--vertical`). In the script, `vertical: true` at the top level also turns the viewport.                                     |
-| `encode.quality`                                      | `draft`, `standard` (default), `high`, `max`. Also `encode.crf`, `encode.preset`.                                                                                                                                |
-| `background`                                          | `paper`, `fog`, `sage`, `dune`, `clay`, `dusk` (default), `harbor`, `graphite`, `ink`, `ember`, a CSS color, an image file, or `{ type: 'gradient' \| 'image', ... }`.                                           |
-| `frame.padding`, `frame.radius`, `frame.shadow`       | Space between the window and the edges of the video (below 1: a fraction of the short side; else pixels; 0: no background, and captions and keycaps are over the page; also `--padding`), corner radius, shadow. |
-| `frame.chrome`                                        | `none`, `window` (title bar; set `frame.title`) or `browser` (toolbar with an address bar that follows the page URL).                                                                                            |
-| `frame.chromeTheme`                                   | `light` (default) or `dark`, for the title bar and the browser toolbar.                                                                                                                                          |
-| `frame.address`, `frame.origin`                       | Browser frame: a fixed text for the address bar (`false` for none), and a text that replaces the origin of the page URL.                                                                                         |
-| `cursor.size`, `cursor.smoothing`, `cursor.hideAfter` | Cursor size (default 1.9), path smoothing, and the time in ms without a move after which the cursor fades out (default 0: it stays visible; use 1000 when asked to hide the idle cursor).                        |
-| `cursor.click.type`                                   | `ripple`, `ring`, `none`.                                                                                                                                                                                        |
-| `zoom.mode`                                           | `camera` (the window grows past the edges) or `crop` (zoom inside a fixed window).                                                                                                                               |
-| `zoom.easing`, `zoom.duration`, `zoom.maxScale`       | Camera feel.                                                                                                                                                                                                     |
-| `zoom.follow`, `zoom.followSpeed`                     | Follow mode for shots that do not set one (`off`, `edge`, `cursor`), and how fast the camera catches up (default 1).                                                                                             |
-| `zoom.levels`                                         | Scale of each named level, for example `--set 'zoom.levels={"close":2.6}'`. A new name adds a level for `cast.zoom` and `cast.zoomTo`.                                                                           |
-| `zoom.auto`                                           | `true` adds zooms on clicks and typing when the script has none.                                                                                                                                                 |
-| `zoom.edges`                                          | `fill` (default: a zoomed shot is all page) or `keep` (the window edge and backdrop stay in view).                                                                                                               |
-| `cursor.tilt`                                         | How much the cursor leans into its travel (default 1; 0 turns it off).                                                                                                                                           |
-| `cursor.motionBlur`, `zoom.motionBlur`                | 0 to 1. The cursor has motion blur by default; camera moves have none unless you set it.                                                                                                                         |
-| `keystrokes.show`                                     | `none` (default) or `shortcuts` (key combinations from `cast.press` as keycaps).                                                                                                                                 |
-| `keystrokes.labels`                                   | `mac` (⌘ Cmd, ⌥ Opt) or `pc` (Ctrl, Alt). Default: `mac` when the render runs on macOS.                                                                                                                          |
-| `zoom.enabled`, `captions.enabled`                    | `false` ignores the zooms or captions of the script. `spotlight.enabled` does the same for spotlights.                                                                                                           |
-| `captions.position`                                   | `bottom` (default) or `top`, for `cast.caption`.                                                                                                                                                                 |
-| `captions.style`                                      | `line` (default: one line on the backdrop) or `subtitles` (large animated words over the video).                                                                                                                 |
-| `captions.highlight`                                  | Subtitles: the highlight color (default yellow). The `highlight` option of `cast.caption` gives one caption a different color.                                                                                   |
-| `keystrokes.size`                                     | Size of the keycaps (default 1).                                                                                                                                                                                 |
-| `voice.enabled`                                       | `true` adds a voice that says the captions (also `--voice`). Needs `ELEVENLABS_API_KEY`.                                                                                                                         |
-| `voice.voiceId`, `voice.model`, `voice.speed`         | The ElevenLabs voice and model, and the speed of the speech (default 1).                                                                                                                                         |
+A preset sets a full look: `plain` (the page fills the video, and only the spotlights stay),
+`focus` (`plain` with the zooms) or `showcase` (all the effects, with a backdrop and the
+browser frame). Options from the same source override the preset: the other fields of `render`
+in the script, or `--set` next to `--preset` for `render`. The `--preset` flag of `record`
+overrides the `render` options of the script. To record with a preset and one more option, use
+`--set render.preset=plain --set render.captions.enabled=true`.
+
+The options that you set most:
+
+| Option                                                  | Values                                                                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `size`, `fps`                                           | Default 1920x1080 at 60. A GIF has at most 25 fps and a width of 1280 pixels.                                                                               |
+| `background`                                            | A backdrop name (see below), a CSS color or an image file.                                                                                                  |
+| `frame.padding`                                         | Space around the window, also `--padding`. With 0, the page fills the video.                                                                                |
+| `frame.chrome`                                          | `window` (a title bar: set `frame.title`) or `browser` (a toolbar with an address bar that follows the page URL). `frame.chromeTheme` is `light` or `dark`. |
+| `zoom.levels`                                           | Scale of each named level, for example `--set 'zoom.levels={"close":2.6}'`. A new name adds a level.                                                        |
+| `zoom.enabled`, `captions.enabled`, `spotlight.enabled` | `false` ignores the zooms, the captions or the spotlights of the script.                                                                                    |
+| `cursor.hideAfter`                                      | Use 1000 when asked to hide the idle cursor.                                                                                                                |
+| `keystrokes.show`                                       | `shortcuts` shows the key combinations of `cast.press` as keycaps.                                                                                          |
+| `encode.quality`                                        | `draft`, `standard` (default), `high`, `max`.                                                                                                               |
+
+All the other options and the defaults are in "Render options" in the README.
 
 Backdrops, light to dark: `paper` (warm white), `fog` (cool gray), `sage` (muted green), `dune`
 (sand), `clay` (terracotta), `dusk` (slate blue with a warm corner), `harbor` (deep teal),
@@ -361,9 +360,11 @@ Rules for `frame-perfect`:
 | Cursor does not move but the page changes | The script uses `page.click` or `page.keyboard`. Use `cast`.                            |
 | Blurry text when zoomed                   | Record with the `deviceScaleFactor` that the warning gives, or lower the zoom scale.    |
 | Choppy scroll, drag or page animation     | The page paints slowly on this machine. Record with `--set capture.mode=frame-perfect`. |
+| A `--set` of `record` has no effect       | It is a render option: add the `render.` prefix, or set it in the script.               |
 
 ## More
 
 - [reference/jupyterlab.md](reference/jupyterlab.md): server setup and known problems of
   JupyterLab, Notebook and JupyterLite. Read it only for these apps.
-- `dist/types.d.ts` in the autokast package: every option with its type.
+- `README.md` in the autokast package: the reference of every flag, option and call option.
+  `dist/types.d.ts` has the types.

@@ -188,6 +188,8 @@ When two sources set the same option, the last one in this list applies:
 4. `--set` of `render`, `frame` and `inspect`.
 5. The other flags.
 
+`--preset` is different: see [Presets](#presets).
+
 ## Presets
 
 A preset sets several render options at once, so that a common look takes one flag:
@@ -202,10 +204,13 @@ A preset sets several render options at once, so that a common look takes one fl
 autokast render .autokast/new-task -o plain.mp4 --preset plain
 ```
 
-In a script, set `render: { preset: 'focus' }`. The other options at the same level override
-the preset, and a preset given to `render` replaces the look of the script. To turn off one
-effect without a preset, set `zoom.enabled`, `captions.enabled` or `spotlight.enabled` to
-`false`.
+In a script, set `render: { preset: 'focus' }`. The other options from the same source
+override the preset. The `render` field of the script is one source. The flags of `render`,
+`frame` or `inspect` are a second source, so `--preset plain --set captions.enabled=true`
+shows the captions there. A preset from the flags replaces the look of the script: to add an
+option to a preset with `record`, use `--set render.preset=plain` and
+`--set render.captions.enabled=true`. To turn off one effect without a preset, set
+`zoom.enabled`, `captions.enabled` or `spotlight.enabled` to `false`.
 
 ## Vertical videos and subtitles
 
@@ -325,7 +330,7 @@ These options are at the top level of the script. A change needs a new recording
 | `cursor.start`                             | center             | Start position of the cursor, as `{ x, y }` in the viewport.                                                                                                                                                                            |
 | `cursor.speed`                             | `1`                | Speed multiplier of the cursor moves. 2 is twice as fast.                                                                                                                                                                               |
 | `cursor.curvature`                         | `0.2`              | Curvature of the cursor path, from 0 (straight) to 1.                                                                                                                                                                                   |
-| `cursor.minDuration`, `cursor.maxDuration` | `220`, `1000`      | Limits for the duration of one cursor move.                                                                                                                                                                                             |
+| `cursor.minDuration`, `cursor.maxDuration` | `220`, `1000`      | Limits for the duration of one cursor move. They apply after `cursor.speed`: for a slow cursor, also increase `cursor.maxDuration`.                                                                                                     |
 | `typing.delay`                             | `45`               | Mean delay between two characters. The default gives about 16 characters each second.                                                                                                                                                   |
 | `typing.variance`                          | `0.35`             | Random variation of the delay, from 0 to 1.                                                                                                                                                                                             |
 | `pacing.startDelay`, `pacing.endDelay`     | `400`, `900`       | Pause before the first call and after the last one.                                                                                                                                                                                     |

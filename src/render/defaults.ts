@@ -105,7 +105,10 @@ const DEFAULT_AUTO_ZOOM: ResolvedAutoZoom = { scale: 1.8, hold: 1500, mergeWindo
  */
 const CAPTION_FONT_SIZE = { line: 40, subtitles: 64 };
 
-const DEFAULTS = {
+/**
+ * Default render options.
+ */
+export const DEFAULTS = {
   size: { width: 1920, height: 1080 },
   vertical: false,
   fps: 60,
