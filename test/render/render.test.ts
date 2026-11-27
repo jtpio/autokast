@@ -232,11 +232,12 @@ test('a preset sets the look, and the options at its level override it', () => {
     render: {
       preset: 'showcase' as const,
       background: 'ink',
-      keystrokes: { show: 'all' as const },
+      frame: { chrome: 'window' as const },
     },
   };
-  assert.equal(buildScene(scripted).options.keystrokes.show, 'all');
+  assert.equal(buildScene(scripted).options.frame.chrome, 'window');
   const replaced = buildScene(scripted, { preset: 'plain' });
+  assert.equal(replaced.options.frame.chrome, 'none');
   assert.equal(replaced.options.keystrokes.show, 'none');
   assert.equal(replaced.options.frame.padding, 0);
   assert.deepEqual(replaced.options.background, { type: 'preset', name: 'ink' });

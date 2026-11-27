@@ -304,8 +304,8 @@ export interface CursorMotionOptions {
 
 export interface TypingOptions {
   /**
-   * Mean delay between characters, in milliseconds. Default: 55, which gives about
-   * 13 characters per second with the pauses after spaces and punctuation.
+   * Mean delay between characters, in milliseconds. Default: 45, which gives about
+   * 16 characters per second with the pauses after spaces and punctuation.
    */
   delay?: number;
   /**
@@ -745,7 +745,10 @@ export interface ZoomRenderOptions {
 }
 
 export interface KeystrokeOptions {
-  show?: 'none' | 'shortcuts' | 'all';
+  /**
+   * `shortcuts` shows the key combinations of `cast.press` as keycaps. Default: `none`.
+   */
+  show?: 'none' | 'shortcuts';
   position?: 'bottom' | 'top';
   /**
    * Size multiplier of the keycaps. Default: 1. A vertical video needs about 1.5 for a
