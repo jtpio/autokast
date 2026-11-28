@@ -12,6 +12,40 @@ effects, zooms that follow the action, and a framed window. There is no editor.
 
 It works with anything that opens in a browser.
 
+## Demos
+
+<table>
+  <tr>
+    <td width="35%" valign="top">
+      <video src="https://github.com/user-attachments/assets/26e3d819-ab1f-4816-ada7-fd031e3dde99" width="100%" controls></video>
+      <b><a href="examples/jupyterlab-camera.ts">Camera</a>.</b>
+      Named zoom levels, a camera that travels with the cursor, and a fixed shot.
+    </td>
+    <td width="35%" valign="top">
+      <video src="https://github.com/user-attachments/assets/efd14c84-c897-47fc-8802-567cfb163966" width="100%" controls></video>
+      <b><a href="examples/orbit-spotlight.ts">Spotlight</a>.</b>
+      The page dims around one element, to point at it without a zoom.
+    </td>
+    <td width="30%" valign="top" rowspan="2">
+      <video src="https://github.com/user-attachments/assets/9a097413-a7b0-4e89-9a65-83bd021df30d" width="100%" controls></video>
+      <b><a href="examples/jupyterlab-vertical.ts">Vertical video</a>.</b>
+      A video for a phone screen, with animated subtitles and a voice.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <video src="https://github.com/user-attachments/assets/d114bdc8-69a6-46fd-be9a-0cc773cbfdbb" width="100%" controls></video>
+      <b><a href="examples/orbit-browser.ts">Browser frame</a>.</b>
+      The address bar shows a URL as typed text, then follows the page.
+    </td>
+    <td valign="top">
+      <video src="https://github.com/user-attachments/assets/95a9e21e-09fd-4348-9a82-94f67d405a46" width="100%" controls></video>
+      <b><a href="docs/looks.ts">Looks</a>.</b>
+      One recording and four renders: presets, backdrops and window frames.
+    </td>
+  </tr>
+</table>
+
 ## Install
 
 ```sh
@@ -522,6 +556,8 @@ The [`examples`](examples) directory has scripts for JupyterLab, JupyterLite and
 Each script names the command that starts its server. The video at the top of this page is
 [`examples/jupyterlab-demo.ts`](examples/jupyterlab-demo.ts), and
 [`examples/jupyterlab-vertical.ts`](examples/jupyterlab-vertical.ts) is its vertical version.
+The videos of [Demos](#demos) are recordings of other scripts in this directory. The vertical
+one is rendered with `--voice`.
 
 ## Development
 
@@ -530,6 +566,7 @@ npm install
 npm test
 node src/cli.ts record examples/orbit-board.ts   # runs from source
 npm run docs:backdrops                           # draws the backdrop images of this page again
+npm run docs:looks                               # makes the video of the looks again, from that recording
 ```
 
 See [RELEASE.md](RELEASE.md) for the release steps.

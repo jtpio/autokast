@@ -46,6 +46,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "docs:backdrops": "node docs/backdrops.ts",
+    "docs:looks": "node docs/looks.ts",
     "prepublishOnly": "npm run build"
   },
   "engines": {
