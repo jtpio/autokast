@@ -118,10 +118,10 @@ the recording starts: use it to log in, to prepare data or to wait for the app.
 
 ## Features
 
-| Camera                                                                           | Overlays                                                              |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| ![A zoomed shot of the app](docs/images/zoom.jpg)                                | ![A caption below the window, with keycaps](docs/images/captions.jpg) |
-| Named zoom levels, a fit to an element, and a camera that can follow the cursor. | Captions on the backdrop and shortcuts as keycaps. Both are optional. |
+| Camera                                                                           | Overlays                                                              | Blur                                                                              |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| ![A zoomed shot of the app](docs/images/zoom.jpg)                                | ![A caption below the window, with keycaps](docs/images/captions.jpg) | ![A settings panel with a blurred name and email address](docs/images/blur.jpg)   |
+| Named zoom levels, a fit to an element, and a camera that can follow the cursor. | Captions on the backdrop and shortcuts as keycaps. Both are optional. | The `blur` option hides elements of the page, such as a name or an email address. |
 
 - **Cursor.** A large vector cursor that takes the shape the page asks for, with click
   effects, motion blur, and a slight tilt when it travels. With `cursor.hideAfter`, it fades
@@ -131,6 +131,8 @@ the recording starts: use it to log in, to prepare data or to wait for the app.
   `off`, `edge` or `cursor`. The render warns when a zoom goes deeper than the capture scale
   allows.
 - **Spotlight.** `spotlight` dims the page around one element for a moment.
+- **Blur.** The `blur` option hides elements of the page, such as a name or an email address,
+  behind a soft blur.
 - **Look.** [Ten backdrops](#render-options), or your own color, gradient or image. Padding,
   rounded corners, shadow, and an optional title bar or browser frame with an address bar that
   follows the page URL.
@@ -355,6 +357,7 @@ These options are at the top level of the script. A change needs a new recording
 | `vertical`                                 | `false`            | `true` turns the viewport and the output size so that the long side is vertical.                                                                                                                                                        |
 | `deviceScaleFactor`                        | `2`                | Device pixels for each CSS pixel. Set 3 for sharp text in deep zooms: the render warns when a zoom needs it.                                                                                                                            |
 | `colorScheme`                              | none               | `light` or `dark`: the color scheme that the page gets.                                                                                                                                                                                 |
+| `blur`                                     | none               | CSS selectors of the elements to blur, to hide data such as a name or an email address: `['.user-email']`. The blur stays for the whole recording, in each frame of the page, but not in a shadow DOM. For a secret, use fake data.     |
 | `sessionDir`                               | `.autokast/<name>` | Directory of the session.                                                                                                                                                                                                               |
 | `browser`                                  | `{}`               | Playwright launch options, such as `executablePath`, `channel` or `args`. `browser.contextOptions` has the options of the browser context.                                                                                              |
 | `capture.mode`                             | `realtime`         | `realtime` captures the page as it paints. `frame-perfect` controls the page clock: the recording takes longer, but page motion is exact on any machine. It needs the default headless browser: no `--headed` and no `browser.channel`. |

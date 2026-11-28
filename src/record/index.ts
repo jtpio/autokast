@@ -12,6 +12,7 @@ import type {
   SetupContext,
 } from '../types.ts';
 import { settleAnimations } from './animations.ts';
+import { blurElements } from './blur.ts';
 import { FRAMES_DIR, FrameCapture, type Capture } from './capture.ts';
 import { Director } from './cast.ts';
 import { CursorStyleProbe } from './cursor-style.ts';
@@ -187,6 +188,9 @@ export async function record(
     cursorStyle.pointer = opts.cursor.start;
     await cursorStyle.install(context);
     await context.addInitScript(noSelectPopups);
+    if (opts.blur.length > 0) {
+      await context.addInitScript(blurElements, opts.blur);
+    }
     if (framePerfect) {
       await context.addInitScript(idleCallbacksOnTimers);
     }
@@ -197,6 +201,15 @@ export async function record(
       // With BeginFrame control the page paints only when it gets frames: page loads, rAF
       // and Playwright actions all wait for them.
       pump.startFreeRun();
+    }
+    if (opts.blur.length > 0) {
+      // An invalid selector must stop the recording: its data would show in the video.
+      const invalid = await page.evaluate(blurElements, opts.blur);
+      if (invalid.length > 0) {
+        throw new Error(
+          `Invalid record options: blur has an invalid CSS selector: ${invalid.join(', ')}`,
+        );
+      }
     }
 
     if (opts.url) {

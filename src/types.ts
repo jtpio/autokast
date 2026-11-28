@@ -352,6 +352,12 @@ export interface RecordOptions {
   deviceScaleFactor?: number;
   colorScheme?: 'light' | 'dark';
   /**
+   * CSS selectors of the elements to blur, to hide data such as a name or an email
+   * address. The blur is active for the whole recording, in every frame of the page.
+   * Default: none.
+   */
+  blur?: string[];
+  /**
    * Directory for the session. Default: `.autokast/<name>`.
    */
   sessionDir?: string;

@@ -255,6 +255,9 @@ Use it only when asked for a voice, a narration or sound.
 - A recording must start from the same state every time. Reset the app in `setup` (URL
   parameters, API calls, deleting files from an earlier run).
 - Choose the theme, window size and data so the feature is the most visible thing on screen.
+- Only when asked to hide or blur data: set `blur: ['.user-email']` at the top level of the
+  script, a list of CSS selectors. Check on the contact sheet that each element is blurred.
+  For a secret such as a token, put fake data in the page instead.
 
 ## Review
 

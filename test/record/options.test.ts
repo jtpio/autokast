@@ -36,6 +36,7 @@ describe('resolveOptions', () => {
     assert.equal(options.sessionDir, path.resolve('.autokast/screencast'));
     assert.equal(options.scrollBehavior, 'smooth');
     assert.equal(options.timeout, 10_000);
+    assert.deepEqual(options.blur, []);
   });
 
   it('derives the session directory and the seed from the name', () => {
@@ -69,6 +70,8 @@ describe('resolveOptions', () => {
     assert.throws(() => resolveOptions({ cursor: { speed: 0 } }), /cursor\.speed/);
     assert.throws(() => resolveOptions({ timeout: 0 }), /timeout/);
     assert.throws(() => resolveOptions({ capture: { clockLead: -1 } }), /capture\.clockLead/);
+    assert.throws(() => resolveOptions({ blur: '.email' as unknown as string[] }), /blur/);
+    assert.throws(() => resolveOptions({ blur: ['.email', ' '] }), /blur/);
   });
 });
 
