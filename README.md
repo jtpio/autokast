@@ -84,10 +84,10 @@ the recording starts: use it to log in, to prepare data or to wait for the app.
 
 ## Features
 
-| Camera                                                                           | Overlays                                                              |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| ![A zoomed shot of the app](docs/images/zoom.jpg)                                | ![A caption below the window, with keycaps](docs/images/captions.jpg) |
-| Named zoom levels, a fit to an element, and a camera that can follow the cursor. | Captions on the backdrop and shortcuts as keycaps. Both are optional. |
+| Camera                                                                           | Overlays                                                              | Blur                                                                              |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| ![A zoomed shot of the app](docs/images/zoom.jpg)                                | ![A caption below the window, with keycaps](docs/images/captions.jpg) | ![A settings panel with a blurred name and email address](docs/images/blur.jpg)   |
+| Named zoom levels, a fit to an element, and a camera that can follow the cursor. | Captions on the backdrop and shortcuts as keycaps. Both are optional. | The `blur` option hides elements of the page, such as a name or an email address. |
 
 - **Cursor.** A large vector cursor that takes the shape the page asks for, with click
   effects, motion blur, and a slight tilt when it travels. With `cursor.hideAfter`, it fades
