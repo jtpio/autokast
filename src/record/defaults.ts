@@ -71,6 +71,7 @@ export interface ResolvedOptions {
   viewport: Size;
   deviceScaleFactor: number;
   colorScheme?: 'light' | 'dark';
+  blur: string[];
   sessionDir: string;
   browser: BrowserOptions;
   capture: Required<CaptureOptions>;
@@ -109,6 +110,7 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   const typing = { ...DEFAULTS.typing, ...options.typing };
   const pacing = { ...DEFAULTS.pacing, ...options.pacing };
   const timeout = options.timeout ?? DEFAULTS.timeout;
+  const blur = options.blur ?? [];
   const safeName = name.replace(/[^\w.-]+/g, '-').replace(/^\.+/, '') || DEFAULTS.name;
 
   check(
@@ -131,6 +133,11 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
   check(cursor.minDuration <= cursor.maxDuration, 'cursor.minDuration > cursor.maxDuration');
   check(typing.delay >= 0, 'typing.delay must not be negative');
   check(timeout > 0, `timeout must be above 0 ms, got ${timeout}`);
+  check(
+    Array.isArray(blur) &&
+      blur.every((selector) => typeof selector === 'string' && selector.trim()),
+    `blur must be a list of CSS selectors, got ${JSON.stringify(options.blur)}`,
+  );
 
   return {
     name,
@@ -138,6 +145,7 @@ export function resolveOptions(options: RecordOptions = {}): ResolvedOptions {
     viewport,
     deviceScaleFactor,
     colorScheme: options.colorScheme,
+    blur,
     sessionDir: path.resolve(options.sessionDir ?? path.join('.autokast', safeName)),
     browser: options.browser ?? {},
     capture,
