@@ -12,6 +12,44 @@ effects, zooms that follow the action, and a framed window. There is no editor.
 
 It works with anything that opens in a browser.
 
+## Demos
+
+Each video shows one feature. Its title is a link to the script that makes it.
+
+<!-- Demo videos: upload each file to GitHub and put its link in the `src` of its video. -->
+
+<table>
+  <tr>
+    <td width="35%" valign="top">
+      <video src="jupyterlab-camera.mp4" width="100%" controls></video>
+      <b><a href="examples/jupyterlab-camera.ts">Camera</a>.</b>
+      Named zoom levels, a camera that travels with the cursor, and a fixed shot.
+    </td>
+    <td width="35%" valign="top">
+      <video src="orbit-spotlight.mp4" width="100%" controls></video>
+      <b><a href="examples/orbit-spotlight.ts">Spotlight</a>.</b>
+      The page dims around one element, to point at it without a zoom.
+    </td>
+    <td width="30%" valign="top" rowspan="2">
+      <video src="jupyterlab-vertical.mp4" width="100%" controls></video>
+      <b><a href="examples/jupyterlab-vertical.ts">Vertical video</a>.</b>
+      A video for a phone screen, with animated subtitles and a voice.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <video src="orbit-browser.mp4" width="100%" controls></video>
+      <b><a href="examples/orbit-browser.ts">Browser frame</a>.</b>
+      The address bar shows a URL as typed text, then follows the page.
+    </td>
+    <td valign="top">
+      <video src="looks.mp4" width="100%" controls></video>
+      <b><a href="docs/looks.ts">Looks</a>.</b>
+      One recording and four renders: presets, backdrops and window frames.
+    </td>
+  </tr>
+</table>
+
 ## Install
 
 ```sh
@@ -110,44 +148,6 @@ the recording starts: use it to log in, to prepare data or to wait for the app.
   agent can check a video that it cannot watch.
 
 ![A contact sheet: a grid of stills with their times](docs/images/contact-sheet.jpg)
-
-## Demos
-
-Each video shows one feature. Its title is a link to the script that makes it.
-
-<!-- Demo videos: upload each file to GitHub and put its link in the `src` of its video. -->
-
-<table>
-  <tr>
-    <td width="35%" valign="top">
-      <video src="jupyterlab-camera.mp4" width="100%" controls></video>
-      <b><a href="examples/jupyterlab-camera.ts">Camera</a>.</b>
-      Named zoom levels, a camera that travels with the cursor, and a fixed shot.
-    </td>
-    <td width="35%" valign="top">
-      <video src="orbit-spotlight.mp4" width="100%" controls></video>
-      <b><a href="examples/orbit-spotlight.ts">Spotlight</a>.</b>
-      The page dims around one element, to point at it without a zoom.
-    </td>
-    <td width="30%" valign="top" rowspan="2">
-      <video src="jupyterlab-vertical.mp4" width="100%" controls></video>
-      <b><a href="examples/jupyterlab-vertical.ts">Vertical video</a>.</b>
-      A video for a phone screen, with animated subtitles and a voice.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <video src="orbit-browser.mp4" width="100%" controls></video>
-      <b><a href="examples/orbit-browser.ts">Browser frame</a>.</b>
-      The address bar shows a URL as typed text, then follows the page.
-    </td>
-    <td valign="top">
-      <video src="looks.mp4" width="100%" controls></video>
-      <b><a href="docs/looks.ts">Looks</a>.</b>
-      One recording and four renders: presets, backdrops and window frames.
-    </td>
-  </tr>
-</table>
 
 ## Commands
 
